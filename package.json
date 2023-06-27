@@ -64,7 +64,7 @@
     "typescript": "^3.8.3",
     "webpack": "^4.23.1",
     "webpack-cli": "^3.3.12",
-    "worker-loader": "^2.0.0"
+    "worker-loader": "^3.0.0"
   },
   "dependencies": {
     "cors": "^2.8.5",
