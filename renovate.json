@@ -9,4 +9,5 @@
     "matchManagers": ["github-actions"],
     "automerge": true
   },
+  ],
 }
