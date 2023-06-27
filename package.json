@@ -73,7 +73,7 @@
     "nan": "^2.17.0",
     "optimize-paths": "^1.2.2",
     "serialport": "^9.2.0",
-    "svgdom": "0.0.21",
+    "svgdom": "0.1.14",
     "wake-lock": "^0.2.0",
     "web-streams-polyfill": "^3.0.3",
     "ws": "^7.4.6",
