@@ -3,6 +3,10 @@
   "extends": [
     "config:base",
     ":automergeLinters",
-    "group:nodeJs"
-  ]
+  ],
+  "packageRules": [
+  {
+    "matchManagers": ["github-actions"],
+    "automerge": true
+  },
 }
