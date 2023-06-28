@@ -48,7 +48,7 @@
     "color-interpolate": "^1.0.5",
     "colormap": "^2.3.2",
     "css-loader": "^6.0.0",
-    "eslint": "^5.15.3",
+    "eslint": "^8.0.0",
     "eslint-plugin-react": "^7.12.4",
     "file-loader": "^6.0.0",
     "gh-pages": "^5.0.0",
