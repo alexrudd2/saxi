@@ -1,5 +1,4 @@
 const path = require('path');
-const webpack = require('webpack')
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = (env, {mode = 'development'}) => ({
@@ -40,10 +39,7 @@ module.exports = (env, {mode = 'development'}) => ({
   plugins: [
     new HtmlWebpackPlugin({
       template: './src/index.html',
-    }),
-    new webpack.DefinePlugin({
-      IS_WEB: !!process.env['IS_WEB']
-    }),
+    })
   ],
   devtool: mode === 'development' ? 'inline-source-map' : 'source-map',
 });
