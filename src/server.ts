@@ -9,7 +9,7 @@ import { EBB } from "./ebb";
 import { Device, PenMotion, Motion, Plan } from "./planning";
 import { formatDuration } from "./util";
 
-export function startServer(port: number, device: string | null = null, enableCors: boolean = false, maxPayloadSize: string = "200mb") {
+export function startServer(port: number, device: string | null = null, enableCors = false, maxPayloadSize = "200mb") {
   const app = express();
 
   app.use("/", express.static(path.join(__dirname, "..", "ui")));
@@ -147,7 +147,7 @@ export function startServer(port: number, device: string | null = null, enableCo
     executeMotion: (m: Motion, progress: [number, number]) => Promise<void>;
     postCancel: () => Promise<void>;
     postPlot: () => Promise<void>;
-  };
+  }
 
   const realPlotter: Plotter = {
     async prePlot(initialPenHeight: number): Promise<void> {
@@ -167,6 +167,7 @@ export function startServer(port: number, device: string | null = null, enableCo
   };
 
   const simPlotter: Plotter = {
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     async prePlot(_initialPenHeight: number): Promise<void> {
     },
     async executeMotion(motion: Motion, progress: [number, number]): Promise<void> {
@@ -176,6 +177,7 @@ export function startServer(port: number, device: string | null = null, enableCo
     async postCancel(): Promise<void> {
       console.log("Plot cancelled");
     },
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     async postPlot(): Promise<void> {
     },
   };
@@ -252,6 +254,7 @@ function sleep(ms: number) {
 }
 
 async function waitForEbb() {
+// eslint-disable-next-line no-constant-condition
   while (true) {
     const ebbs = await EBB.list();
     if (ebbs.length) {
