@@ -459,7 +459,7 @@ function PenHeight({state, driver}: {state: State; driver: Driver}) {
   </Fragment>;
 }
 
-function Model({state}: {state: State}) {
+function ModelOptions({state}: {state: State}) {
   const dispatch = useContext(DispatchContext);
   const setModel = (model: string) => dispatch({
     type: "SET_PLAN_OPTION",
@@ -654,7 +654,7 @@ function PlanPreview(
   }
 ) {
   const ps = state.planOptions.paperSize;
-  const Axidraw = Model(state.planOptions.model)
+  const Axidraw = Device(state.planOptions.model);
   const strokeWidth = state.visualizationOptions.penStrokeWidth * Axidraw.stepsPerMm
   const colorPathsByStrokeOrder = state.visualizationOptions.colorPathsByStrokeOrder
   const memoizedPlanPreview = useMemo(() => {
@@ -1163,7 +1163,7 @@ function Root() {
         <div className="section-body">
           <PenHeight state={state} driver={driver} />
           <MotorControl driver={driver} />
-          <Model state={state} />
+          <ModelOptions state={state} />
           <ResetToDefaultsButton />
         </div>
         <div className="section-header">paper</div>
