@@ -22,7 +22,7 @@ export class EBB {
 
   private cachedFirmwareVersion: [number, number, number] | undefined = undefined;
 
-  private model = 'v3';  // brushless pen servo
+  public model = 'v3';  // brushless pen servo
 
   public constructor(port: SerialPort, model: string | undefined = 'v3') {
     this.port = port;

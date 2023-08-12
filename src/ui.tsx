@@ -168,7 +168,7 @@ class WebSerialDriver implements Driver {
     }
 
     if (this._cancelRequested) {
-      const Axidraw = Device(this.ebb.brushless ? 'brushless' : 'v3');
+      const Axidraw = Device(this.ebb.model);
       await this.ebb.setPenHeight(Axidraw.penPctToPos(0), 1000);
       if (this.oncancelled) this.oncancelled()
     } else {
