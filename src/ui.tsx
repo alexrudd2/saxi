@@ -6,7 +6,7 @@ import colormap from "colormap"
 
 import {flattenSVG} from "flatten-svg";
 import {PaperSize} from "./paper-size";
-import {Axidraw, Plan, PlanOptions, defaultPlanOptions, XYMotion, PenMotion} from "./planning";
+import {Device, Plan, PlanOptions, defaultPlanOptions, XYMotion, PenMotion} from "./planning";
 import {formatDuration} from "./util";
 import {Vec2} from "./vec";
 
@@ -168,6 +168,7 @@ class WebSerialDriver implements Driver {
     }
 
     if (this._cancelRequested) {
+      const Axidraw = Device(this.ebb.brushless ? 'brushless' : 'v3');
       await this.ebb.setPenHeight(Axidraw.penPctToPos(0), 1000);
       if (this.oncancelled) this.oncancelled()
     } else {
@@ -354,6 +355,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
       penDownHeight: previousOptions.penDownHeight,
     };
     if (serialize(previousOptions) === serialize(newOptionsWithOldPenHeights)) {
+      const Axidraw = Device(newOptions.model);
       // The existing plan should be the same except for penup/pendown heights.
       return previousPlan.withPenHeights(
         Axidraw.penPctToPos(newOptions.penUpHeight),
@@ -419,10 +421,12 @@ const setPaths = (paths: Vec2[][]) => {
 };
 
 function PenHeight({state, driver}: {state: State; driver: Driver}) {
-  const {penUpHeight, penDownHeight} = state.planOptions;
+  const {penUpHeight, penDownHeight, model} = state.planOptions;
   const dispatch = useContext(DispatchContext);
   const setPenUpHeight = (x: number) => dispatch({type: "SET_PLAN_OPTION", value: {penUpHeight: x}});
   const setPenDownHeight = (x: number) => dispatch({type: "SET_PLAN_OPTION", value: {penDownHeight: x}});
+  const Axidraw = Device(model);
+
   const penUp = () => {
     const height = Axidraw.penPctToPos(penUpHeight);
     driver.setPenHeight(height, 1000);
@@ -453,6 +457,25 @@ function PenHeight({state, driver}: {state: State; driver: Driver}) {
       <button onClick={penDown}>pen down</button>
     </div>
   </Fragment>;
+}
+
+function Model({state}: {state: State}) {
+  const {model} = state.planOptions;
+  const dispatch = useContext(DispatchContext);
+  const setModel = (model: string) => dispatch({
+    type: "SET_PLAN_OPTION",
+    value: { model }
+  });
+  return <div className="flex">
+    <label className="flex-checkbox" title="Use brushless upgrade kit pin and power settings">
+      <input
+        type="checkbox"
+        checked={state.planOptions.model === 'brushless'}
+        onChange={(e) => setModel(!!e.target.checked ? 'brushless' : 'v3')}
+        />
+      brushless
+      </label>
+    </div>
 }
 
 function VisualizationOptions({state}: {state: State}) {
@@ -632,6 +655,7 @@ function PlanPreview(
   }
 ) {
   const ps = state.planOptions.paperSize;
+  const Axidraw = Model(state.planOptions.model)
   const strokeWidth = state.visualizationOptions.penStrokeWidth * Axidraw.stepsPerMm
   const colorPathsByStrokeOrder = state.visualizationOptions.colorPathsByStrokeOrder
   const memoizedPlanPreview = useMemo(() => {
@@ -1140,6 +1164,7 @@ function Root() {
         <div className="section-body">
           <PenHeight state={state} driver={driver} />
           <MotorControl driver={driver} />
+          <Model state={state} />
           <ResetToDefaultsButton />
         </div>
         <div className="section-header">paper</div>

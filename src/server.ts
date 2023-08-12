@@ -8,10 +8,10 @@ import { WakeLock } from "wake-lock";
 import WebSocket from "ws";
 import { SerialPortSerialPort } from "./serialport-serialport";
 import { EBB } from "./ebb";
-import { Axidraw, PenMotion, Motion, Plan } from "./planning";
+import { Device, PenMotion, Motion, Plan } from "./planning";
 import { formatDuration } from "./util";
 
-export function startServer(port: number, device: string | null = null, enableCors = false, maxPayloadSize = "200mb") {
+export function startServer(port: number, device: string | null = null, model: string | null, enableCors = false, maxPayloadSize = "200mb") {
   const app = express();
 
   app.use("/", express.static(path.join(__dirname, "..", "ui")));
@@ -158,6 +158,7 @@ export function startServer(port: number, device: string | null = null, enableCo
       await ebb.executeMotion(motion);
     },
     async postCancel(): Promise<void> {
+      const Axidraw = Device(ebb.model)
       await ebb.setPenHeight(Axidraw.penPctToPos(0), 1000);
     },
     async postPlot(): Promise<void> {
@@ -221,7 +222,7 @@ export function startServer(port: number, device: string | null = null, enableCo
   return new Promise((resolve) => {
     server.listen(port, () => {
       async function connect() {
-        for await (const d of ebbs(device)) {
+        for await (const d of ebbs(device, model)) {
           ebb = d;
           broadcast({c: "dev", p: {path: ebb ? /*ebb.port.path*/"/dev/XXX" : null}});
         }
@@ -265,7 +266,7 @@ async function waitForEbb() {
   }
 }
 
-async function* ebbs(path?: string) {
+async function* ebbs(path?: string, model?: string) {
   while (true) {
     try {
       const com = path || (await waitForEbb());
@@ -274,7 +275,7 @@ async function* ebbs(path?: string) {
       const closed = new Promise((resolve) => {
         port.addEventListener('disconnect', resolve, { once: true })
       });
-      yield new EBB(port);
+      yield new EBB(port, model);
       await closed;
       yield null;
       console.error(`Lost connection to EBB, reconnecting...`);
@@ -286,13 +287,13 @@ async function* ebbs(path?: string) {
   }
 }
 
-export async function connectEBB(path: string | undefined): Promise<EBB | null> {
+export async function connectEBB(path: string | undefined, model: string | undefined = 'v3'): Promise<EBB | null> {
   if (path) {
-    return new EBB(new SerialPortSerialPort(path));
+    return new EBB(new SerialPortSerialPort(path), model);
   } else {
     const ebbs = await listEBBs();
     if (ebbs.length) {
-      return new EBB(new SerialPortSerialPort(ebbs[0]));
+      return new EBB(new SerialPortSerialPort(ebbs[0]), model);
     } else {
       return null;
     }

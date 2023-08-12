@@ -22,6 +22,12 @@ export function cli(argv: string[]): void {
       describe: "device to connect to",
       type: "string"
     })
+    .option("model", {
+      alias: "m",
+      describe: "brushless if you have the upgrade kit",
+      choices: ['v3', 'brushless'],
+      default: 'v3'
+    })
     .command('$0', 'run the saxi web server',
       yargs => yargs
         .option("port", {
@@ -55,7 +61,7 @@ export function cli(argv: string[]): void {
             await ebb.close();
           });
         } else {
-          startServer(args.port, args.device, args["enable-cors"], args["max-payload-size"]);
+          startServer(args.port, args.device, args.model, args["enable-cors"], args["max-payload-size"]);
         }
       }
     )
@@ -230,11 +236,13 @@ export function cli(argv: string[]): void {
           minimumPathLength: args["minimum-path-length"],
           pathJoinRadius: args["path-join-radius"],
           pointJoinRadius: args["point-join-radius"],
+
+          model: args.model,
         }
         const p = replan(linesToVecs(lines), planOptions)
         console.log(`${p.motions.length} motions, estimated duration: ${formatDuration(p.duration())}`)
         console.log("connecting to plotter...")
-        const ebb = await connectEBB(args.device)
+        const ebb = await connectEBB(args.device, args.model)
         if (!ebb) {
           console.error("Couldn't connect to device!")
           process.exit(1)

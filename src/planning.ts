@@ -33,6 +33,8 @@ export interface PlanOptions {
   cropToMargins: boolean;
 
   minimumPathLength: number;
+
+  model: string;
 }
 
 export const defaultPlanOptions: PlanOptions = {
@@ -62,6 +64,8 @@ export const defaultPlanOptions: PlanOptions = {
   cropToMargins: true,
 
   minimumPathLength: 0,
+
+  model: 'v3',
 };
 
 interface Instant {
@@ -85,6 +89,11 @@ interface ToolingProfile {
   penUpPos: number; // int
   penLiftDuration: number;
   penDropDuration: number;
+}
+
+export const Device = (model?: string = 'v3') => {
+  if (model === 'brushless') return AxidrawBrushless
+  return Axidraw
 }
 
 interface Device {

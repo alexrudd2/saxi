@@ -1,6 +1,6 @@
 import * as Optimization from "optimize-paths";
 import * as Planning from "./planning";
-import {Axidraw, Plan, PlanOptions} from "./planning";
+import {Device, Plan, PlanOptions} from "./planning";
 import {dedupPoints, scaleToPaper, cropToMargins} from "./util";
 import {Vec2, vmul, vrot} from "./vec";
 
@@ -69,6 +69,8 @@ export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
     );
     console.timeEnd("joining nearby paths");
   }
+
+  const Axidraw = Device(planOptions.model)
 
   // Convert the paths to units of "steps".
   paths = paths.map((ps) => ps.map((p) => vmul(p, Axidraw.stepsPerMm)));
