@@ -91,7 +91,7 @@ interface ToolingProfile {
   penDropDuration: number;
 }
 
-export const Device = (model?: string = 'v3') => {
+export const Device = (model = 'v3') => {
   if (model === 'brushless') return AxidrawBrushless
   return Axidraw
 }

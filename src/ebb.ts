@@ -159,7 +159,7 @@ export class EBB {
   }
 
   public setPenHeight(height: number, rate: number, delay = 0): Promise<void> {
-    const pin = this.brushless ? 5 : 4;
+    const pin = this.model === 'brushless' ? 5 : 4;
     return this.command(`S2,${height},${pin},${rate},${delay}`);
   }
 

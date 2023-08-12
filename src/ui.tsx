@@ -460,7 +460,6 @@ function PenHeight({state, driver}: {state: State; driver: Driver}) {
 }
 
 function Model({state}: {state: State}) {
-  const {model} = state.planOptions;
   const dispatch = useContext(DispatchContext);
   const setModel = (model: string) => dispatch({
     type: "SET_PLAN_OPTION",
@@ -471,11 +470,11 @@ function Model({state}: {state: State}) {
       <input
         type="checkbox"
         checked={state.planOptions.model === 'brushless'}
-        onChange={(e) => setModel(!!e.target.checked ? 'brushless' : 'v3')}
-        />
+        onChange={(e) => setModel(e.target.checked ? 'brushless' : 'v3')}
+      />
       brushless
-      </label>
-    </div>
+    </label>
+  </div>
 }
 
 function VisualizationOptions({state}: {state: State}) {
