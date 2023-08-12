@@ -465,7 +465,7 @@ function ModelOptions({state}: {state: State}) {
     type: "SET_PLAN_OPTION",
     value: { model }
   });
-  return <div className="flex">
+  return <div>
     <label className="flex-checkbox" title="Use brushless upgrade kit pin and power settings">
       <input
         type="checkbox"
@@ -474,7 +474,7 @@ function ModelOptions({state}: {state: State}) {
       />
       brushless
     </label>
-  </div>
+  </div>;
 }
 
 function VisualizationOptions({state}: {state: State}) {
