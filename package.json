@@ -24,7 +24,7 @@
     "build:rpi": "tsc && npm run build:ui:esbuild",
     "build": "tsc && npm run build:ui",
     "build:ui": "webpack --mode=production",
-    "build:ui:esbuild": "node --experimental-modules build.mjs",
+    "build:ui:esbuild": "node --experimental-modules build.mjs && cp src/index.html.esbuild dist/index.html",
     "prepare": "rimraf dist && npm run build",
     "prestart": "npm run build",
     "start": "node cli.js",
