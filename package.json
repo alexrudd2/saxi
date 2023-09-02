@@ -27,8 +27,8 @@
     "prepare": "rimraf dist && npm run build",
     "prestart": "npm run build",
     "start": "node cli.js",
-    "dev": "npm run build:server && esbuild --mode=development --watch & npm start",
-    "deploy": "rimraf dist/ui && IS_WEB=1 NODE_ENV=production npm run build:ui && gh-pages --dist dist/ui",
+    "dev": "BUILD_MODE=development npm run build:ui",
+    "deploy": "rimraf dist/ui && IS_WEB=1 npm run build:ui && gh-pages --dist dist/ui",
     "test": "jest"
   },
   "author": "Jeremy Rose <nornagon@nornagon.net>",

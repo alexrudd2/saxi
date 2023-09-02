@@ -1,5 +1,4 @@
-// build.mjs
-import esbuild from 'esbuild';
+import { context, build } from 'esbuild';
 import inlineWorker from 'esbuild-plugin-inline-worker';
 import { htmlPlugin as html } from '@craftamap/esbuild-plugin-html';
 
@@ -13,9 +12,7 @@ const buildOptions = {
   logLevel: 'debug',
   outdir: 'dist/ui',
   tsconfig: 'tsconfig.web.json',
-  loader: {
-    '.svg': 'file',
-  },
+  loader: { '.svg': 'file' },
   define: {
     IS_WEB: process.env.IS_WEB ?? '0',
   },
@@ -34,7 +31,18 @@ const buildOptions = {
 
 (async () => {
   try {
-    await esbuild.build(buildOptions);
+    if (process.env.BUILD_MODE === 'development') {
+      // enables live-reloading
+      const ctx = await context({
+        ...buildOptions, 
+        banner: { js: "new EventSource('/esbuild').addEventListener('change', () => location.reload());" }
+      })
+      await ctx.watch();
+      const { host, port } = await ctx.serve({servedir: 'dist/ui', port: 9080 });
+      console.log(`http://${host}:${port}`)
+    } else {
+      await build(buildOptions);
+    }
   } catch (error) {
     console.error(error);
     process.exit(1);
