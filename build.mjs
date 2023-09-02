@@ -1,23 +1,35 @@
 // build.mjs
 import esbuild from 'esbuild';
-import inlineWorkerPlugin from 'esbuild-plugin-inline-worker';
-import svgPlugin from 'esbuild-plugin-svg'
+import inlineWorker from 'esbuild-plugin-inline-worker';
+import { htmlPlugin as html } from '@craftamap/esbuild-plugin-html';
 
 const buildOptions = {
-  entryPoints: ['src/ui.tsx'], // Entry point
+  entryPoints: ['src/ui.tsx'],
   bundle: true,
-  platform: 'browser', // Specify the platform
-  target: 'es2020', // Specify the target environment
-  outfile: 'dist/ui/main.js', // Output file
-  tsconfig: 'tsconfig.web.json', // TypeScript config file
-  jsxFactory: 'React.createElement', // Specify the JSX factory function
-  jsxFragment: 'React.Fragment', // Specify the JSX fragment component
-  sourcemap: true, // Generate source maps
-  define: {
-    IS_WEB: '0', // Define IS_WEB as 0
+  platform: 'browser',
+  target: 'es2020',
+  sourcemap: true,
+  metafile: true,
+  logLevel: 'debug',
+  outdir: 'dist/ui',
+  tsconfig: 'tsconfig.web.json',
+  loader: {
+    '.svg': 'file',
   },
-  plugins: [inlineWorkerPlugin(), svgPlugin()], // Add the inline worker plugin
-  resolveExtensions: ['.js', '.ts', '.tsx', '.json', '.svg', '.worker.js'], // Specify how to resolve extensions
+  define: {
+    IS_WEB: process.env.IS_WEB ?? '0',
+  },
+  plugins: [ inlineWorker(),
+    html({ 
+      files: [{
+        entryPoints: [ 'src/ui.tsx'],
+        filename: 'index.html',
+        htmlTemplate: 'src/index.html',
+        scriptLoading: 'defer',
+      }]
+    })
+  ],
+  resolveExtensions: ['.js', '.ts', '.tsx', '.svg', '.worker.js'],
 };
 
 (async () => {
