@@ -36,6 +36,7 @@
   "license": "AGPL-3.0-only",
   "devDependencies": {
     "@craftamap/esbuild-plugin-html": "^0.6.1",
+    "@esbuild/linux-arm": "^0.19.2",
     "@rehooks/component-size": "^1.0.2",
     "@types/cors": "^2.8.4",
     "@types/express": "^4.16.1",
