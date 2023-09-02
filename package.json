@@ -23,7 +23,7 @@
     "lint": "eslint --cache --ext .ts,.tsx src",
     "build": "npm run build:server && npm run build:ui",
     "build:server": "tsc",
-    "build:ui": "node --experimental-modules build.mjs && cp src/index.html.esbuild dist/index.html",
+    "build:ui": "node --experimental-modules build.mjs && cp src/index.html dist/",
     "prepare": "rimraf dist && npm run build",
     "prestart": "npm run build",
     "start": "node cli.js",
