@@ -168,7 +168,8 @@ class WebSerialDriver implements Driver {
     }
 
     if (this._cancelRequested) {
-      await this.ebb.setPenHeight(Device.Axidraw.penPctToPos(0), 1000);
+      const Axidraw = Device(this.ebb.model);
+      await this.ebb.setPenHeight(Axidraw.penPctToPos(0), 1000);
       if (this.oncancelled) this.oncancelled()
     } else {
       if (this.onfinished) this.onfinished()
@@ -240,7 +241,7 @@ class SaxiDriver implements Driver {
 
     const websocketProtocol = document.location.protocol === "https:" ? "wss" : "ws";
     this.socket = new WebSocket(`${websocketProtocol}://${document.location.host}/chat`);
-    
+
     this.socket.addEventListener("open", () => {
       console.log(`Connected to EBB server.`);
       this.connected = true;
@@ -354,10 +355,11 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
       penDownHeight: previousOptions.penDownHeight,
     };
     if (serialize(previousOptions) === serialize(newOptionsWithOldPenHeights)) {
+      const Axidraw = Device(newOptions.model);
       // The existing plan should be the same except for penup/pendown heights.
       return previousPlan.withPenHeights(
-        Device.Axidraw.penPctToPos(newOptions.penUpHeight),
-        Device.Axidraw.penPctToPos(newOptions.penDownHeight)
+        Axidraw.penPctToPos(newOptions.penUpHeight),
+        Axidraw.penPctToPos(newOptions.penDownHeight)
       );
     }
   }
@@ -419,16 +421,18 @@ const setPaths = (paths: Vec2[][]) => {
 };
 
 function PenHeight({state, driver}: {state: State; driver: Driver}) {
-  const {penUpHeight, penDownHeight} = state.planOptions;
+  const {penUpHeight, penDownHeight, model} = state.planOptions;
   const dispatch = useContext(DispatchContext);
   const setPenUpHeight = (x: number) => dispatch({type: "SET_PLAN_OPTION", value: {penUpHeight: x}});
   const setPenDownHeight = (x: number) => dispatch({type: "SET_PLAN_OPTION", value: {penDownHeight: x}});
+  const Axidraw = Device(model);
+
   const penUp = () => {
-    const height = Device.Axidraw.penPctToPos(penUpHeight);
+    const height = Axidraw.penPctToPos(penUpHeight);
     driver.setPenHeight(height, 1000);
   };
   const penDown = () => {
-    const height = Device.Axidraw.penPctToPos(penDownHeight);
+    const height = Axidraw.penPctToPos(penDownHeight);
     driver.setPenHeight(height, 1000);
   };
   return <Fragment>
@@ -453,6 +457,24 @@ function PenHeight({state, driver}: {state: State; driver: Driver}) {
       <button onClick={penDown}>pen down</button>
     </div>
   </Fragment>;
+}
+
+function ModelOptions({state}: {state: State}) {
+  const dispatch = useContext(DispatchContext);
+  const setModel = (model: string) => dispatch({
+    type: "SET_PLAN_OPTION",
+    value: { model }
+  });
+  return <div>
+    <label className="flex-checkbox" title="Use brushless upgrade kit pin and power settings">
+      <input
+        type="checkbox"
+        checked={state.planOptions.model === 'brushless'}
+        onChange={(e) => setModel(e.target.checked ? 'brushless' : 'v3')}
+      />
+      brushless
+    </label>
+  </div>;
 }
 
 function VisualizationOptions({state}: {state: State}) {
@@ -593,7 +615,7 @@ function PlanStatistics({plan}: {plan: Plan}) {
 
 function TimeLeft({plan, progress, currentMotionStartedTime, paused}: {
   plan: Plan;
-  progress: number | null; 
+  progress: number | null;
   currentMotionStartedTime: Date | null;
   paused: boolean;
 }) {
@@ -632,7 +654,8 @@ function PlanPreview(
   }
 ) {
   const ps = state.planOptions.paperSize;
-  const strokeWidth = state.visualizationOptions.penStrokeWidth * Device.Axidraw.stepsPerMm
+  const Axidraw = Device(state.planOptions.model);
+  const strokeWidth = state.visualizationOptions.penStrokeWidth * Axidraw.stepsPerMm
   const colorPathsByStrokeOrder = state.visualizationOptions.colorPathsByStrokeOrder
   const memoizedPlanPreview = useMemo(() => {
     if (plan) {
@@ -644,7 +667,7 @@ function PlanPreview(
           return m.blocks.map((b) => b.p1).concat([m.p2]);
         } else { return []; }
       }).filter((m) => m.length);
-      return <g transform={`scale(${1 / Device.Axidraw.stepsPerMm})`}>
+      return <g transform={`scale(${1 / Axidraw.stepsPerMm})`}>
         {lines.map((line, i) =>
           <path
             key={i}
@@ -692,7 +715,7 @@ function PlanPreview(
     const pos = motion instanceof XYMotion
       ? motion.instant(Math.min(microprogress / 1000, motion.duration())).p
       : (plan.motion(state.progress - 1) as XYMotion).p2;
-    const {stepsPerMm} = Device.Axidraw;
+    const {stepsPerMm} = Axidraw;
     const posXMm = pos.x / stepsPerMm;
     const posYMm = pos.y / stepsPerMm;
     progressIndicator =
@@ -1140,6 +1163,7 @@ function Root() {
         <div className="section-body">
           <PenHeight state={state} driver={driver} />
           <MotorControl driver={driver} />
+          <ModelOptions state={state} />
           <ResetToDefaultsButton />
         </div>
         <div className="section-header">paper</div>
@@ -1159,9 +1183,9 @@ function Root() {
           <div className="section-header">plot</div>
           <div className="section-body section-body__plot">
             <PlanStatistics plan={plan} />
-            <TimeLeft 
-              plan={plan} 
-              progress={state.progress} 
+            <TimeLeft
+              plan={plan}
+              progress={state.progress}
               currentMotionStartedTime={currentMotionStartedTime}
               paused={state.paused}
             />
