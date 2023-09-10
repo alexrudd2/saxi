@@ -17,7 +17,7 @@ import "./style.css";
 import pathJoinRadiusIcon from "./icons/path-joining radius.svg";
 import pointJoinRadiusIcon from "./icons/point-joining radius.svg";
 import rotateDrawingIcon from "./icons/rotate-drawing.svg";
-import { EBB } from "./ebb";
+import { EBB, Hardware } from "./ebb";
 
 const defaultVisualizationOptions = {
   penStrokeWidth: 0.5,
@@ -48,7 +48,8 @@ const initialState = {
 };
 
 // Update the initial state with previously persisted settings (if present)
-const persistedPlanOptions = JSON.parse(window.localStorage.getItem("planOptions")) || {};
+
+const persistedPlanOptions = JSON.parse(window.localStorage.getItem("planOptions") ?? "{}");
 initialState.planOptions = {...initialState.planOptions, ...persistedPlanOptions};
 initialState.planOptions.paperSize = new PaperSize(initialState.planOptions.paperSize.size);
 
@@ -82,6 +83,7 @@ function reducer(state: State, action: any): State {
 
 interface DeviceInfo {
   path: string;
+  hardware: Hardware;
 }
 
 interface Driver {
@@ -118,7 +120,7 @@ class WebSerialDriver implements Driver {
   private _signalUnpause: () => void = null;
   private _cancelRequested = false;
 
-  public static async connect(port?: SerialPort) {
+  public static async connect(port?: SerialPort, hardware: Hardware = 'v3') {
     if (!port)
       port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x04D8, usbProductId: 0xFD92 }] })
     // baudRate ref: https://github.com/evil-mad/plotink/blob/a45739b7d41b74d35c1e933c18949ed44c72de0e/plotink/ebb_serial.py#L281
@@ -127,7 +129,13 @@ class WebSerialDriver implements Driver {
     // (pyserial defaults to 9600)
     await port.open({ baudRate: 9600 })
     const { usbVendorId, usbProductId } = port.getInfo()
-    return new WebSerialDriver(new EBB(port), `${usbVendorId.toString(16).padStart(4, '0')}:${usbProductId.toString(16).padStart(4, '0')}`)
+    const ebb = new EBB(port, hardware)
+
+    const vendorId = usbVendorId?.toString(16).padStart(4, '0')
+    const productId = usbProductId?.toString(16).padStart(4, '0')
+    const name = `${vendorId}:${productId}`
+
+    return new WebSerialDriver(ebb, name)
   }
 
   private _name: string
@@ -211,9 +219,9 @@ class WebSerialDriver implements Driver {
 
 class SaxiDriver implements Driver {
   public static connect(): Driver {
-    const d = new SaxiDriver();
-    d.connect();
-    return d;
+    const driver = new SaxiDriver();
+    driver.connect();
+    return driver;
   }
 
   public onprogress: (motionIdx: number) => void | null;
@@ -257,34 +265,22 @@ class SaxiDriver implements Driver {
           // nothing
         } break;
         case "progress": {
-          if (this.onprogress != null) {
-            this.onprogress(msg.p.motionIdx);
-          }
+          this.onprogress?.(msg.p.motionIdx);
         } break;
         case "cancelled": {
-          if (this.oncancelled != null) {
-            this.oncancelled();
-          }
+          this.oncancelled?.();
         } break;
         case "finished": {
-          if (this.onfinished != null) {
-            this.onfinished();
-          }
+          this.onfinished?.();
         } break;
         case "dev": {
-          if (this.ondevinfo != null) {
-            this.ondevinfo(msg.p);
-          }
+          this.ondevinfo?.(msg.p);
         } break;
         case "pause": {
-          if (this.onpause != null) {
-            this.onpause(msg.p.paused)
-          }
+          this.onpause?.(msg.p.paused)
         } break;
         case "plan": {
-          if (this.onplan != null) {
-            this.onplan(Plan.deserialize(msg.p.plan))
-          }
+          this.onplan?.(Plan.deserialize(msg.p.plan))
         } break;
         default: {
           console.log("Unknown message from server:", msg);
@@ -1025,22 +1021,30 @@ function PlanOptions({state}: {state: State}) {
   </div>;
 }
 
-function PortSelector({driver, setDriver}: {driver: Driver; setDriver: (d: Driver) => void}) {
+type PortSelectorProps = {
+  driver: Driver | null;
+  setDriver: (driver: Driver) => void;
+  hardware: Hardware;
+}
+
+function PortSelector({driver, setDriver, hardware}: PortSelectorProps) {
   const [initializing, setInitializing] = useState(false)
   useEffect(() => {
     (async () => {
       try {
         const ports = await navigator.serial.getPorts()
-        if (ports.length > 0) {
-          console.log('connecting to', ports[0])
+        const port = ports[0]
+        if (port) {
+          console.log('connecting to', port)
           // get the first
-          setDriver(await WebSerialDriver.connect(ports[0]))
+          setDriver(await WebSerialDriver.connect(port, hardware))
         }
       } finally {
         setInitializing(false)
       }
     })()
   }, [])
+
   return <>
     {driver ? `Connected: ${driver.name()}` : null}
     {!driver ?
@@ -1049,9 +1053,9 @@ function PortSelector({driver, setDriver}: {driver: Driver; setDriver: (d: Drive
         onClick={async () => {
           try {
             const port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x04D8, usbProductId: 0xFD92 }] })
-            if (driver)
-              await driver.close()
-            setDriver(await WebSerialDriver.connect(port))
+            // TODO: describe why we close if we already checked that driver is null
+            await driver?.close()
+            setDriver(await WebSerialDriver.connect(port, hardware))
           } catch (e) {
             alert(`Failed to connect to serial device: ${e.message}`)
             console.error(e)
@@ -1154,10 +1158,10 @@ function Root() {
   return <DispatchContext.Provider value={dispatch}>
     <div className={`root ${state.connected ? "connected" : "disconnected"}`}>
       <div className="control-panel">
-        <div className={`saxi-title red`} title={state.deviceInfo ? state.deviceInfo.path : null}>
+        <div className={`saxi-title red`} title={state.deviceInfo?.path}>
           <span className="red reg">s</span><span className="teal">axi</span>
         </div>
-        {IS_WEB ? <PortSelector driver={driver} setDriver={setDriver} /> : null}
+        {IS_WEB ? <PortSelector driver={driver} setDriver={setDriver} hardware={state.deviceInfo?.hardware} /> : null}
         {!state.connected ? <div className="info-disconnected">disconnected</div> : null}
         <div className="section-header">pen</div>
         <div className="section-body">
