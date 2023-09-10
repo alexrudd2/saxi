@@ -11,7 +11,7 @@ import { EBB, Hardware } from "./ebb";
 import { Device, PenMotion, Motion, Plan } from "./planning";
 import { formatDuration } from "./util";
 
-export function startServer(port: number, hardware: Hardware = 'v3', enableCors = false, maxPayloadSize = "200mb") {
+export function startServer(port: number, serialPort: string, hardware: Hardware, enableCors = false, maxPayloadSize = "200mb") {
   const app = express();
 
   app.use("/", express.static(path.join(__dirname, "..", "ui")));
@@ -222,8 +222,9 @@ export function startServer(port: number, hardware: Hardware = 'v3', enableCors 
   return new Promise((resolve) => {
     server.listen(port, () => {
       async function connect() {
-        for await (const d of ebbs(device)) {
-          ebb = d;
+        const devices = ebbs(serialPort, hardware)
+        for await (const device of devices) {
+          ebb = device;
           broadcast({c: "dev", p: {path: ebb ? /*ebb.port.path*/"/dev/XXX" : null}});
         }
       }
@@ -264,7 +265,7 @@ async function waitForEbb() {
   }
 }
 
-async function* ebbs(path?: string) {
+async function* ebbs(path?: string, hardware: Hardware = 'v3') {
   while (true) {
     try {
       const com = path || (await waitForEbb());
@@ -273,7 +274,7 @@ async function* ebbs(path?: string) {
       const closed = new Promise((resolve) => {
         port.addEventListener('disconnect', resolve, { once: true })
       });
-      yield new EBB(port);
+      yield new EBB(port, hardware);
       await closed;
       yield null;
       console.error(`Lost connection to EBB, reconnecting...`);
@@ -285,13 +286,13 @@ async function* ebbs(path?: string) {
   }
 }
 
-export async function connectEBB(path: string | undefined, hardware: Hardware = 'v3'): Promise<EBB | null> {
-  if (!path) {
+export async function connectEBB(hardware: Hardware = 'v3', device: string | undefined): Promise<EBB | null> {
+  if (!device) {
     const ebbs = await listEBBs();
     if (ebbs.length === 0) return null
-    path = ebbs[0]
+    device = ebbs[0]
   }
 
-  const port = new SerialPortSerialPort(path)
+  const port = new SerialPortSerialPort(device)
   return new EBB(port, hardware);
 }
