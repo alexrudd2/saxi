@@ -55,7 +55,9 @@ initialState.planOptions.paperSize = new PaperSize(initialState.planOptions.pape
 
 type State = typeof initialState;
 
-const DispatchContext = React.createContext(null);
+type Dispatcher = React.Dispatch<{type: string; value: Record<string, any>}>;
+const nullDispatch: Dispatcher = () => null;
+const DispatchContext = React.createContext<Dispatcher>(nullDispatch);
 
 function reducer(state: State, action: any): State {
   switch (action.type) {
@@ -116,8 +118,8 @@ class WebSerialDriver implements Driver {
   public onconnectionchange: (connected: boolean) => void;
   public onplan: (plan: Plan) => void | null;
 
-  private _unpaused: Promise<void> = null;
-  private _signalUnpause: () => void = null;
+  private _unpaused: Promise<void> | null = null;
+  private _signalUnpause: () => void = () => null;
   private _cancelRequested = false;
 
   public static async connect(port?: SerialPort, hardware: Hardware = 'v3') {
@@ -201,7 +203,7 @@ class WebSerialDriver implements Driver {
   public resume(): void {
     const signal = this._signalUnpause
     this._unpaused = null
-    this._signalUnpause = null
+    this._signalUnpause = () => void
     signal()
   }
 
@@ -337,7 +339,7 @@ class SaxiDriver implements Driver {
 
 const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
   const [isPlanning, setIsPlanning] = useState(false);
-  const [latestPlan, setPlan] = useState(null);
+  const [latestPlan, setPlan] = useState<Plan | null>(null);
 
   function serialize(po: PlanOptions): string {
     return JSON.stringify(po, (_, v) => v instanceof Set ? [...v] : v);
@@ -398,7 +400,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
     };
   }, [paths, serialize(planOptions)]);
 
-  return [isPlanning, latestPlan, setPlan];
+  return {isPlanning, plan: latestPlan, setPlan};
 };
 
 const setPaths = (paths: Vec2[][]) => {
@@ -519,8 +521,8 @@ function PaperConfig({state}: {state: State}) {
   function setPaperSize(e: ChangeEvent) {
     const name = (e.target as HTMLInputElement).value;
     if (name !== "Custom") {
-      const ps = PaperSize.standard[name][landscape ? "landscape" : "portrait"];
-      dispatch({type: "SET_PLAN_OPTION", value: {paperSize: ps}});
+      const paperSize = PaperSize.standard[name][landscape ? "landscape" : "portrait"];
+      dispatch({type: "SET_PLAN_OPTION", value: {paperSize}});
     }
   }
   function setCustomPaperSize(x: number, y: number) {
@@ -552,6 +554,7 @@ function PaperConfig({state}: {state: State}) {
         />
       </label>
       <SwapPaperSizesButton onClick={() => {
+        if (!dispatch) return
         dispatch({
           type: "SET_PLAN_OPTION",
           value: {paperSize: paperSize.isLandscape ? paperSize.portrait : paperSize.landscape}
@@ -781,12 +784,10 @@ function LayerSelector({state}: {state: State}) {
   if (layers.length <= 1) { return null; }
   const layersChanged = state.planOptions.layerMode === 'group' ?
     (e: ChangeEvent) => {
-      if (dispatch == null) return
       const selectedLayers = new Set([...(e.target as HTMLSelectElement).selectedOptions].map((o) => o.value));
       dispatch({type: "SET_PLAN_OPTION", value: {selectedGroupLayers: selectedLayers}});
     } :
     (e: ChangeEvent) => {
-      if (dispatch == null) return
       const selectedLayers = new Set([...(e.target as HTMLSelectElement).selectedOptions].map((o) => o.value));
       dispatch({type: "SET_PLAN_OPTION", value: {selectedStrokeLayers: selectedLayers}});
     };
@@ -838,7 +839,7 @@ function PlotButtons(
         : <button
           className={`plot-button ${state.progress != null ? "plot-button--plotting" : ""}`}
           disabled={plan == null || state.progress != null}
-          onClick={() => plot(plan)}>
+          onClick={() => plan ? plot(plan) : null}>
           {plan && state.progress != null ? "Plotting..." : "Plot"}
         </button>
     }
@@ -1073,7 +1074,7 @@ function Root() {
     IS_WEB ? null as Driver | null : SaxiDriver.connect()
   )
   const [state, dispatch] = useReducer(reducer, initialState);
-  const [isPlanning, plan, setPlan] = usePlan(state.paths, state.planOptions);
+  const { isPlanning, plan, setPlan } = usePlan(state.paths, state.planOptions);
   const [isLoadingFile, setIsLoadingFile] = useState(false);
 
   useEffect(() => {
