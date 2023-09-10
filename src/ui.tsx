@@ -55,7 +55,9 @@ initialState.planOptions.paperSize = new PaperSize(initialState.planOptions.pape
 
 type State = typeof initialState;
 
-const DispatchContext = React.createContext(null);
+type Dispatcher = React.Dispatch<{type: string; value: Record<string, any>}>;
+const nullDispatch: Dispatcher = () => null;
+const DispatchContext = React.createContext<Dispatcher>(nullDispatch);
 
 function reducer(state: State, action: any): State {
   switch (action.type) {
@@ -116,8 +118,8 @@ class WebSerialDriver implements Driver {
   public onconnectionchange: (connected: boolean) => void;
   public onplan: (plan: Plan) => void | null;
 
-  private _unpaused: Promise<void> = null;
-  private _signalUnpause: () => void = null;
+  private _unpaused: Promise<void> | null = null;
+  private _signalUnpause: () => void = () => null;
   private _cancelRequested = false;
 
   public static async connect(port?: SerialPort, hardware: Hardware = 'v3') {
@@ -201,7 +203,7 @@ class WebSerialDriver implements Driver {
   public resume(): void {
     const signal = this._signalUnpause
     this._unpaused = null
-    this._signalUnpause = null
+    this._signalUnpause = () => void
     signal()
   }
 
@@ -337,7 +339,7 @@ class SaxiDriver implements Driver {
 
 const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
   const [isPlanning, setIsPlanning] = useState(false);
-  const [latestPlan, setPlan] = useState(null);
+  const [latestPlan, setPlan] = useState<Plan | null>(null);
 
   function serialize(po: PlanOptions): string {
     return JSON.stringify(po, (_, v) => v instanceof Set ? [...v] : v);
@@ -359,15 +361,15 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
     }
   }
 
-  const lastPaths = useRef(null);
-  const lastPlan = useRef(null);
-  const lastPlanOptions = useRef(null);
+  const lastPaths = useRef<Vec2[][]>();
+  const lastPlan = useRef<Plan>();
+  const lastPlanOptions = useRef<PlanOptions>();
 
   useEffect(() => {
     if (!paths) return;
 
     if (lastPlan.current != null && lastPaths.current === paths) {
-      const rejiggered = attemptRejigger(lastPlanOptions.current, planOptions, lastPlan.current);
+      const rejiggered = attemptRejigger(lastPlanOptions.current ?? null, planOptions, lastPlan.current);
       if (rejiggered) {
         setPlan(rejiggered);
         lastPlan.current = rejiggered;
@@ -398,7 +400,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
     };
   }, [paths, serialize(planOptions)]);
 
-  return [isPlanning, latestPlan, setPlan];
+  return {isPlanning, plan: latestPlan, setPlan};
 };
 
 const setPaths = (paths: Vec2[][]) => {
@@ -519,8 +521,8 @@ function PaperConfig({state}: {state: State}) {
   function setPaperSize(e: ChangeEvent) {
     const name = (e.target as HTMLInputElement).value;
     if (name !== "Custom") {
-      const ps = PaperSize.standard[name][landscape ? "landscape" : "portrait"];
-      dispatch({type: "SET_PLAN_OPTION", value: {paperSize: ps}});
+      const paperSize = PaperSize.standard[name][landscape ? "landscape" : "portrait"];
+      dispatch({type: "SET_PLAN_OPTION", value: {paperSize}});
     }
   }
   function setCustomPaperSize(x: number, y: number) {
@@ -552,6 +554,7 @@ function PaperConfig({state}: {state: State}) {
         />
       </label>
       <SwapPaperSizesButton onClick={() => {
+        if (!dispatch) return
         dispatch({
           type: "SET_PLAN_OPTION",
           value: {paperSize: paperSize.isLandscape ? paperSize.portrait : paperSize.landscape}
@@ -588,7 +591,7 @@ function PaperConfig({state}: {state: State}) {
         value={state.planOptions.marginMm}
         min="0"
         max={Math.min(paperSize.size.x / 2, paperSize.size.y / 2)}
-        onChange={(e) => dispatch({type: "SET_PLAN_OPTION", value: {marginMm: Number(e.target.value)}})}
+        onChange={(e) => dispatch && dispatch({type: "SET_PLAN_OPTION", value: {marginMm: Number(e.target.value)}})}
       />
     </label>
   </div>;
@@ -682,7 +685,7 @@ function PlanPreview(
 
   const [microprogress, setMicroprogress] = useState(0);
   useLayoutEffect(() => {
-    let rafHandle: number = null;
+    let rafHandle: number | null = null;
     let cancelled = false;
     if (state.progress != null) {
       const startingTime = Date.now();
@@ -781,12 +784,10 @@ function LayerSelector({state}: {state: State}) {
   if (layers.length <= 1) { return null; }
   const layersChanged = state.planOptions.layerMode === 'group' ?
     (e: ChangeEvent) => {
-      if (dispatch == null) return
       const selectedLayers = new Set([...(e.target as HTMLSelectElement).selectedOptions].map((o) => o.value));
       dispatch({type: "SET_PLAN_OPTION", value: {selectedGroupLayers: selectedLayers}});
     } :
     (e: ChangeEvent) => {
-      if (dispatch == null) return
       const selectedLayers = new Set([...(e.target as HTMLSelectElement).selectedOptions].map((o) => o.value));
       dispatch({type: "SET_PLAN_OPTION", value: {selectedStrokeLayers: selectedLayers}});
     };
@@ -838,7 +839,7 @@ function PlotButtons(
         : <button
           className={`plot-button ${state.progress != null ? "plot-button--plotting" : ""}`}
           disabled={plan == null || state.progress != null}
-          onClick={() => plot(plan)}>
+          onClick={() => plan ? plot(plan) : null}>
           {plan && state.progress != null ? "Plotting..." : "Plot"}
         </button>
     }
@@ -1053,7 +1054,7 @@ function PortSelector({driver, setDriver, hardware}: PortSelectorProps) {
           try {
             const port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x04D8, usbProductId: 0xFD92 }] })
             // TODO: describe why we close if we already checked that driver is null
-            await driver?.close()
+            // await driver?.close()
             setDriver(await WebSerialDriver.connect(port, hardware))
           } catch (e) {
             alert(`Failed to connect to serial device: ${e.message}`)
@@ -1073,7 +1074,7 @@ function Root() {
     IS_WEB ? null as Driver | null : SaxiDriver.connect()
   )
   const [state, dispatch] = useReducer(reducer, initialState);
-  const [isPlanning, plan, setPlan] = usePlan(state.paths, state.planOptions);
+  const { isPlanning, plan, setPlan } = usePlan(state.paths, state.planOptions);
   const [isLoadingFile, setIsLoadingFile] = useState(false);
 
   useEffect(() => {
@@ -1105,7 +1106,9 @@ function Root() {
   useEffect(() => {
     const ondrop = (e: DragEvent) => {
       e.preventDefault();
-      const item = e.dataTransfer.items[0];
+      const item = e.dataTransfer?.items[0];
+      if (item == null) return
+      if (item.kind !== "file") return
       const file = item.getAsFile();
       const reader = new FileReader();
       setIsLoadingFile(true);
@@ -1129,7 +1132,7 @@ function Root() {
       document.body.classList.remove("dragover");
     };
     const onpaste = (e: ClipboardEvent) => {
-      e.clipboardData.items[0].getAsString((s) => {
+      e.clipboardData?.items[0].getAsString((s) => {
         dispatch(setPaths(readSvg(s)));
       });
     };
