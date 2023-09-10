@@ -1,8 +1,8 @@
 import { replan } from './massager';
 
 self.addEventListener("message", (m) => {
-  const {paths, planOptions} = m.data;
-  const plan = replan(paths, planOptions);
+  const {paths, planOptions, device} = m.data;
+  const plan = replan(paths, planOptions, device);
   console.time("serializing");
   const serialized = plan.serialize();
   console.timeEnd("serializing");

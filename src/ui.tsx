@@ -168,7 +168,7 @@ class WebSerialDriver implements Driver {
     }
 
     if (this._cancelRequested) {
-      const Axidraw = Device(this.ebb.model);
+      const Axidraw = Device(this.ebb.hardware);
       await this.ebb.setPenHeight(Axidraw.penPctToPos(0), 1000);
       if (this.oncancelled) this.oncancelled()
     } else {
@@ -355,7 +355,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
       penDownHeight: previousOptions.penDownHeight,
     };
     if (serialize(previousOptions) === serialize(newOptionsWithOldPenHeights)) {
-      const Axidraw = Device(newOptions.model);
+      const Axidraw = Device(newOptions.hardware);
       // The existing plan should be the same except for penup/pendown heights.
       return previousPlan.withPenHeights(
         Axidraw.penPctToPos(newOptions.penUpHeight),
@@ -385,7 +385,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
     const worker = new (PlanWorker as any)();
     setIsPlanning(true);
     console.time("posting to worker");
-    worker.postMessage({paths, planOptions});
+    worker.postMessage({paths, planOptions, device});
     console.timeEnd("posting to worker");
     const listener = (m: any) => {
       console.time("deserializing");
@@ -421,11 +421,11 @@ const setPaths = (paths: Vec2[][]) => {
 };
 
 function PenHeight({state, driver}: {state: State; driver: Driver}) {
-  const {penUpHeight, penDownHeight, model} = state.planOptions;
+  const {penUpHeight, penDownHeight, hardware} = state.planOptions;
   const dispatch = useContext(DispatchContext);
   const setPenUpHeight = (x: number) => dispatch({type: "SET_PLAN_OPTION", value: {penUpHeight: x}});
   const setPenDownHeight = (x: number) => dispatch({type: "SET_PLAN_OPTION", value: {penDownHeight: x}});
-  const Axidraw = Device(model);
+  const Axidraw = Device(hardware);
 
   const penUp = () => {
     const height = Axidraw.penPctToPos(penUpHeight);
@@ -459,18 +459,18 @@ function PenHeight({state, driver}: {state: State; driver: Driver}) {
   </Fragment>;
 }
 
-function ModelOptions({state}: {state: State}) {
+function HardwareOptions({state}: {state: State}) {
   const dispatch = useContext(DispatchContext);
-  const setModel = (model: string) => dispatch({
+  const setHardware = (hardware: string) => dispatch({
     type: "SET_PLAN_OPTION",
-    value: { model }
+    value: { hardware }
   });
   return <div>
     <label className="flex-checkbox" title="Use brushless upgrade kit pin and power settings">
       <input
         type="checkbox"
-        checked={state.planOptions.model === 'brushless'}
-        onChange={(e) => setModel(e.target.checked ? 'brushless' : 'v3')}
+        checked={state.planOptions.hardware === 'brushless'}
+        onChange={(e) => setHardware(e.target.checked ? 'brushless' : 'v3')}
       />
       brushless
     </label>
@@ -654,7 +654,7 @@ function PlanPreview(
   }
 ) {
   const ps = state.planOptions.paperSize;
-  const Axidraw = Device(state.planOptions.model);
+  const Axidraw = Device(state.planOptions.hardware);
   const strokeWidth = state.visualizationOptions.penStrokeWidth * Axidraw.stepsPerMm
   const colorPathsByStrokeOrder = state.visualizationOptions.colorPathsByStrokeOrder
   const memoizedPlanPreview = useMemo(() => {
@@ -1163,7 +1163,7 @@ function Root() {
         <div className="section-body">
           <PenHeight state={state} driver={driver} />
           <MotorControl driver={driver} />
-          <ModelOptions state={state} />
+          <HardwareOptions state={state} />
           <ResetToDefaultsButton />
         </div>
         <div className="section-header">paper</div>
