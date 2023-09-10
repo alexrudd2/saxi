@@ -23,6 +23,12 @@ export function cli(argv: string[]): void {
       describe: "device to connect to",
       type: "string"
     })
+    .option("hardware", {
+      describe: "select hardware type",
+      choices: ['v3', 'brushless'],
+      default: 'v3',
+      coerce: (value) => value as Hardware
+    })
     .command('$0', 'run the saxi web server',
       yargs => yargs
         .option("port", {
@@ -43,16 +49,10 @@ export function cli(argv: string[]): void {
         .option("firmware-version", {
           describe: "print the device's firmware version and exit",
           type: "boolean"
-        })
-        .option("hardware", {
-          describe: "select hardware type",
-          choices: ['v3', 'brushless'],
-          default: 'v3'
         }),
       args => {
-        const hardware = args.hardware as Hardware
         if (args["firmware-version"]) {
-          connectEBB(hardware, args.device).then(async (ebb) => {
+          connectEBB(args.hardware, args.device).then(async (ebb) => {
             if (!ebb) {
               console.error(`No EBB connected`);
               return process.exit(1);
@@ -62,7 +62,7 @@ export function cli(argv: string[]): void {
             await ebb.close();
           });
         } else {
-          startServer(args.port, args.device, hardware, args["enable-cors"], args["max-payload-size"]);
+          startServer(args.port, args.device, args.hardware, args["enable-cors"], args["max-payload-size"]);
         }
       }
     )
@@ -212,6 +212,7 @@ export function cli(argv: string[]): void {
         const planOptions: PlanOptions = {
           paperSize,
           marginMm: args.margin,
+          hardware: args.hardware,
 
           selectedGroupLayers: new Set([]), // TODO
           selectedStrokeLayers: new Set([]), // TODO
@@ -237,21 +238,22 @@ export function cli(argv: string[]): void {
           minimumPathLength: args["minimum-path-length"],
           pathJoinRadius: args["path-join-radius"],
           pointJoinRadius: args["point-join-radius"],
-
-          hardware: args["hardware"],
         }
-        const p = replan(linesToVecs(lines), planOptions)
-        console.log(`${p.motions.length} motions, estimated duration: ${formatDuration(p.duration())}`)
+        const plan = replan(linesToVecs(lines), planOptions)
+        const motions = plan.motions.length
+        const estimatedDuration = formatDuration(plan.duration())
+        console.log(`${motions} motions, estimated duration: ${estimatedDuration}`)
         console.log("connecting to plotter...")
-        const ebb = await connectEBB(args.device, args.hardware)
+        const ebb = await connectEBB(args.hardware, args.device)
         if (!ebb) {
           console.error("Couldn't connect to device!")
           process.exit(1)
         }
         console.log("plotting...")
         const startTime = +new Date
-        await ebb.executePlan(p)
-        console.log(`done! took ${formatDuration((+new Date - startTime) / 1000)}`)
+        await ebb.executePlan(plan)
+        const duration = formatDuration((+new Date - startTime) / 1000)
+        console.log(`done! took ${duration}`)
         await ebb.close()
       }
     )
