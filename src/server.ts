@@ -11,6 +11,13 @@ import { EBB, Hardware } from "./ebb";
 import { Device, PenMotion, Motion, Plan } from "./planning";
 import { formatDuration } from "./util";
 
+const getDeviceInfo = (ebb: EBB): { path: string, hardware: Hardware } => {
+  // TODO: Get path from ebb
+  const path = ebb ? "/dev/XXX" : null
+  const hardware = ebb?.hardware
+  return { path, hardware }
+}
+
 export function startServer(port: number, serialPort: string, hardware: Hardware, enableCors = false, maxPayloadSize = "200mb") {
   const app = express();
 
@@ -56,7 +63,8 @@ export function startServer(port: number, serialPort: string, hardware: Hardware
       }
     });
 
-    ws.send(JSON.stringify({c: "dev", p: {path: ebb ? /*ebb.port.path*/"/dev/XXX" : null}}));
+    ws.send(JSON.stringify({c: "dev", p: getDeviceInfo(ebb) }));
+
     ws.send(JSON.stringify({c: "pause", p: {paused: !!unpaused}}));
     if (motionIdx != null) {
       ws.send(JSON.stringify({c: "progress", p: {motionIdx}}));
@@ -66,7 +74,7 @@ export function startServer(port: number, serialPort: string, hardware: Hardware
     }
 
     ws.on("close", () => {
-      clients = clients.filter((w) => w !== ws);
+      clients = clients.filter((websocket) => websocket !== ws);
     });
   });
 
@@ -225,7 +233,7 @@ export function startServer(port: number, serialPort: string, hardware: Hardware
         const devices = ebbs(serialPort, hardware)
         for await (const device of devices) {
           ebb = device;
-          broadcast({c: "dev", p: {path: ebb ? /*ebb.port.path*/"/dev/XXX" : null}});
+          broadcast({c: "dev", p: getDeviceInfo(ebb) });
         }
       }
       connect();
