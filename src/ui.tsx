@@ -114,7 +114,7 @@ class WebSerialDriver implements Driver {
   public ondevinfo: (devInfo: DeviceInfo) => void;
   public onpause: (paused: boolean) => void;
   public onconnectionchange: (connected: boolean) => void;
-  public onplan: (plan: Plan) => void;
+  public onplan: (plan: Plan) => void | null;
 
   private _unpaused: Promise<void> = null;
   private _signalUnpause: () => void = null;
@@ -232,21 +232,20 @@ class SaxiDriver implements Driver {
   public onconnectionchange: (connected: boolean) => void | null;
   public onplan: (plan: Plan) => void | null;
 
-  private socket: WebSocket;
+  private socket: WebSocket | null;
   private connected: boolean;
-  private pingInterval: number;
+  private pingInterval: number | null;
 
   public name() {
     return 'Saxi Server'
   }
 
   public close() {
-    this.socket.close()
+    this.socket?.close()
     return Promise.resolve()
   }
 
   public connect() {
-
     const websocketProtocol = document.location.protocol === "https:" ? "wss" : "ws";
     this.socket = new WebSocket(`${websocketProtocol}://${document.location.host}/chat`);
 
@@ -292,11 +291,11 @@ class SaxiDriver implements Driver {
     });
     this.socket.addEventListener("close", () => {
       console.log(`Disconnected from EBB server, reconnecting in 5 seconds.`);
-      window.clearInterval(this.pingInterval);
+      if (this.pingInterval) window.clearInterval(this.pingInterval);
       this.pingInterval = null;
       this.connected = false;
       if (this.onconnectionchange) { this.onconnectionchange(false); }
-      this.socket = null;
+      if (this.socket) this.socket = null;
       setTimeout(() => this.connect(), 5000);
     });
   }
@@ -325,7 +324,7 @@ class SaxiDriver implements Driver {
     if (!this.connected) {
       throw new Error(`Can't send message: not connected`);
     }
-    this.socket.send(JSON.stringify(msg));
+    this.socket?.send(JSON.stringify(msg));
   }
 
   public setPenHeight(height: number, rate: number) {
@@ -341,7 +340,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
   const [latestPlan, setPlan] = useState(null);
 
   function serialize(po: PlanOptions): string {
-    return JSON.stringify(po, (k, v) => v instanceof Set ? [...v] : v);
+    return JSON.stringify(po, (_, v) => v instanceof Set ? [...v] : v);
   }
 
   function attemptRejigger(previousOptions: PlanOptions, newOptions: PlanOptions, previousPlan: Plan) {
@@ -365,9 +364,8 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
   const lastPlanOptions = useRef(null);
 
   useEffect(() => {
-    if (!paths) {
-      return;
-    }
+    if (!paths) return;
+
     if (lastPlan.current != null && lastPaths.current === paths) {
       const rejiggered = attemptRejigger(lastPlanOptions.current, planOptions, lastPlan.current);
       if (rejiggered) {
@@ -381,7 +379,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
     const worker = new (PlanWorker as any)();
     setIsPlanning(true);
     console.time("posting to worker");
-    worker.postMessage({paths, planOptions, device});
+    worker.postMessage({paths, planOptions});
     console.timeEnd("posting to worker");
     const listener = (m: any) => {
       console.time("deserializing");
@@ -1098,7 +1096,7 @@ function Root() {
       dispatch({type: "SET_PAUSED", value: paused});
     };
     driver.onplan = (plan: Plan) => {
-      setPlan(plan);
+      setPlan?.(plan);
     };
   }, [driver])
 
