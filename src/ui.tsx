@@ -781,10 +781,12 @@ function LayerSelector({state}: {state: State}) {
   if (layers.length <= 1) { return null; }
   const layersChanged = state.planOptions.layerMode === 'group' ?
     (e: ChangeEvent) => {
+      if (dispatch == null) return
       const selectedLayers = new Set([...(e.target as HTMLSelectElement).selectedOptions].map((o) => o.value));
       dispatch({type: "SET_PLAN_OPTION", value: {selectedGroupLayers: selectedLayers}});
     } :
     (e: ChangeEvent) => {
+      if (dispatch == null) return
       const selectedLayers = new Set([...(e.target as HTMLSelectElement).selectedOptions].map((o) => o.value));
       dispatch({type: "SET_PLAN_OPTION", value: {selectedStrokeLayers: selectedLayers}});
     };
