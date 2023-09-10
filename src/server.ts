@@ -7,11 +7,11 @@ import { default as NodeSerialPort } from "serialport";
 import { WakeLock } from "wake-lock";
 import WebSocket from "ws";
 import { SerialPortSerialPort } from "./serialport-serialport";
-import { EBB } from "./ebb";
+import { EBB, Hardware } from "./ebb";
 import { Device, PenMotion, Motion, Plan } from "./planning";
 import { formatDuration } from "./util";
 
-export function startServer(port: number, device: string | null = null, enableCors = false, maxPayloadSize = "200mb") {
+export function startServer(port: number, hardware: Hardware = 'v3', enableCors = false, maxPayloadSize = "200mb") {
   const app = express();
 
   app.use("/", express.static(path.join(__dirname, "..", "ui")));
@@ -158,7 +158,8 @@ export function startServer(port: number, device: string | null = null, enableCo
       await ebb.executeMotion(motion);
     },
     async postCancel(): Promise<void> {
-      await ebb.setPenHeight(Device.Axidraw.penPctToPos(0), 1000);
+      const device = Device(ebb.hardware)
+      await ebb.setPenHeight(device.penPctToPos(0), 1000);
     },
     async postPlot(): Promise<void> {
       await ebb.waitUntilMotorsIdle();
@@ -249,18 +250,16 @@ function isEBB(p: NodeSerialPort.PortInfo): boolean {
   return p.manufacturer === "SchmalzHaus" || p.manufacturer === "SchmalzHaus LLC" || (p.vendorId == "04D8" && p.productId == "FD92");
 }
 
-async function listEBBs() {
+async function listEBBs(): Promise<string[]> {
   const ports = await NodeSerialPort.list();
-  return ports.filter(isEBB).map((p) => p.path);
+  return ports.filter(isEBB).map(port => port.path);
 }
 
 async function waitForEbb() {
 // eslint-disable-next-line no-constant-condition
   while (true) {
     const ebbs = await listEBBs();
-    if (ebbs.length) {
-      return ebbs[0];
-    }
+    if (ebbs.length) return ebbs[0];
     await sleep(5000);
   }
 }
@@ -286,15 +285,13 @@ async function* ebbs(path?: string) {
   }
 }
 
-export async function connectEBB(path: string | undefined): Promise<EBB | null> {
-  if (path) {
-    return new EBB(new SerialPortSerialPort(path));
-  } else {
+export async function connectEBB(path: string | undefined, hardware: Hardware = 'v3'): Promise<EBB | null> {
+  if (!path) {
     const ebbs = await listEBBs();
-    if (ebbs.length) {
-      return new EBB(new SerialPortSerialPort(ebbs[0]));
-    } else {
-      return null;
-    }
+    if (ebbs.length === 0) return null
+    path = ebbs[0]
   }
+
+  const port = new SerialPortSerialPort(path)
+  return new EBB(port, hardware);
 }

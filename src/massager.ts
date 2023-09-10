@@ -10,7 +10,7 @@ const svgUnitsPerInch = 96
 const mmPerInch = 25.4
 const mmPerSvgUnit = mmPerInch / svgUnitsPerInch
 
-export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
+export function replan(inPaths: Vec2[][], planOptions: PlanOptions, device: Device): Plan {
   let paths = inPaths;
 
   // Rotate drawing around center of paper to handle plotting portrait drawings
@@ -71,26 +71,27 @@ export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
   }
 
   // Convert the paths to units of "steps".
-  paths = paths.map((ps) => ps.map((p) => vmul(p, Device.Axidraw.stepsPerMm)));
+  paths = paths.map((ps) => ps.map((p) => vmul(p, device.stepsPerMm)));
 
   // And finally, motion planning.
   console.time("planning pen motions");
   const plan = Planning.plan(paths, {
-    penUpPos: Device.Axidraw.penPctToPos(planOptions.penUpHeight),
-    penDownPos: Device.Axidraw.penPctToPos(planOptions.penDownHeight),
+    penUpPos: device.penPctToPos(planOptions.penUpHeight),
+    penDownPos: device.penPctToPos(planOptions.penDownHeight),
+
     penDownProfile: {
-      acceleration: planOptions.penDownAcceleration * Device.Axidraw.stepsPerMm,
-      maximumVelocity: planOptions.penDownMaxVelocity * Device.Axidraw.stepsPerMm,
-      corneringFactor: planOptions.penDownCorneringFactor * Device.Axidraw.stepsPerMm,
+      acceleration: planOptions.penDownAcceleration * device.stepsPerMm,
+      maximumVelocity: planOptions.penDownMaxVelocity * device.stepsPerMm,
+      corneringFactor: planOptions.penDownCorneringFactor * device.stepsPerMm,
     },
     penUpProfile: {
-      acceleration: planOptions.penUpAcceleration * Device.Axidraw.stepsPerMm,
-      maximumVelocity: planOptions.penUpMaxVelocity * Device.Axidraw.stepsPerMm,
+      acceleration: planOptions.penUpAcceleration * device.stepsPerMm,
+      maximumVelocity: planOptions.penUpMaxVelocity * device.stepsPerMm,
       corneringFactor: 0,
     },
     penDropDuration: planOptions.penDropDuration,
     penLiftDuration: planOptions.penLiftDuration,
-  });
+  }, device);
   console.timeEnd("planning pen motions");
 
   return plan;

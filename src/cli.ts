@@ -42,10 +42,15 @@ export function cli(argv: string[]): void {
         .option("firmware-version", {
           describe: "print the device's firmware version and exit",
           type: "boolean"
+        })
+        .option("hardware", {
+          describe: "select hardware type",
+          choices: ['v3', 'brushless'],
+          default: 'v3'
         }),
       args => {
         if (args["firmware-version"]) {
-          connectEBB(args.device).then(async (ebb) => {
+          connectEBB(args.device, args.hardware).then(async (ebb) => {
             if (!ebb) {
               console.error(`No EBB connected`);
               return process.exit(1);
@@ -55,7 +60,7 @@ export function cli(argv: string[]): void {
             await ebb.close();
           });
         } else {
-          startServer(args.port, args.device, args["enable-cors"], args["max-payload-size"]);
+          startServer(args.port, args.device, args.hardware, args["enable-cors"], args["max-payload-size"]);
         }
       }
     )
@@ -230,11 +235,13 @@ export function cli(argv: string[]): void {
           minimumPathLength: args["minimum-path-length"],
           pathJoinRadius: args["path-join-radius"],
           pointJoinRadius: args["point-join-radius"],
+
+          hardware: args["hardware"],
         }
         const p = replan(linesToVecs(lines), planOptions)
         console.log(`${p.motions.length} motions, estimated duration: ${formatDuration(p.duration())}`)
         console.log("connecting to plotter...")
-        const ebb = await connectEBB(args.device)
+        const ebb = await connectEBB(args.device, args.hardware)
         if (!ebb) {
           console.error("Couldn't connect to device!")
           process.exit(1)
