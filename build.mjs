@@ -10,6 +10,7 @@ const buildOptions = {
   sourcemap: true,
   metafile: true,
   logLevel: 'debug',
+  minify: true,
   outdir: 'dist/ui',
   tsconfig: 'tsconfig.web.json',
   loader: { '.svg': 'file' },
