@@ -1,11 +1,12 @@
 import yargs from "yargs";
-import {connectEBB, startServer} from "./server";
-import {replan} from "./massager";
-import {Window} from "svgdom";
+import { connectEBB, startServer } from "./server";
+import { replan } from "./massager";
+import { Window } from "svgdom";
 import * as fs from "fs";
-import {flattenSVG} from "flatten-svg";
+import { flattenSVG } from "flatten-svg";
 import { Vec2 } from "./vec";
 import { formatDuration } from "./util";
+import { Hardware } from "./ebb";
 import { PlanOptions, defaultPlanOptions } from "./planning";
 import { PaperSize } from "./paper-size";
 
@@ -49,8 +50,9 @@ export function cli(argv: string[]): void {
           default: 'v3'
         }),
       args => {
+        const hardware = args.hardware as Hardware
         if (args["firmware-version"]) {
-          connectEBB(args.device, args.hardware).then(async (ebb) => {
+          connectEBB(hardware, args.device).then(async (ebb) => {
             if (!ebb) {
               console.error(`No EBB connected`);
               return process.exit(1);
@@ -60,7 +62,7 @@ export function cli(argv: string[]): void {
             await ebb.close();
           });
         } else {
-          startServer(args.port, args.device, args.hardware, args["enable-cors"], args["max-payload-size"]);
+          startServer(args.port, args.device, hardware, args["enable-cors"], args["max-payload-size"]);
         }
       }
     )

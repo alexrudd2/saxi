@@ -10,8 +10,9 @@ const svgUnitsPerInch = 96
 const mmPerInch = 25.4
 const mmPerSvgUnit = mmPerInch / svgUnitsPerInch
 
-export function replan(inPaths: Vec2[][], planOptions: PlanOptions, device: Device): Plan {
+export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
   let paths = inPaths;
+  const device = Device(planOptions.hardware)
 
   // Rotate drawing around center of paper to handle plotting portrait drawings
   // along y-axis of plotter
