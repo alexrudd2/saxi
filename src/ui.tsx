@@ -361,15 +361,15 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
     }
   }
 
-  const lastPaths = useRef(null);
-  const lastPlan = useRef(null);
-  const lastPlanOptions = useRef(null);
+  const lastPaths = useRef<Vec2[][]>();
+  const lastPlan = useRef<Plan>();
+  const lastPlanOptions = useRef<PlanOptions>();
 
   useEffect(() => {
     if (!paths) return;
 
     if (lastPlan.current != null && lastPaths.current === paths) {
-      const rejiggered = attemptRejigger(lastPlanOptions.current, planOptions, lastPlan.current);
+      const rejiggered = attemptRejigger(lastPlanOptions.current ?? null, planOptions, lastPlan.current);
       if (rejiggered) {
         setPlan(rejiggered);
         lastPlan.current = rejiggered;
@@ -591,7 +591,7 @@ function PaperConfig({state}: {state: State}) {
         value={state.planOptions.marginMm}
         min="0"
         max={Math.min(paperSize.size.x / 2, paperSize.size.y / 2)}
-        onChange={(e) => dispatch({type: "SET_PLAN_OPTION", value: {marginMm: Number(e.target.value)}})}
+        onChange={(e) => dispatch && dispatch({type: "SET_PLAN_OPTION", value: {marginMm: Number(e.target.value)}})}
       />
     </label>
   </div>;
@@ -685,7 +685,7 @@ function PlanPreview(
 
   const [microprogress, setMicroprogress] = useState(0);
   useLayoutEffect(() => {
-    let rafHandle: number = null;
+    let rafHandle: number | null = null;
     let cancelled = false;
     if (state.progress != null) {
       const startingTime = Date.now();
@@ -1054,7 +1054,7 @@ function PortSelector({driver, setDriver, hardware}: PortSelectorProps) {
           try {
             const port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x04D8, usbProductId: 0xFD92 }] })
             // TODO: describe why we close if we already checked that driver is null
-            await driver?.close()
+            // await driver?.close()
             setDriver(await WebSerialDriver.connect(port, hardware))
           } catch (e) {
             alert(`Failed to connect to serial device: ${e.message}`)
@@ -1106,7 +1106,9 @@ function Root() {
   useEffect(() => {
     const ondrop = (e: DragEvent) => {
       e.preventDefault();
-      const item = e.dataTransfer.items[0];
+      const item = e.dataTransfer?.items[0];
+      if (item == null) return
+      if (item.kind !== "file") return
       const file = item.getAsFile();
       const reader = new FileReader();
       setIsLoadingFile(true);
@@ -1130,7 +1132,7 @@ function Root() {
       document.body.classList.remove("dragover");
     };
     const onpaste = (e: ClipboardEvent) => {
-      e.clipboardData.items[0].getAsString((s) => {
+      e.clipboardData?.items[0].getAsString((s) => {
         dispatch(setPaths(readSvg(s)));
       });
     };
