@@ -19,7 +19,6 @@ const getDeviceInfo = (ebb: EBB | null, com: Com): { com: Com, hardware: Hardwar
 
 export function startServer(port: number, com: string, hardware: Hardware, enableCors = false, maxPayloadSize = "200mb") {
   const app = express();
-
   app.use("/", express.static(path.join(__dirname, "..", "ui")));
   app.use(express.json({limit: maxPayloadSize}));
   if (enableCors) {
@@ -282,7 +281,7 @@ async function* ebbs(path?: string, hardware: Hardware = 'v3') {
       const closed = new Promise((resolve) => {
         port.addEventListener('disconnect', resolve, { once: true })
       });
-      yield new EBB(port, hardware);
+      yield new EBB(port, hardware, hardware);
       await closed;
       yield null;
       console.error(`Lost connection to EBB, reconnecting...`);

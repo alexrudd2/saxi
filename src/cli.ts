@@ -49,6 +49,11 @@ export function cli(argv: string[]): void {
         .option("firmware-version", {
           describe: "print the device's firmware version and exit",
           type: "boolean"
+        })
+        .option("hardware", {
+          describe: "select hardware type",
+          default: "Axidraw",
+          type: "string",
         }),
       args => {
         if (args["firmware-version"]) {

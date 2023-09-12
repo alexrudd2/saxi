@@ -1,6 +1,6 @@
 import * as Optimization from "optimize-paths";
 import * as Planning from "./planning";
-import {Device, Plan, PlanOptions} from "./planning";
+import {Axidraw, Plan, PlanOptions} from "./planning";
 import {dedupPoints, scaleToPaper, cropToMargins} from "./util";
 import {Vec2, vmul, vrot} from "./vec";
 

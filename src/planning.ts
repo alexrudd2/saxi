@@ -132,6 +132,18 @@ const AxidrawBrushless: Device = {
   }
 };
 
+const penDownProfile = {
+  acceleration: 200 * Axidraw.stepsPerMm,
+  maximumVelocity: 50 * Axidraw.stepsPerMm,
+  corneringFactor: 0.127 * Axidraw.stepsPerMm
+};
+
+const penUpProfile = {
+  acceleration: 400 * Axidraw.stepsPerMm,
+  maximumVelocity: 200 * Axidraw.stepsPerMm,
+  corneringFactor: 0
+};
+
 export const AxidrawFast: ToolingProfile = {
   penDownProfile: {
     acceleration: 200 * Axidraw.stepsPerMm,
@@ -618,14 +630,14 @@ export function plan(
   
   // for each path: move to the initial point, put the pen down, draw the path,
   // then pick the pen up.
-  paths.forEach((p, i) => {
+  paths.forEach((p) => {
     const m = constantAccelerationPlan(p, profile.penDownProfile);
     const penUpPos = i === paths.length - 1 ? penHomePosition : profile.penUpPos;
     motions.push(
       constantAccelerationPlan([curPos, m.p1], profile.penUpProfile),
       new PenMotion(profile.penUpPos, profile.penDownPos, profile.penDropDuration),
       m,
-      new PenMotion(profile.penDownPos, penUpPos, profile.penLiftDuration)
+      new PenMotion(profile.penDownPos, profile.penUpPos, profile.penLiftDuration)
     );
     curPos = m.p2;
   });
