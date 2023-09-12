@@ -11,14 +11,13 @@ import { EBB, Hardware } from "./ebb";
 import { Device, PenMotion, Motion, Plan } from "./planning";
 import { formatDuration } from "./util";
 
-const getDeviceInfo = (ebb: EBB): { path: string, hardware: Hardware } => {
-  // TODO: Get path from ebb
-  const path = ebb ? "/dev/XXX" : null
-  const hardware = ebb?.hardware
-  return { path, hardware }
+type Com = string
+
+const getDeviceInfo = (ebb: EBB | null, com: Com): { com: Com, hardware: Hardware } => {
+  return { com: ebb ? com : null, hardware: ebb?.hardware }
 }
 
-export function startServer(port: number, serialPort: string, hardware: Hardware, enableCors = false, maxPayloadSize = "200mb") {
+export function startServer(port: number, com: string, hardware: Hardware, enableCors = false, maxPayloadSize = "200mb") {
   const app = express();
 
   app.use("/", express.static(path.join(__dirname, "..", "ui")));
@@ -63,7 +62,7 @@ export function startServer(port: number, serialPort: string, hardware: Hardware
       }
     });
 
-    ws.send(JSON.stringify({c: "dev", p: getDeviceInfo(ebb) }));
+    ws.send(JSON.stringify({c: "dev", p: getDeviceInfo(ebb, com) }));
 
     ws.send(JSON.stringify({c: "pause", p: {paused: !!unpaused}}));
     if (motionIdx != null) {
@@ -100,7 +99,8 @@ export function startServer(port: number, serialPort: string, hardware: Hardware
       }
 
       try {
-        await doPlot(ebb != null ? realPlotter : simPlotter, plan);
+        const plotter = ebb != null ? realPlotter : simPlotter
+        await doPlot(plotter, plan);
         const end = Date.now();
         console.log(`Plot took ${formatDuration((end - begin) / 1000)}`);
       } finally {
@@ -230,10 +230,10 @@ export function startServer(port: number, serialPort: string, hardware: Hardware
   return new Promise((resolve) => {
     server.listen(port, () => {
       async function connect() {
-        const devices = ebbs(serialPort, hardware)
+        const devices = ebbs(com, hardware)
         for await (const device of devices) {
           ebb = device;
-          broadcast({c: "dev", p: getDeviceInfo(ebb) });
+          broadcast({c: "dev", p: getDeviceInfo(ebb, com) });
         }
       }
       connect();
@@ -245,8 +245,8 @@ export function startServer(port: number, serialPort: string, hardware: Hardware
   });
 }
 
-async function tryOpen(path: string): Promise<SerialPort> {
-  const port = new SerialPortSerialPort(path);
+async function tryOpen(com: Com): Promise<SerialPort> {
+  const port = new SerialPortSerialPort(com);
   await port.open({baudRate: 9600})
   return port
 }
@@ -264,7 +264,7 @@ async function listEBBs(): Promise<string[]> {
   return ports.filter(isEBB).map(port => port.path);
 }
 
-async function waitForEbb() {
+async function waitForEbb(): Promise<Com> {
 // eslint-disable-next-line no-constant-condition
   while (true) {
     const ebbs = await listEBBs();
@@ -276,7 +276,7 @@ async function waitForEbb() {
 async function* ebbs(path?: string, hardware: Hardware = 'v3') {
   while (true) {
     try {
-      const com = path || (await waitForEbb());
+      const com: Com = path || (await waitForEbb());
       console.log(`Found EBB at ${com}`);
       const port = await tryOpen(com);
       const closed = new Promise((resolve) => {
