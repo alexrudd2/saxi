@@ -27,7 +27,7 @@ export function cli(argv: string[]): void {
       describe: "select hardware type",
       choices: ['v3', 'brushless'],
       default: 'v3',
-      coerce: (value) => value as Hardware
+      coerce: value => value as Hardware
     })
     .command('$0', 'run the saxi web server',
       yargs => yargs

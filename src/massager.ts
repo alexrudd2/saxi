@@ -1,6 +1,5 @@
 import * as Optimization from "optimize-paths";
-import * as Planning from "./planning";
-import {Device, Plan, PlanOptions} from "./planning";
+import {Device, Plan, PlanOptions, plan} from "./planning";
 import {dedupPoints, scaleToPaper, cropToMargins} from "./util";
 import {Vec2, vmul, vrot} from "./vec";
 
@@ -41,9 +40,9 @@ export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
   // filter based on the stroke. Rescaling doesn't change the number or order
   // of the paths.
   if (planOptions.layerMode === 'group') {
-    paths = paths.filter((path, i) => planOptions.selectedGroupLayers.has((inPaths[i] as any).groupId));
+    paths = paths.filter((_, i) => planOptions.selectedGroupLayers.has((inPaths[i] as any).groupId));
   } else if (planOptions.layerMode === 'stroke') {
-    paths = paths.filter((path, i) => planOptions.selectedStrokeLayers.has((inPaths[i] as any).stroke));
+    paths = paths.filter((_, i) => planOptions.selectedStrokeLayers.has((inPaths[i] as any).stroke));
   }
 
   if (planOptions.pointJoinRadius > 0) {
@@ -76,10 +75,9 @@ export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
 
   // And finally, motion planning.
   console.time("planning pen motions");
-  const plan = Planning.plan(paths, {
+  const theplan = plan(paths, {
     penUpPos: device.penPctToPos(planOptions.penUpHeight),
     penDownPos: device.penPctToPos(planOptions.penDownHeight),
-
     penDownProfile: {
       acceleration: planOptions.penDownAcceleration * device.stepsPerMm,
       maximumVelocity: planOptions.penDownMaxVelocity * device.stepsPerMm,
@@ -92,8 +90,8 @@ export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
     },
     penDropDuration: planOptions.penDropDuration,
     penLiftDuration: planOptions.penLiftDuration,
-  }, device);
+  });
   console.timeEnd("planning pen motions");
 
-  return plan;
+  return theplan;
 }

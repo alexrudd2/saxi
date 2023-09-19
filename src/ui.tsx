@@ -6,7 +6,7 @@ import colormap from "colormap"
 
 import {flattenSVG} from "flatten-svg";
 import {PaperSize} from "./paper-size";
-import {Device, Plan, PlanOptions, defaultPlanOptions, XYMotion, PenMotion} from "./planning";
+import {Plan, PlanOptions, defaultPlanOptions, XYMotion, PenMotion} from "./planning";
 import {formatDuration} from "./util";
 import {Vec2} from "./vec";
 
