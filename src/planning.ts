@@ -1,8 +1,6 @@
-/**
- * Cribbed from https://github.com/fogleman/axi/blob/master/axi/planner.py
- */
+// Cribbed from https://github.com/fogleman/axi/blob/master/axi/planner.py
 const epsilon = 1e-9;
-import { Hardware } from "./ebb";
+import {Hardware} from "./ebb";
 import {PaperSize} from "./paper-size";
 import {vadd, vdot, Vec2, vlen, vmul, vnorm, vsub} from "./vec";
 
@@ -130,18 +128,6 @@ const AxidrawBrushless: Device = {
     const t = pct / 100.0;
     return Math.round(this.penServoMin * t + this.penServoMax * (1 - t));
   }
-};
-
-const penDownProfile = {
-  acceleration: 200 * Axidraw.stepsPerMm,
-  maximumVelocity: 50 * Axidraw.stepsPerMm,
-  corneringFactor: 0.127 * Axidraw.stepsPerMm
-};
-
-const penUpProfile = {
-  acceleration: 400 * Axidraw.stepsPerMm,
-  maximumVelocity: 200 * Axidraw.stepsPerMm,
-  corneringFactor: 0
 };
 
 export const AxidrawFast: ToolingProfile = {
@@ -620,29 +606,25 @@ function constantAccelerationPlan(points: Vec2[], profile: AccelerationProfile):
 export function plan(
   paths: Vec2[][],
   profile: ToolingProfile,
-  device: Device
 ): Plan {
   const motions: Motion[] = [];
   let curPos = { x: 0, y: 0 };
-  // TODO: Explain why this flips the direction
-  const penMaxUpPos = profile.penUpPos < profile.penDownPos ? 100 : 0
-  const penHomePosition = device.penPctToPos(penMaxUpPos)
   
-  // for each path: move to the initial point, put the pen down, draw the path,
-  // then pick the pen up.
-  paths.forEach((p) => {
-    const m = constantAccelerationPlan(p, profile.penDownProfile);
-    const penUpPos = i === paths.length - 1 ? penHomePosition : profile.penUpPos;
-    motions.push(
-      constantAccelerationPlan([curPos, m.p1], profile.penUpProfile),
-      new PenMotion(profile.penUpPos, profile.penDownPos, profile.penDropDuration),
-      m,
-      new PenMotion(profile.penDownPos, profile.penUpPos, profile.penLiftDuration)
-    );
-    curPos = m.p2;
+  const penMotions = {
+    up: new PenMotion(profile.penDownPos, profile.penUpPos, profile.penLiftDuration),
+    down: new PenMotion(profile.penUpPos, profile.penDownPos, profile.penDropDuration),
+  }
+
+  // For each path - move to the initial position, put the pen down, draw the path, bring pen up 
+  paths.forEach(path => {
+    const motion = constantAccelerationPlan(path, profile.penDownProfile);
+    const position = constantAccelerationPlan([curPos, motion.p1], profile.penUpProfile);
+
+    motions.push(position, penMotions.down, motion, penMotions.up);
+    curPos = motion.p2;
   });
-  // Move to 0, 0, home
+
+  // Move to {x: 0, y: 0}
   motions.push(constantAccelerationPlan([curPos, {x: 0, y: 0}], profile.penUpProfile));
-  motions.push(new PenMotion(penHomePosition, profile.penUpPos, profile.penDropDuration));
-  return new Plan(motions, penHomePosition);
+  return new Plan(motions, profile.penDownPos);
 }

@@ -281,7 +281,7 @@ async function* ebbs(path?: string, hardware: Hardware = 'v3') {
       const closed = new Promise((resolve) => {
         port.addEventListener('disconnect', resolve, { once: true })
       });
-      yield new EBB(port, hardware, hardware);
+      yield new EBB(port, hardware);
       await closed;
       yield null;
       console.error(`Lost connection to EBB, reconnecting...`);
