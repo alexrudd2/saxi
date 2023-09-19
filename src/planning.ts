@@ -333,18 +333,17 @@ export class Plan {
       if (motion instanceof XYMotion) {
         return motion;
       } else if (motion instanceof PenMotion) {
-        // Uuuugh this is really hacky. We should instead store the
-        // pen-up/pen-down heights in a single place and reference them from
-        // the PenMotions. Then we can change them in just one place.
-        if (j === this.motions.length - 3) {
-          return new PenMotion(penDownHeight, this.minPenPosition, motion.duration());
-        } else if (j === this.motions.length - 1) {
+        // TODO: Remove this hack by storing the pen-up/pen-down heights
+        // in a single place, and reference them from the PenMotions.
+        if (j === this.motions.length - 1) {
           return new PenMotion(this.minPenPosition, penUpHeight, motion.duration());
         }
+
         return (penMotionIndex++ % 2 === 0
           ? new PenMotion(penUpHeight, penDownHeight, motion.duration())
           : new PenMotion(penDownHeight, penUpHeight, motion.duration()));
       }
+      // TODO: CHECK THAT Plan() doesn't overwrite the above motions with this.minPenPosition
     }), this.minPenPosition);
   }
 
@@ -626,5 +625,11 @@ export function plan(
 
   // Move to {x: 0, y: 0}
   motions.push(constantAccelerationPlan([curPos, {x: 0, y: 0}], profile.penUpProfile));
+  // TODO: should minPenPosition be
+  //      a) profile.penUpPosition?
+  //      b) profile.penDownPosition?
+  //      c) device.penPctToPos(0)
+  //      d) device.penPctToPos(100)
+  //      e) device.penPctToPos(profile.penUpPos < profile.penDownPos ? 100: 0)
   return new Plan(motions, profile.penDownPos);
 }
