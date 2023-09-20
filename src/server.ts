@@ -1,15 +1,15 @@
-import cors from "cors";
-import "web-streams-polyfill/es2018"
-import express from "express";
-import http from "http";
-import path from "path";
-import { default as NodeSerialPort } from "serialport";
-import { WakeLock } from "wake-lock";
-import WebSocket from "ws";
-import { SerialPortSerialPort } from "./serialport-serialport";
-import { EBB, Hardware } from "./ebb";
-import { Device, PenMotion, Motion, Plan } from "./planning";
-import { formatDuration } from "./util";
+import cors from 'cors'
+import 'web-streams-polyfill/es2018'
+import express from 'express'
+import http from 'http'
+import path from 'path'
+import { default as NodeSerialPort } from 'serialport'
+import { WakeLock } from 'wake-lock'
+import WebSocket from 'ws'
+import { SerialPortSerialPort } from './serialport-serialport'
+import { EBB, Hardware } from './ebb'
+import { Device, PenMotion, Motion, Plan } from './planning'
+import { formatDuration } from './util'
 
 type Com = string
 
@@ -17,289 +17,289 @@ const getDeviceInfo = (ebb: EBB | null, com: Com): { com: Com, hardware: Hardwar
   return { com: ebb ? com : null, hardware: ebb?.hardware }
 }
 
-export function startServer(port: number, com: string, hardware: Hardware, enableCors = false, maxPayloadSize = "200mb") {
-  const app = express();
-  app.use("/", express.static(path.join(__dirname, "..", "ui")));
-  app.use(express.json({limit: maxPayloadSize}));
+export async function startServer (port: number, com: string, hardware: Hardware, enableCors = false, maxPayloadSize = '200mb') {
+  const app = express()
+  app.use('/', express.static(path.join(__dirname, '..', 'ui')))
+  app.use(express.json({ limit: maxPayloadSize }))
   if (enableCors) {
-    app.use(cors());
+    app.use(cors())
   }
 
-  const server = http.createServer(app);
-  const wss = new WebSocket.Server({ server });
+  const server = http.createServer(app)
+  const wss = new WebSocket.Server({ server })
 
-  let ebb: EBB | null;
-  let clients: WebSocket[] = [];
-  let cancelRequested = false;
-  let unpaused: Promise<void> | null = null;
-  let signalUnpause: () => void | null = null;
-  let motionIdx: number | null = null;
-  let currentPlan: Plan | null = null;
+  let ebb: EBB | null
+  let clients: WebSocket[] = []
+  let cancelRequested = false
+  let unpaused: Promise<void> | null = null
+  let signalUnpause: () => void | null = null
+  let motionIdx: number | null = null
+  let currentPlan: Plan | null = null
   let plotting = false
 
-  wss.on("connection", (ws) => {
-    clients.push(ws);
-    ws.on("message", (message) => {
-      const msg = JSON.parse(message.toString());
+  wss.on('connection', (ws) => {
+    clients.push(ws)
+    ws.on('message', (message) => {
+      const msg = JSON.parse(message.toString())
       switch (msg.c) {
-        case "ping":
-          ws.send(JSON.stringify({c: "pong"}));
-          break;
-        case "limp":
-          if (ebb) { ebb.disableMotors(); }
-          break;
-        case "setPenHeight":
+        case 'ping':
+          ws.send(JSON.stringify({ c: 'pong' }))
+          break
+        case 'limp':
+          if (ebb) { ebb.disableMotors() }
+          break
+        case 'setPenHeight':
           if (ebb) {
             (async () => {
               if (await ebb.supportsSR()) {
                 await ebb.setServoPowerTimeout(10000, true)
               }
-              await ebb.setPenHeight(msg.p.height, msg.p.rate);
-            })();
+              await ebb.setPenHeight(msg.p.height, msg.p.rate)
+            })()
           }
-          break;
+          break
       }
-    });
+    })
 
-    ws.send(JSON.stringify({c: "dev", p: getDeviceInfo(ebb, com) }));
+    ws.send(JSON.stringify({ c: 'dev', p: getDeviceInfo(ebb, com) }))
 
-    ws.send(JSON.stringify({c: "pause", p: {paused: !!unpaused}}));
+    ws.send(JSON.stringify({ c: 'pause', p: { paused: !!unpaused } }))
     if (motionIdx != null) {
-      ws.send(JSON.stringify({c: "progress", p: {motionIdx}}));
+      ws.send(JSON.stringify({ c: 'progress', p: { motionIdx } }))
     }
     if (currentPlan != null) {
-      ws.send(JSON.stringify({c: "plan", p: {plan: currentPlan}}));
+      ws.send(JSON.stringify({ c: 'plan', p: { plan: currentPlan } }))
     }
 
-    ws.on("close", () => {
-      clients = clients.filter((websocket) => websocket !== ws);
-    });
-  });
+    ws.on('close', () => {
+      clients = clients.filter((websocket) => websocket !== ws)
+    })
+  })
 
-  app.post("/plot", async (req, res) => {
+  app.post('/plot', async (req, res) => {
     if (plotting) {
-      console.log("Received plot request, but a plot is already in progress!")
+      console.log('Received plot request, but a plot is already in progress!')
       return res.status(400).end('Plot in progress')
     }
     plotting = true
     try {
-      const plan = Plan.deserialize(req.body);
-      currentPlan = req.body;
-      console.log(`Received plan of estimated duration ${formatDuration(plan.duration())}`);
-      console.log(ebb != null ? "Beginning plot..." : "Simulating plot...");
-      res.status(200).end();
+      const plan = Plan.deserialize(req.body)
+      currentPlan = req.body
+      console.log(`Received plan of estimated duration ${formatDuration(plan.duration())}`)
+      console.log(ebb != null ? 'Beginning plot...' : 'Simulating plot...')
+      res.status(200).end()
 
-      const begin = Date.now();
-      let wakeLock: any;
+      const begin = Date.now()
+      let wakeLock: any
       try {
-        wakeLock = new WakeLock("saxi plotting");
+        wakeLock = new WakeLock('saxi plotting')
       } catch (e) {
-        console.warn("Couldn't acquire wake lock. Ensure your machine does not sleep during plotting");
+        console.warn("Couldn't acquire wake lock. Ensure your machine does not sleep during plotting")
       }
 
       try {
         const plotter = ebb != null ? realPlotter : simPlotter
-        await doPlot(plotter, plan);
-        const end = Date.now();
-        console.log(`Plot took ${formatDuration((end - begin) / 1000)}`);
+        await doPlot(plotter, plan)
+        const end = Date.now()
+        console.log(`Plot took ${formatDuration((end - begin) / 1000)}`)
       } finally {
         if (wakeLock) {
-          wakeLock.release();
+          wakeLock.release()
         }
       }
     } finally {
       plotting = false
     }
-  });
-
-  app.post("/cancel", (req, res) => {
-    cancelRequested = true;
-    if (unpaused) {
-      signalUnpause();
-    }
-    unpaused = signalUnpause = null;
-    res.status(200).end();
-  });
-
-  app.post("/pause", (req, res) => {
-    if (!unpaused) {
-      unpaused = new Promise(resolve => {
-        signalUnpause = resolve;
-      });
-      broadcast({c: "pause", p: {paused: true}});
-    }
-    res.status(200).end();
-  });
-
-  app.post("/resume", (req, res) => {
-    if (signalUnpause) {
-      signalUnpause();
-      signalUnpause = unpaused = null;
-    }
-    res.status(200).end();
   })
 
-  function broadcast(msg: any) {
+  app.post('/cancel', (req, res) => {
+    cancelRequested = true
+    if (unpaused) {
+      signalUnpause()
+    }
+    unpaused = signalUnpause = null
+    res.status(200).end()
+  })
+
+  app.post('/pause', (req, res) => {
+    if (!unpaused) {
+      unpaused = new Promise(resolve => {
+        signalUnpause = resolve
+      })
+      broadcast({ c: 'pause', p: { paused: true } })
+    }
+    res.status(200).end()
+  })
+
+  app.post('/resume', (req, res) => {
+    if (signalUnpause) {
+      signalUnpause()
+      signalUnpause = unpaused = null
+    }
+    res.status(200).end()
+  })
+
+  function broadcast (msg: any) {
     clients.forEach((ws) => {
       try {
-        ws.send(JSON.stringify(msg));
+        ws.send(JSON.stringify(msg))
       } catch (e) {
-        console.warn(e);
+        console.warn(e)
       }
-    });
+    })
   }
 
   interface Plotter {
-    prePlot: (initialPenHeight: number) => Promise<void>;
-    executeMotion: (m: Motion, progress: [number, number]) => Promise<void>;
-    postCancel: () => Promise<void>;
-    postPlot: () => Promise<void>;
+    prePlot: (initialPenHeight: number) => Promise<void>
+    executeMotion: (m: Motion, progress: [number, number]) => Promise<void>
+    postCancel: () => Promise<void>
+    postPlot: () => Promise<void>
   }
 
   const realPlotter: Plotter = {
-    async prePlot(initialPenHeight: number): Promise<void> {
-      await ebb.enableMotors(2);
-      await ebb.setPenHeight(initialPenHeight, 1000, 1000);
+    async prePlot (initialPenHeight: number): Promise<void> {
+      await ebb.enableMotors(2)
+      await ebb.setPenHeight(initialPenHeight, 1000, 1000)
     },
-    async executeMotion(motion: Motion, _progress: [number, number]): Promise<void> {
-      await ebb.executeMotion(motion);
+    async executeMotion (motion: Motion, _progress: [number, number]): Promise<void> {
+      await ebb.executeMotion(motion)
     },
-    async postCancel(): Promise<void> {
+    async postCancel (): Promise<void> {
       const device = Device(ebb.hardware)
-      await ebb.setPenHeight(device.penPctToPos(0), 1000);
+      await ebb.setPenHeight(device.penPctToPos(0), 1000)
     },
-    async postPlot(): Promise<void> {
-      await ebb.waitUntilMotorsIdle();
-      await ebb.disableMotors();
-    },
-  };
+    async postPlot (): Promise<void> {
+      await ebb.waitUntilMotorsIdle()
+      await ebb.disableMotors()
+    }
+  }
 
   const simPlotter: Plotter = {
     // eslint-disable-next-line @typescript-eslint/no-empty-function
-    async prePlot(_initialPenHeight: number): Promise<void> {
+    async prePlot (_initialPenHeight: number): Promise<void> {
     },
-    async executeMotion(motion: Motion, progress: [number, number]): Promise<void> {
-      console.log(`Motion ${progress[0] + 1}/${progress[1]}`);
-      await new Promise((resolve) => setTimeout(resolve, motion.duration() * 1000));
+    async executeMotion (motion: Motion, progress: [number, number]): Promise<void> {
+      console.log(`Motion ${progress[0] + 1}/${progress[1]}`)
+      await new Promise((resolve) => setTimeout(resolve, motion.duration() * 1000))
     },
-    async postCancel(): Promise<void> {
-      console.log("Plot cancelled");
+    async postCancel (): Promise<void> {
+      console.log('Plot cancelled')
     },
     // eslint-disable-next-line @typescript-eslint/no-empty-function
-    async postPlot(): Promise<void> {
-    },
-  };
-
-  async function doPlot(plotter: Plotter, plan: Plan): Promise<void> {
-    cancelRequested = false;
-    unpaused = null;
-    signalUnpause = null;
-    motionIdx = 0;
-
-    const firstPenMotion = (plan.motions.find((x) => x instanceof PenMotion) as PenMotion);
-    await plotter.prePlot(firstPenMotion.initialPos);
-
-    let penIsUp = true;
-
-    for (const motion of plan.motions) {
-      broadcast({c: "progress", p: {motionIdx}});
-      await plotter.executeMotion(motion, [motionIdx, plan.motions.length]);
-      if (motion instanceof PenMotion) {
-        penIsUp = motion.initialPos < motion.finalPos;
-      }
-      if (unpaused && penIsUp) {
-        await unpaused;
-        broadcast({c: "pause", p: {paused: false}});
-      }
-      if (cancelRequested) { break; }
-      motionIdx += 1;
+    async postPlot (): Promise<void> {
     }
-    motionIdx = null;
-    currentPlan = null;
-    if (cancelRequested) {
-      await plotter.postCancel();
-      broadcast({c: "cancelled"});
-      cancelRequested = false;
-    } else {
-      broadcast({c: "finished"});
-    }
-    await plotter.postPlot();
   }
 
-  return new Promise((resolve) => {
+  async function doPlot (plotter: Plotter, plan: Plan): Promise<void> {
+    cancelRequested = false
+    unpaused = null
+    signalUnpause = null
+    motionIdx = 0
+
+    const firstPenMotion = (plan.motions.find((x) => x instanceof PenMotion) as PenMotion)
+    await plotter.prePlot(firstPenMotion.initialPos)
+
+    let penIsUp = true
+
+    for (const motion of plan.motions) {
+      broadcast({ c: 'progress', p: { motionIdx } })
+      await plotter.executeMotion(motion, [motionIdx, plan.motions.length])
+      if (motion instanceof PenMotion) {
+        penIsUp = motion.initialPos < motion.finalPos
+      }
+      if (unpaused && penIsUp) {
+        await unpaused
+        broadcast({ c: 'pause', p: { paused: false } })
+      }
+      if (cancelRequested) { break }
+      motionIdx += 1
+    }
+    motionIdx = null
+    currentPlan = null
+    if (cancelRequested) {
+      await plotter.postCancel()
+      broadcast({ c: 'cancelled' })
+      cancelRequested = false
+    } else {
+      broadcast({ c: 'finished' })
+    }
+    await plotter.postPlot()
+  }
+
+  return await new Promise((resolve) => {
     server.listen(port, () => {
-      async function connect() {
+      async function connect () {
         const devices = ebbs(com, hardware)
         for await (const device of devices) {
-          ebb = device;
-          broadcast({c: "dev", p: getDeviceInfo(ebb, com) });
+          ebb = device
+          broadcast({ c: 'dev', p: getDeviceInfo(ebb, com) })
         }
       }
-      connect();
-      const {family, address, port} = server.address() as any;
-      const addr = `${family === "IPv6" ? `[${address}]` : address}:${port}`;
-      console.log(`Server listening on http://${addr}`);
-      resolve(server);
-    });
-  });
+      connect()
+      const { family, address, port } = server.address() as any
+      const addr = `${family === 'IPv6' ? `[${address}]` : address}:${port}`
+      console.log(`Server listening on http://${addr}`)
+      resolve(server)
+    })
+  })
 }
 
-async function tryOpen(com: Com): Promise<SerialPort> {
-  const port = new SerialPortSerialPort(com);
-  await port.open({baudRate: 9600})
+async function tryOpen (com: Com): Promise<SerialPort> {
+  const port = new SerialPortSerialPort(com)
+  await port.open({ baudRate: 9600 })
   return port
 }
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+async function sleep (ms: number) {
+  return await new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function isEBB(p: NodeSerialPort.PortInfo): boolean {
-  return p.manufacturer === "SchmalzHaus" || p.manufacturer === "SchmalzHaus LLC" || (p.vendorId == "04D8" && p.productId == "FD92");
+function isEBB (p: NodeSerialPort.PortInfo): boolean {
+  return p.manufacturer === 'SchmalzHaus' || p.manufacturer === 'SchmalzHaus LLC' || (p.vendorId == '04D8' && p.productId == 'FD92')
 }
 
-async function listEBBs(): Promise<string[]> {
-  const ports = await NodeSerialPort.list();
-  return ports.filter(isEBB).map(port => port.path);
+async function listEBBs (): Promise<string[]> {
+  const ports = await NodeSerialPort.list()
+  return ports.filter(isEBB).map(port => port.path)
 }
 
-async function waitForEbb(): Promise<Com> {
+async function waitForEbb (): Promise<Com> {
 // eslint-disable-next-line no-constant-condition
   while (true) {
-    const ebbs = await listEBBs();
-    if (ebbs.length) return ebbs[0];
-    await sleep(5000);
+    const ebbs = await listEBBs()
+    if (ebbs.length > 0) return ebbs[0]
+    await sleep(5000)
   }
 }
 
-async function* ebbs(path?: string, hardware: Hardware = 'v3') {
+async function * ebbs (path?: string, hardware: Hardware = 'v3') {
   while (true) {
     try {
-      const com: Com = path || (await waitForEbb());
-      console.log(`Found EBB at ${com}`);
-      const port = await tryOpen(com);
+      const com: Com = path || (await waitForEbb())
+      console.log(`Found EBB at ${com}`)
+      const port = await tryOpen(com)
       const closed = new Promise((resolve) => {
         port.addEventListener('disconnect', resolve, { once: true })
-      });
-      yield new EBB(port, hardware);
-      await closed;
-      yield null;
-      console.error(`Lost connection to EBB, reconnecting...`);
+      })
+      yield new EBB(port, hardware)
+      await closed
+      yield null
+      console.error('Lost connection to EBB, reconnecting...')
     } catch (e) {
-      console.error(`Error connecting to EBB: ${e.message}`);
-      console.error(`Retrying in 5 seconds...`);
-      await sleep(5000);
+      console.error(`Error connecting to EBB: ${e.message}`)
+      console.error('Retrying in 5 seconds...')
+      await sleep(5000)
     }
   }
 }
 
-export async function connectEBB(hardware: Hardware = 'v3', device: string | undefined): Promise<EBB | null> {
+export async function connectEBB (hardware: Hardware = 'v3', device: string | undefined): Promise<EBB | null> {
   if (!device) {
-    const ebbs = await listEBBs();
+    const ebbs = await listEBBs()
     if (ebbs.length === 0) return null
     device = ebbs[0]
   }
 
   const port = new SerialPortSerialPort(device)
-  return new EBB(port, hardware);
+  return new EBB(port, hardware)
 }
