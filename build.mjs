@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */ //TODO: Remove by splitting eslintrc like we do for the tsconfig
 import { context, build } from 'esbuild'
 import inlineWorker from 'esbuild-plugin-inline-worker'
 import { htmlPlugin as html } from '@craftamap/esbuild-plugin-html'
@@ -13,7 +14,7 @@ const buildOptions = {
   minify: true,
   outdir: 'dist/ui',
   tsconfig: 'tsconfig.web.json',
-  loader: { '.svg': 'file' },
+  loader: { '.svg': 'dataurl' },
   define: {
     IS_WEB: process.env.IS_WEB ?? '0'
   },

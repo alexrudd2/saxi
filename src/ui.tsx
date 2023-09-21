@@ -570,7 +570,7 @@ function PaperConfig({ state }: { state: State }) {
       <label>
         rotate drawing (degrees)
         <div className="horizontal-labels">
-          {/* <img src={rotateDrawingIcon} alt="rotate drawing (degrees)"/> */}
+          <img src={rotateDrawingIcon} alt="rotate drawing (degrees)"/>
           <input type="number" min="-90" step="90" max="360" placeholder="0" value={state.planOptions.rotateDrawing}
             onInput={(e) => {
               const value = (e.target as HTMLInputElement).value;
@@ -906,7 +906,7 @@ function PlanOptions({ state }: { state: State }) {
     <div className="horizontal-labels">
 
       <label title="point-joining radius (mm)" >
-        {/* <img src={pointJoinRadiusIcon} alt="point-joining radius (mm)"/> */}
+        <img src={pointJoinRadiusIcon} alt="point-joining radius (mm)"/>
         <input
           type="number"
           value={state.planOptions.pointJoinRadius}
@@ -916,7 +916,7 @@ function PlanOptions({ state }: { state: State }) {
         />
       </label>
       <label title="path-joining radius (mm)">
-        {/* <img src={pathJoinRadiusIcon} alt="path-joining radius (mm)" /> */}
+        <img src={pathJoinRadiusIcon} alt="path-joining radius (mm)" />
         <input
           type="number"
           value={state.planOptions.pathJoinRadius}
@@ -1242,7 +1242,7 @@ function withSVG<T>(svgString: string, fn: (svg: SVGSVGElement) => T): T {
 
 function readSvg(svgString: string): Vec2[][] {
   return withSVG<any>(svgString, flattenSVG)
-    .map((line) => {
+    .map((line: { points: [number, number][]; stroke: any; groupId: any; }) => {
       const a = line.points.map(([x, y]: [number, number]) => ({ x, y }));
       (a as any).stroke = line.stroke;
       (a as any).groupId = line.groupId;
