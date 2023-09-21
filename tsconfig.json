@@ -1,22 +1,10 @@
 {
-  "compilerOptions": {
-    "module": "commonjs",
-    "esModuleInterop": true,
-    "target": "es6",
-    "noImplicitAny": true,
-    "moduleResolution": "node",
-    "sourceMap": true,
-    "outDir": "dist/server",
-    "baseUrl": ".",
-    "jsx": "react",
-    "paths": {
-      "*": [
-        "node_modules/*"
-      ]
-    }
-  },
-  "files": [
-    "src/cli.ts",
-    "src/global.d.ts"
-  ]
+    "compilerOptions": {
+        "esModuleInterop": true,
+        "target": "es6",
+        "jsx": "react",
+        "noImplicitAny": true,
+        "moduleResolution": "node",
+    },
+    "include": [ "src/ui.tsx", "src/server.ts", "src/cli.ts", "src/global.d.ts" ]
 }
