@@ -300,6 +300,6 @@ export async function connectEBB (hardware: Hardware = 'v3', device: string | un
     device = ebbs[0]
   }
 
-  const port = new SerialPortSerialPort(device)
+  const port = await tryOpen(device)
   return new EBB(port, hardware)
 }
