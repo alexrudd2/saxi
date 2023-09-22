@@ -17,7 +17,7 @@ const getDeviceInfo = (ebb: EBB | null, com: Com): { com: Com, hardware: Hardwar
   return { com: ebb ? com : null, hardware: ebb?.hardware }
 }
 
-export async function startServer (port: number, com: string, hardware: Hardware, enableCors = false, maxPayloadSize = '200mb') {
+export async function startServer (hardware: Hardware, com: string, port: number, enableCors = false, maxPayloadSize = '200mb') {
   const app = express()
   app.use('/', express.static(path.join(__dirname, '..', 'ui')))
   app.use(express.json({ limit: maxPayloadSize }))
