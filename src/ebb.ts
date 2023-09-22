@@ -105,8 +105,8 @@ export class EBB {
         }
         return result
       })
-    } catch (err) {
-      throw new Error(`Error in response to queryM '${cmd}': ${err.message}`)
+    } catch (err: any) {
+      throw new Error(`Error in response to queryM '${cmd}': ${err?.message}`)
     }
   }
 

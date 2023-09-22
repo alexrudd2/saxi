@@ -3,7 +3,6 @@
     "esModuleInterop": true,
     "target": "es2020",
     "jsx": "react",
-    "strict": true,
     "moduleResolution": "node"
   },
   "include": [ "src/server.ts", "src/ui.tsx", "src/cli.ts", "src/global.d.ts" ]
