@@ -68,7 +68,9 @@ export class EBB {
   }
 
   public async close (): Promise<void> {
-    return this.port.close()
+    console.log('unimplemented')
+    // this.port.close()
+    return
   }
 
   private async write (str: string): Promise<void> {
