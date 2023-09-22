@@ -223,6 +223,17 @@ export function cli (argv: string[]): void {
         await ebb.close()
       }
     )
+    .command('firmware-version', 'print the device firmware version', args => args,
+      async args => {
+        const ebb = await connectEBB(args.hardware, args.device)
+        if (!ebb) {
+          console.error(`No EBB connected`)
+          return process.exit(1)
+        }
+        const firmwareVersion = await ebb.firmwareVersion()
+        console.log(firmwareVersion)
+        await ebb.close()
+      })
     .command('$0', 'run the saxi web server', 
       args => args
         .option('port', {
