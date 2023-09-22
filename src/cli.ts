@@ -17,57 +17,21 @@ function parseSvg (svg: string) {
 }
 
 export function cli (argv: string[]): void {
-  yargs.strict()
+  yargs
+    .strict()
+    .option('hardware', {
+      describe: 'select hardware type',
+      choices: ['v3', 'brushless'] as const,
+      default: 'v3',
+      coerce: value => value as Hardware
+    })
     .option('device', {
       alias: 'd',
       describe: 'device to connect to',
       type: 'string'
     })
-    .option('hardware', {
-      describe: 'select hardware type',
-      choices: ['v3', 'brushless'],
-      default: 'v3',
-      coerce: value => value as Hardware
-    })
-    .command('$0', 'run the saxi web server',
-      yargs => yargs
-        .option('port', {
-          alias: 'p',
-          default: Number(process.env.PORT || 9080),
-          describe: 'TCP port on which to listen',
-          type: 'number'
-        })
-        .option('enable-cors', {
-          describe: 'enable cross-origin resource sharing (CORS)',
-          type: 'boolean'
-        })
-        .option('max-payload-size', {
-          describe: 'maximum payload size to accept',
-          default: '200 mb',
-          type: 'string'
-        })
-        .option('firmware-version', {
-          describe: "print the device's firmware version and exit",
-          type: 'boolean'
-        }),
-      args => {
-        if (args['firmware-version']) {
-          connectEBB(args.hardware, args.device).then(async (ebb) => {
-            if (!ebb) {
-              console.error('No EBB connected')
-              return process.exit(1)
-            }
-            const fwv = await ebb.firmwareVersion()
-            console.log(fwv)
-            await ebb.close()
-          })
-        } else {
-          startServer(args.port, args.device, args.hardware, args['enable-cors'], args['max-payload-size'])
-        }
-      }
-    )
     .command('plot <file>', 'plot an svg, then exit',
-      yargs => yargs
+      args => args
         .positional('file', {
           type: 'string',
           description: 'File to plot'
@@ -258,6 +222,26 @@ export function cli (argv: string[]): void {
         console.log(`done! took ${duration}`)
         await ebb.close()
       }
+    )
+    .command('*', 'run the saxi web server', 
+      args => args
+        .option('port', {
+          alias: 'p',
+          describe: 'TCP port on which to listen',
+          default: Number(process.env.PORT || 9080),
+          type: 'number',
+        })
+        .option('enable-cors', {
+          describe: 'enable cross-origin resource sharing (CORS)',
+          default: false,
+          type: 'boolean',
+        })
+        .option('max-payload-size', {
+          describe: 'maximum payload size to accept',
+          default: '200 mb',
+          type: 'string',
+        }),
+      args => startServer(args.hardware, args.device, args.port, args['enable-cors'], args['max-payload-size'])
     )
     .parse(argv)
 }
