@@ -223,12 +223,12 @@ export function cli (argv: string[]): void {
         await ebb.close()
       }
     )
-    .command('*', 'run the saxi web server', 
+    .command('$0', 'run the saxi web server', 
       args => args
         .option('port', {
           alias: 'p',
           describe: 'TCP port on which to listen',
-          default: Number(process.env.PORT || 9080),
+          default: 9080,
           type: 'number',
         })
         .option('enable-cors', {

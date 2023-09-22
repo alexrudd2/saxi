@@ -12,5 +12,5 @@
       ]
     }
   },
-  "exclude": [ "src/server.ts" ]
+  "exclude": [ "src/server.ts", "src/ui.tsx" ]
 }
