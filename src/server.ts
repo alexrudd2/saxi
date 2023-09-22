@@ -13,11 +13,11 @@ import { formatDuration } from './util'
 
 type Com = string
 
-const getDeviceInfo = (ebb: EBB | null, com: Com): { com: Com, hardware: Hardware } => {
+const getDeviceInfo = (ebb: EBB | null, com: Com) => {
   return { com: ebb ? com : null, hardware: ebb?.hardware }
 }
 
-export async function startServer (hardware: Hardware, com: string, port: number, enableCors = false, maxPayloadSize = '200mb') {
+export async function startServer (hardware: Hardware, com: Com, port: number, enableCors = false, maxPayloadSize = '200mb') {
   const app = express()
   app.use('/', express.static(path.join(__dirname, '..', 'ui')))
   app.use(express.json({ limit: maxPayloadSize }))
@@ -244,7 +244,7 @@ export async function startServer (hardware: Hardware, com: string, port: number
   })
 }
 
-async function tryOpen (com: Com): Promise<SerialPort> {
+async function tryOpen (com: Com) {
   const port = new SerialPortSerialPort(com)
   await port.open({ baudRate: 9600 })
   return port

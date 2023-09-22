@@ -238,8 +238,7 @@ export function cli (argv: string[]): void {
         })
         .option('max-payload-size', {
           describe: 'maximum payload size to accept',
-          default: '200 mb',
-          type: 'string',
+          default: '200mb',
         }),
       args => startServer(args.hardware, args.device, args.port, args['enable-cors'], args['max-payload-size'])
     )
