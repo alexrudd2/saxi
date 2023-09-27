@@ -293,13 +293,13 @@ async function * ebbs (path?: string, hardware: Hardware = 'v3') {
   }
 }
 
-export async function connectEBB (hardware: Hardware = 'v3', device: string | undefined): Promise<EBB | null> {
-  if (!device) {
+export async function connectEBB (hardware: Hardware = 'v3', com?: Com): Promise<EBB | null> {
+  if (!com) {
     const ebbs = await listEBBs()
     if (ebbs.length === 0) return null
-    device = ebbs[0]
+    com = ebbs[0]
   }
 
-  const port = await tryOpen(device)
+  const port = await tryOpen(com)
   return new EBB(port, hardware)
 }
