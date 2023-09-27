@@ -10,6 +10,10 @@ import { Plan, PlanOptions, defaultPlanOptions, XYMotion, PenMotion, Device } fr
 import { formatDuration } from "./util";
 import { Vec2 } from "./vec";
 
+import pathJoinRadiusIcon from "./icons/path-joining radius.svg";
+import pointJoinRadiusIcon from "./icons/point-joining radius.svg";
+import rotateDrawingIcon from "./icons/rotate-drawing.svg";
+
 import PlanWorker from "./plan.worker";
 
 import "./style.css";
