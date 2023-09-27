@@ -5,7 +5,7 @@ describe("plan", () => {
   const device = Device()
   const profile = AxidrawFast
   it.skip("handles an empty input", () => {
-    expect(plan([], profile, device)).toEqual(new Plan([], device.penPctToPos(0)))
+    expect(plan([], profile)).toEqual(new Plan([], device.penPctToPos(0)))
   });
 
   function xyMotions(plan: Plan) {
@@ -22,7 +22,7 @@ describe("plan", () => {
   }
 
   it("handles a single point input", () => {
-    const p = plan([[{x: 10, y: 10}]], profile, device);
+    const p = plan([[{x: 10, y: 10}]], profile);
 
     expect(xyMotions(p)).toEqual([
       {from: {x: 0, y: 0}, to: {x: 10, y: 10}, penPos: 0},
@@ -32,7 +32,7 @@ describe("plan", () => {
   });
 
   it("handles a line", () => {
-    const p = plan([[{x: 10, y: 10}, {x: 20, y: 10}]], profile, device);
+    const p = plan([[{x: 10, y: 10}, {x: 20, y: 10}]], profile);
 
     expect(xyMotions(p)).toEqual([
       {from: {x: 0, y: 0}, to: {x: 10, y: 10}, penPos: 0},
@@ -45,7 +45,7 @@ describe("plan", () => {
     const p = plan([
       [{x: 10, y: 10}, {x: 20, y: 10}],
       [{x: 10, y: 20}, {x: 20, y: 20}],
-    ], profile, device);
+    ], profile);
 
     expect(xyMotions(p)).toEqual([
       {from: {x: 0, y: 0}, to: {x: 10, y: 10}, penPos: 0},
@@ -59,10 +59,10 @@ describe("plan", () => {
   it("shouldn't slow down for a fake point", () => {
     const p1 = plan([
       [{x: 10, y: 10}, {x: 30, y: 10}],
-    ], profile, device);
+    ], profile);
     const p2 = plan([
       [{x: 10, y: 10}, {x: 25, y: 10}, {x: 30, y: 10}],
-    ], profile, device);
+    ], profile);
 
     expect(p1.motions[2].duration()).toEqual(p2.motions[2].duration());
   })
