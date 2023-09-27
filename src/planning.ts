@@ -149,17 +149,17 @@ export const AxidrawFast: ToolingProfile = {
 
 export const AxidrawBrushlessFast: ToolingProfile = {
   penDownProfile: {
-    acceleration: 200 * Axidraw.stepsPerMm,
-    maximumVelocity: 50 * Axidraw.stepsPerMm,
-    corneringFactor: 0.127 * Axidraw.stepsPerMm
+    acceleration: 200 * AxidrawBrushless.stepsPerMm,
+    maximumVelocity: 50 * AxidrawBrushless.stepsPerMm,
+    corneringFactor: 0.127 * AxidrawBrushless.stepsPerMm
   },
   penUpProfile: {
-    acceleration: 400 * Axidraw.stepsPerMm,
-    maximumVelocity: 200 * Axidraw.stepsPerMm,
+    acceleration: 400 * AxidrawBrushless.stepsPerMm,
+    maximumVelocity: 200 * AxidrawBrushless.stepsPerMm,
     corneringFactor: 0
   },
-  penUpPos: Axidraw.penPctToPos(50),
-  penDownPos: Axidraw.penPctToPos(60),
+  penUpPos: AxidrawBrushless.penPctToPos(50),
+  penDownPos: AxidrawBrushless.penPctToPos(60),
   penDropDuration: 0.08,
   penLiftDuration: 0.08
 }
