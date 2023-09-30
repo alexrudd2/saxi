@@ -289,8 +289,8 @@ class SaxiDriver implements Driver {
         } break;
       }
     });
-    this.socket.addEventListener("error", () => {
-      // TODO: something
+    this.socket.addEventListener("error", (error) => {
+      console.error(error)
     });
     this.socket.addEventListener("close", () => {
       console.log(`Disconnected from EBB server, reconnecting in 5 seconds.`);
