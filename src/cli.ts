@@ -1,7 +1,7 @@
 import yargs from 'yargs'
 import { connectEBB, startServer } from './server'
 import { replan } from './massager'
-import { Window } from 'svgdom'
+import { createSVGWindow } from 'svgdom'
 import * as fs from 'fs'
 import { flattenSVG } from 'flatten-svg'
 import { Vec2 } from './vec'
@@ -11,7 +11,7 @@ import { PlanOptions, defaultPlanOptions } from './planning'
 import { PaperSize } from './paper-size'
 
 function parseSvg (svg: string) {
-  const window = new Window()
+  const window = createSVGWindow()
   window.document.documentElement.innerHTML = svg
   return window.document.documentElement
 }
@@ -31,7 +31,7 @@ export function cli (argv: string[]): void {
       type: 'string'
     })
     .command('plot <file>', 'plot an svg, then exit',
-      args => args
+      yargs => yargs
         .positional('file', {
           type: 'string',
           description: 'File to plot'
