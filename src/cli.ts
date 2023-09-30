@@ -7,7 +7,7 @@ import { flattenSVG } from 'flatten-svg'
 import { Vec2 } from './vec'
 import { formatDuration } from './util'
 import { Hardware } from './ebb'
-import { PlanOptions, defaultPlanOptions } from './planning'
+import { PlanOptions, defaultPlanOptions, Device } from './planning'
 import { PaperSize } from './paper-size'
 
 function parseSvg (svg: string) {
@@ -29,6 +29,22 @@ export function cli (argv: string[]): void {
       alias: 'd',
       describe: 'device to connect to',
       type: 'string'
+    })
+    .command('pen [percent]', 'put the pen to [percent]', yargs => yargs
+      .positional('percent', { type: 'number', description: 'percent height between 0 and 100', required: true})
+      .check(args => args.percent >= 0 && args.percent <= 100),
+    async args => {
+      console.log('connecting to plotter...')
+      const ebb = await connectEBB(args.hardware, args.device)
+      if (!ebb) {
+        console.error("Couldn't connect to device!")
+        process.exit(1)
+      }
+      const device = Device(ebb.hardware)
+      await ebb.setPenHeight(device.penPctToPos(args.percent), 1000)
+
+      console.log(`moving to ${args.percent}%...`)
+      await ebb.close()
     })
     .command('plot <file>', 'plot an svg, then exit',
       yargs => yargs
