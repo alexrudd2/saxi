@@ -2,13 +2,14 @@ import cors from 'cors'
 import express from 'express'
 import http from 'http'
 import path from 'path'
-import { default as NodeSerialPort } from 'serialport'
 import { WakeLock } from 'wake-lock'
 import WebSocket from 'ws'
 import { EBB, Hardware } from './ebb'
 import { Device, PenMotion, Motion, Plan } from './planning'
 import { formatDuration } from './util'
 import { SerialPort } from 'serialport'
+import { autoDetect } from '@serialport/bindings-cpp'
+import { PortInfo } from '@serialport/bindings-interface'
 
 type Com = string
 
@@ -262,13 +263,17 @@ async function sleep (ms: number) {
   return await new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function isEBB (p: NodeSerialPort.PortInfo): boolean {
-  return p.manufacturer === 'SchmalzHaus' || p.manufacturer === 'SchmalzHaus LLC' || (p.vendorId == '04D8' && p.productId == 'FD92')
+function isEBB (port: PortInfo): boolean {
+  return port.manufacturer === 'SchmalzHaus'
+    || port.manufacturer === 'SchmalzHaus LLC'
+    || (port.vendorId == '04D8' && port.productId == 'FD92')
 }
 
 async function listEBBs (): Promise<string[]> {
-  const ports = await NodeSerialPort.list()
-  return ports.filter(isEBB).map(port => port.path)
+  const Binding = autoDetect()
+  const ports = await Binding.list()
+  return ports.filter(isEBB)
+    .map((port: { path: any; }) => port.path)
 }
 
 async function waitForEbb (): Promise<Com> {
