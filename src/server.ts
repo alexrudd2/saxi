@@ -8,7 +8,7 @@ import WebSocket from 'ws'
 import { EBB, Hardware } from './ebb'
 import { Device, PenMotion, Motion, Plan } from './planning'
 import { formatDuration } from './util'
-import SerialPort from 'serialport'
+import { SerialPort } from 'serialport'
 
 type Com = string
 
@@ -246,7 +246,7 @@ export async function startServer (hardware: Hardware, com: Com, port: number, e
 
 function tryOpen(com: Com): Promise<SerialPort> {
   return new Promise((resolve, reject) => {
-    const port = new SerialPort(com)
+    const port = new SerialPort({path: com, baudRate: 9600})
     port.on("open", () => {
       port.removeAllListeners()
       resolve(port)

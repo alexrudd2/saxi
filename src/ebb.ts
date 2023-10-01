@@ -1,6 +1,6 @@
 import { Block, Motion, PenMotion, Plan, XYMotion } from './planning'
 import { Vec2, vsub } from './vec'
-import SerialPort from 'serialport'
+import { SerialPort, RegexParser } from 'serialport'
 
 /** Split d into its fractional and integral parts */
 function modf (d: number): [number, number] {
@@ -15,7 +15,7 @@ export class EBB {
   public port: SerialPort
   public hardware: Hardware
   private readonly commandQueue: Array<Iterator<any, any, Buffer>>
-  public parser: SerialPort.parsers.Delimiter
+  public parser: RegexParser
 
   private microsteppingMode = 0
 
@@ -27,7 +27,7 @@ export class EBB {
   public constructor (port: SerialPort, hardware: Hardware = 'v3') {
     this.hardware = hardware
     this.port = port
-    this.parser = this.port.pipe(new SerialPort.parsers.Regex({ regex: /[\r\n]+/ }));
+    this.parser = this.port.pipe(new RegexParser({ regex: /[\r\n]+/ }))
     
     this.commandQueue = []
     this.parser.on("data", (chunk: Buffer) => {

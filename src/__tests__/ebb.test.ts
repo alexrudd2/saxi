@@ -1,16 +1,17 @@
-import {EBB} from "../ebb";
-import {SerialPortSerialPort} from "../serialport-serialport";
-import { default as NodeSerialPort } from "serialport";
+import { EBB } from "../ebb"
+import { SerialPort } from "serialport"
 import MockBinding from "@serialport/binding-mock";
+
+import { SerialPortMock } from 'serialport'
 
 (() => {
   let oldBinding: any;
   beforeAll(() => {
-    oldBinding = NodeSerialPort.Binding;
-    NodeSerialPort.Binding = MockBinding;
+    oldBinding = SerialPort.Binding;
+    SerialPort.Binding = MockBinding;
   });
   afterAll(() => {
-    NodeSerialPort.Binding = oldBinding;
+    SerialPort.Binding = oldBinding;
     MockBinding.reset();
   });
 })();
@@ -22,7 +23,7 @@ describe("EBB", () => {
 
   async function openTestPort(path = '/dev/ebb'): Promise<SerialPort> {
     MockBinding.createPort(path, {record: true})
-    const port = new SerialPort(path, {baudRate: 9600})
+    const port = new SerialPort({path, baudRate: 9600})
     await port.open()
     return port as any
   }
