@@ -21,10 +21,10 @@ describe("EBB", () => {
   })
 
   async function openTestPort(path = '/dev/ebb'): Promise<SerialPort> {
-    MockBinding.createPort(path, {record: true});
-    const port = new SerialPortSerialPort(path);
-    await port.open({ baudRate: 9600 })
-    return port as any;
+    MockBinding.createPort(path, {record: true})
+    const port = new SerialPort(path, {baudRate: 9600})
+    await port.open()
+    return port as any
   }
 
   it("firmware version", async () => {

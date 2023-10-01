@@ -1,5 +1,4 @@
 import cors from 'cors'
-import 'web-streams-polyfill/es2018'
 import express from 'express'
 import http from 'http'
 import path from 'path'

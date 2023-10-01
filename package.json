@@ -30,7 +30,6 @@
     "prestart": "npm run build",
     "start": "node cli.js",
     "dev": "BUILD_MODE=development npm run build:ui",
-    "deploy": "rimraf dist/ui && IS_WEB=1 npm run build:ui && gh-pages --dist dist/ui",
     "test": "jest"
   },
   "author": "Jeremy Rose <nornagon@nornagon.net>",
@@ -41,11 +40,10 @@
     "@types/cors": "^2.8.4",
     "@types/express": "^4.16.1",
     "@types/jest": "^29.0.0",
-    "@types/node": "^14.0.0",
+    "@types/node": "^20.8.0",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
     "@types/serialport": "^8.0.0",
-    "@types/w3c-web-serial": "^1.0.2",
     "@types/ws": "8.0.0 - 8.5",
     "@types/yargs": "^17.0.24",
     "@typescript-eslint/eslint-plugin": "^5.15.0 || ^6.0.0",
@@ -60,7 +58,7 @@
     "jest": "^29.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
-    "rimraf": "^5.0.0",
+    "rimraf": "^5.0.5",
     "semver": "^7.5.2",
     "ts-jest": "^29.0.0",
     "typescript": "~5.0 || ~5.2.0"
@@ -73,8 +71,7 @@
     "serialport": "^9.2.0",
     "svgdom": "0.1.14",
     "wake-lock": "^0.2.0",
-    "web-streams-polyfill": "^3.0.3",
-    "ws": "^8.0.0",
+    "ws": "^8.14.2",
     "yargs": "^17.0.0"
   },
   "engines": {

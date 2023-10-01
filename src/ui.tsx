@@ -883,12 +883,10 @@ function PlanOptions({ state }: { state: State }) {
   </div>
 }
 
-function Root() {
+function Root({driver}: {driver: SaxiDriver}) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { isPlanning, plan, setPlan } = usePlan(state.paths, state.planOptions);
   const [isLoadingFile, setIsLoadingFile] = useState(false);
-
-  const driver = SaxiDriver.connect()
 
   useEffect(() => {
     window.localStorage.setItem("planOptions", JSON.stringify(state.planOptions));
@@ -1036,7 +1034,7 @@ function DragTarget() {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-createRoot(document.getElementById("app")!).render(<Root />)
+createRoot(document.getElementById("app")!).render(<Root driver={SaxiDriver.connect()} />)
 
 function withSVG<T>(svgString: string, fn: (svg: SVGSVGElement) => T): T {
   const div = document.createElement("div")
