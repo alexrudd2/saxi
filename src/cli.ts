@@ -8,7 +8,7 @@ import { formatDuration } from './util'
 import { Hardware } from './ebb'
 import { PlanOptions, defaultPlanOptions, Device } from './planning'
 import { PaperSize } from './paper-size'
-import { readFile, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 
 function parseSvg (svg: string) {
   const window = createSVGWindow()
