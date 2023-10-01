@@ -2,13 +2,13 @@ import yargs from 'yargs'
 import { connectEBB, startServer } from './server'
 import { replan } from './massager'
 import { createSVGWindow } from 'svgdom'
-import * as fs from 'fs'
 import { flattenSVG } from 'flatten-svg'
 import { Vec2 } from './vec'
 import { formatDuration } from './util'
 import { Hardware } from './ebb'
 import { PlanOptions, defaultPlanOptions, Device } from './planning'
 import { PaperSize } from './paper-size'
+import { readFile, writeFile } from 'node:fs/promises'
 
 function parseSvg (svg: string) {
   const window = createSVGWindow()
@@ -179,7 +179,7 @@ export function cli (argv: string[]): void {
         }),
       async args => {
         console.log('reading svg...')
-        const svg = fs.readFileSync(args.file, 'utf8')
+        const svg = await readFile(args.file, 'utf8')
         console.log('parsing svg...')
         const parsed = parseSvg(svg)
         console.log('flattening svg...')

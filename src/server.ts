@@ -6,10 +6,10 @@ import path from 'path'
 import { default as NodeSerialPort } from 'serialport'
 import { WakeLock } from 'wake-lock'
 import WebSocket from 'ws'
-import { SerialPortSerialPort } from './serialport-serialport'
 import { EBB, Hardware } from './ebb'
 import { Device, PenMotion, Motion, Plan } from './planning'
 import { formatDuration } from './util'
+import SerialPort from 'serialport'
 
 type Com = string
 
@@ -61,6 +61,7 @@ export async function startServer (hardware: Hardware, com: Com, port: number, e
       }
     })
 
+    // TODO: un-thread com and just use ebb.port.path
     ws.send(JSON.stringify({ c: 'dev', p: getDeviceInfo(ebb, com) }))
 
     ws.send(JSON.stringify({ c: 'pause', p: { paused: !!unpaused } }))
@@ -244,10 +245,18 @@ export async function startServer (hardware: Hardware, com: Com, port: number, e
   })
 }
 
-async function tryOpen (com: Com) {
-  const port = new SerialPortSerialPort(com)
-  await port.open({ baudRate: 9600 })
-  return port
+function tryOpen(com: Com): Promise<SerialPort> {
+  return new Promise((resolve, reject) => {
+    const port = new SerialPort(com)
+    port.on("open", () => {
+      port.removeAllListeners()
+      resolve(port)
+    })
+    port.on("error", (error) => {
+      port.removeAllListeners()
+      reject(error)
+    })
+  })
 }
 
 async function sleep (ms: number) {
@@ -272,6 +281,12 @@ async function waitForEbb (): Promise<Com> {
   }
 }
 
+function drain(port: SerialPort) {
+  while (port.read() != null) {
+    /* do nothing */
+  }
+}
+
 async function * ebbs (path?: string, hardware: Hardware = 'v3') {
   while (true) {
     try {
@@ -279,8 +294,10 @@ async function * ebbs (path?: string, hardware: Hardware = 'v3') {
       console.log(`Found EBB at ${com}`)
       const port = await tryOpen(com)
       const closed = new Promise((resolve) => {
-        port.addEventListener('disconnect', resolve, { once: true })
+        port.once("close", resolve)
+        port.once("error", resolve)
       })
+      drain(port)
       yield new EBB(port, hardware)
       await closed
       yield null

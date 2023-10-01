@@ -15,9 +15,6 @@ const buildOptions = {
   outdir: 'dist/ui',
   tsconfig: 'tsconfig.web.json',
   loader: { '.svg': 'dataurl' },
-  define: {
-    IS_WEB: process.env.IS_WEB ?? '0'
-  },
   plugins: [inlineWorker(),
     html({
       files: [{
