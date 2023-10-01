@@ -61,6 +61,14 @@ export class EBB {
     }
   }
 
+  public close(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.port.close((error) => {
+        if (error) { reject(error) } else { resolve() }
+      })
+    })
+  }
+
   private async write (data: string) {
     if (process.env.DEBUG_SAXI_COMMANDS) {
       console.log(`writing: ${data}`)
