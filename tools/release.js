@@ -3,6 +3,10 @@ const path = require('path')
 const fs = require('fs')
 const child_process = require('child_process')
 
+const repositoryRoot = path.join(__dirname, '..')
+const packageJsonPath = path.join(repositoryRoot, 'package.json')
+const packageParsed = JSON.parse(fs.readFileSync(packageJsonPath))
+
 const args = require('yargs')
   .strict()
   .option('level', {
