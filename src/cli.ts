@@ -6,7 +6,7 @@ import * as fs from "fs";
 import {flattenSVG} from "flatten-svg";
 import { Vec2 } from "./vec";
 import { formatDuration } from "./util";
-import { PlanOptions, defaultPlanOptions, AxidrawFast, Device } from "./planning";
+import { Device, PlanOptions, defaultPlanOptions } from "./planning";
 import { PaperSize } from "./paper-size";
 
 function parseSvg(svg: string) {
