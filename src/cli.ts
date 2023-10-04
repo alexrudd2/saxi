@@ -252,7 +252,7 @@ export function cli (argv: string[]): void {
           default: '200mb',
         }),
       args => {
-        startServer(args.hardware, args.device, args.port, args['enable-cors'], args['max-payload-size'])
+        startServer(args.port, args.hardware, args.device, args['enable-cors'], args['max-payload-size'])
       }
     )
     .parse(argv)
