@@ -9,6 +9,7 @@
     "outDir": "dist/server",
     "baseUrl": ".",
     "jsx": "react",
+    "jsxFactory": "h",
     "paths": {
       "*": [
         "node_modules/*"

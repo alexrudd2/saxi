@@ -14,6 +14,9 @@ const buildOptions = {
   outdir: 'dist/ui',
   tsconfig: 'tsconfig.web.json',
   loader: { '.svg': 'file' },
+  jsx: 'automatic',
+  jsxFactory: 'h',
+  jsxFragment: 'Fragment',
   define: {
     IS_WEB: process.env.IS_WEB ?? '0',
   },

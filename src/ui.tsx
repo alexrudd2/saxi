@@ -1,6 +1,7 @@
-import useComponentSize from "@rehooks/component-size";
-import React, { ChangeEvent, Fragment, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useReducer } from "react";
-import { createRoot } from 'react-dom/client';
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useReducer } from 'preact/hooks'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { render, h, Fragment } from 'preact';
+
 import interpolator from "color-interpolate"
 import colormap from "colormap"
 
@@ -18,6 +19,8 @@ import pathJoinRadiusIcon from "./icons/path-joining radius.svg";
 import pointJoinRadiusIcon from "./icons/point-joining radius.svg";
 import rotateDrawingIcon from "./icons/rotate-drawing.svg";
 import { EBB } from "./ebb";
+import { createContext } from "preact";
+import useComponentSize from './useComponentSize';
 
 const defaultVisualizationOptions = {
   penStrokeWidth: 0.5,
@@ -54,7 +57,7 @@ initialState.planOptions.paperSize = new PaperSize(initialState.planOptions.pape
 
 type State = typeof initialState;
 
-const DispatchContext = React.createContext(null);
+const DispatchContext = createContext(null);
 
 function reducer(state: State, action: any): State {
   switch (action.type) {
@@ -458,7 +461,7 @@ function PenHeight({state, driver}: {state: State; driver: Driver}) {
 function VisualizationOptions({state}: {state: State}) {
   const dispatch = useContext(DispatchContext);
 
-  return <>
+  return <Fragment>
     <label title="Width of lines in preview. Does not affect plot.">
       visualized stroke width (mm)
       <input
@@ -478,7 +481,7 @@ function VisualizationOptions({state}: {state: State}) {
       />
       color based on order
     </label>
-  </>;
+  </Fragment>;
 }
 
 function SwapPaperSizesButton({ onClick }: { onClick: () => void }) {
@@ -1191,7 +1194,7 @@ function DragTarget() {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-createRoot(document.getElementById("app")!).render(<Root />);
+render(<Root />, document.getElementById("app")!);
 
 function withSVG<T>(svgString: string, fn: (svg: SVGSVGElement) => T): T {
   const div = document.createElement("div");

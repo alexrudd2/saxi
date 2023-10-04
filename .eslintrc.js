@@ -3,7 +3,6 @@ module.exports = {
   plugins: ['@typescript-eslint'],
   extends: [
     'eslint:recommended',
-    'plugin:react/recommended',
     'plugin:@typescript-eslint/recommended',
   ],
   parserOptions: {
@@ -23,11 +22,6 @@ module.exports = {
       "argsIgnorePattern": "^_",
       "varsIgnorePattern": "^_",
     }],
-  },
-  settings: {
-    react: {
-      version: 'detect',
-    },
   },
   ignorePatterns: [
     '*.js',
