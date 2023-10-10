@@ -30,8 +30,8 @@ describe("plan", () => {
 
     expect(xyMotions(p)).toEqual([
       {from: {x: 0, y: 0}, to: {x: 10, y: 10}, penPos: 0},
-      {from: {x: 10, y: 10}, to: {x: 10, y: 10}, penPos: positions.up},
-      {from: {x: 10, y: 10}, to: {x: 0, y: 0}, penPos: positions.zero},
+      {from: {x: 10, y: 10}, to: {x: 10, y: 10}, penPos: positions.down},
+      {from: {x: 10, y: 10}, to: {x: 0, y: 0}, penPos: positions.up},
     ]);
   });
 
@@ -40,8 +40,8 @@ describe("plan", () => {
 
     expect(xyMotions(p)).toEqual([
       {from: {x: 0, y: 0}, to: {x: 10, y: 10}, penPos: 0},
-      {from: {x: 10, y: 10}, to: {x: 20, y: 10}, penPos: positions.up},
-      {from: {x: 20, y: 10}, to: {x: 0, y: 0}, penPos: positions.zero},
+      {from: {x: 10, y: 10}, to: {x: 20, y: 10}, penPos: positions.down},
+      {from: {x: 20, y: 10}, to: {x: 0, y: 0}, penPos: positions.up},
     ]);
   });
 
@@ -56,7 +56,7 @@ describe("plan", () => {
       {from: {x: 10, y: 10}, to: {x: 20, y: 10}, penPos: positions.down},
       {from: {x: 20, y: 10}, to: {x: 10, y: 20}, penPos: positions.up},
       {from: {x: 10, y: 20}, to: {x: 20, y: 20}, penPos: positions.down},
-      {from: {x: 20, y: 20}, to: {x: 0, y: 0}, penPos: positions.zero},
+      {from: {x: 20, y: 20}, to: {x: 0, y: 0}, penPos: positions.up},
     ]);
   });
 

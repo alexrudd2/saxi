@@ -336,7 +336,7 @@ export class Plan {
         // TODO: Remove this hack by storing the pen-up/pen-down heights
         // in a single place, and reference them from the PenMotions.
         if (j === this.motions.length - 1) {
-          return new PenMotion(this.minPenPosition, penUpHeight, motion.duration())
+          return new PenMotion(Axidraw.penPctToPos(0), penUpHeight, motion.duration())
         }
         return (penMotionIndex++ % 2 === 0
           ? new PenMotion(penUpHeight, penDownHeight, motion.duration())
