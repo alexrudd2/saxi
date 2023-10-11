@@ -316,11 +316,11 @@ export class Plan {
     }), o.minPenPosition)
   }
 
-  private readonly minPenPosition: number
   public motions: Motion[]
-  public constructor (motions: Motion[], minPenPosition: number) {
+  public penUpHeight: number
+  public penDownHeight: number
+  public constructor (motions: Motion[]) {
     this.motions = motions
-    this.minPenPosition = minPenPosition
   }
   public duration(start = 0): number {
     return this.motions.slice(start).map((m) => m.duration()).reduce((a, b) => a + b, 0);
@@ -329,21 +329,14 @@ export class Plan {
 
   public withPenHeights(penUpHeight: number, penDownHeight: number): Plan {
     let penMotionIndex = 0;
-    return new Plan(this.motions.map((motion, j) => {
-      if (motion instanceof XYMotion) {
-        return motion;
-      } else if (motion instanceof PenMotion) {
-        // TODO: Remove this hack by storing the pen-up/pen-down heights
-        // in a single place, and reference them from the PenMotions.
-        if (j === this.motions.length - 1) {
-          return new PenMotion(this.minPenPosition, penUpHeight, motion.duration())
-        }
-        return (penMotionIndex++ % 2 === 0
-          ? new PenMotion(penUpHeight, penDownHeight, motion.duration())
-          : new PenMotion(penDownHeight, penUpHeight, motion.duration()));
+    return new Plan(this.motions.map(motion => {
+      if (motion instanceof XYMotion) return motion
+
+      if (motion instanceof PenMotion) {
+        const penDown = penMotionIndex++ % 2 === 0
+        return new PenMotion(penDown ? penDownHeight : penUpHeight, motion.duration())
       }
-      // TODO: CHECK THAT Plan() doesn't overwrite the above motions with this.minPenPosition
-    }), this.minPenPosition)
+    }))
   }
 
   public serialize(): any {
@@ -605,13 +598,13 @@ export function plan(
   paths: Vec2[][],
   profile: ToolingProfile
 ): Plan {
-  const motions: Motion[] = []
-  let curPos = { x: 0, y: 0 }
-
   const penMotions = {
     up: new PenMotion(profile.penDownPos, profile.penUpPos, profile.penLiftDuration),
     down: new PenMotion(profile.penUpPos, profile.penDownPos, profile.penDropDuration)
   }
+
+  const motions: Motion[] = [penMotions.up]
+  let curPos = { x: 0, y: 0 }
 
   // For each path - move to the initial position, put the pen down, draw the path, bring pen up
   paths.forEach(path => {
@@ -624,5 +617,5 @@ export function plan(
 
   // Move to {x: 0, y: 0}
   motions.push(constantAccelerationPlan([curPos, { x: 0, y: 0 }], profile.penUpProfile))
-  return new Plan(motions, profile.penDownPos)
+  return new Plan(motions)
 }
