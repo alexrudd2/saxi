@@ -129,7 +129,7 @@ const AxidrawBrushless: Device = {
   }
 }
 
-export const AxidrawFast: ToolingProfile = {
+const baseProfile: ToolingProfile = {
   penDownProfile: {
     acceleration: 200 * Axidraw.stepsPerMm,
     maximumVelocity: 50 * Axidraw.stepsPerMm,
@@ -146,21 +146,17 @@ export const AxidrawFast: ToolingProfile = {
   penLiftDuration: 0.12
 }
 
-export const AxidrawBrushlessFast: ToolingProfile = {
-  penDownProfile: {
-    acceleration: 200 * AxidrawBrushless.stepsPerMm,
-    maximumVelocity: 50 * AxidrawBrushless.stepsPerMm,
-    corneringFactor: 0.127 * AxidrawBrushless.stepsPerMm
+export const profiles = {
+  v3: {
+    ...baseProfile,
+    penDropDuration: 0.12,
+    penLiftDuration: 0.12,
   },
-  penUpProfile: {
-    acceleration: 400 * AxidrawBrushless.stepsPerMm,
-    maximumVelocity: 200 * AxidrawBrushless.stepsPerMm,
-    corneringFactor: 0
-  },
-  penUpPos: AxidrawBrushless.penPctToPos(50),
-  penDownPos: AxidrawBrushless.penPctToPos(60),
-  penDropDuration: 0.08,
-  penLiftDuration: 0.08
+  brushless: {
+    ...baseProfile,
+    penDropDuration: 0.08,
+    penLiftDuration: 0.08
+  }
 }
 
 export class Block {
@@ -313,12 +309,11 @@ export class Plan {
         case "XYMotion": return XYMotion.deserialize(m);
         case "PenMotion": return PenMotion.deserialize(m);
       }
-    }), o.minPenPosition)
+    }))
   }
 
   public motions: Motion[]
-  public penUpHeight: number
-  public penDownHeight: number
+
   public constructor (motions: Motion[]) {
     this.motions = motions
   }
@@ -333,16 +328,16 @@ export class Plan {
       if (motion instanceof XYMotion) return motion
 
       if (motion instanceof PenMotion) {
-        const penDown = penMotionIndex++ % 2 === 0
-        return new PenMotion(penDown ? penDownHeight : penUpHeight, motion.duration())
+        return penMotionIndex++ % 2 === 0
+          ? new PenMotion(penUpHeight, penDownHeight, motion.duration())
+          : new PenMotion(penDownHeight, penUpHeight, motion.duration())
       }
     }))
   }
 
   public serialize(): any {
     return {
-      motions: this.motions.map((m) => m.serialize()),
-      minPenPosition: this.minPenPosition
+      motions: this.motions.map(motion => motion.serialize())
     }
   }
 }

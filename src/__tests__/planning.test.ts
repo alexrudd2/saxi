@@ -1,4 +1,4 @@
-import {Plan, plan, profiles, PenMotion} from '../planning'
+import {Plan, plan, profiles, PenMotion, XYMotion} from '../planning'
 import { Vec2 } from '../vec'
 
 describe("plan", () => {
@@ -17,9 +17,10 @@ describe("plan", () => {
     return plan
       .motions
       .map(motion => {
-        if (motion instanceof PenMotion) return {pen: motion.finalPos}
-        return {from: motion.p1, to: motion.p2}
-      })
+        if (motion instanceof PenMotion) return [{pen: motion.finalPos}]
+        if (motion instanceof XYMotion) return [{from: motion.p1, to: motion.p2}]
+        return []
+      }).flat()
 }
 
   it("handles a single point input", () => {
@@ -56,7 +57,7 @@ describe("plan", () => {
     const vertical = [{x: 20, y: 10}, {x: 20, y: 20}]
 
     const twoLines = plan([horizontal, vertical], profile)
-    console.log(motions(twoLines))
+
     expect(motions(twoLines)).toEqual([
       {pen: up},
       {from: origin, to: horizontal[0]},
