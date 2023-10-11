@@ -313,14 +313,12 @@ export class Plan {
         case "XYMotion": return XYMotion.deserialize(m);
         case "PenMotion": return PenMotion.deserialize(m);
       }
-    }), o.minPenPosition)
+    }))
   }
 
-  private readonly minPenPosition: number
   public motions: Motion[]
-  public constructor (motions: Motion[], minPenPosition: number) {
+  public constructor (motions: Motion[]) {
     this.motions = motions
-    this.minPenPosition = minPenPosition
   }
   public duration(start = 0): number {
     return this.motions.slice(start).map((m) => m.duration()).reduce((a, b) => a + b, 0);
@@ -336,20 +334,18 @@ export class Plan {
         // TODO: Remove this hack by storing the pen-up/pen-down heights
         // in a single place, and reference them from the PenMotions.
         if (j === this.motions.length - 1) {
-          return new PenMotion(Axidraw.penPctToPos(0), penUpHeight, motion.duration())
+          return new PenMotion(penDownHeight, penUpHeight, motion.duration())
         }
         return (penMotionIndex++ % 2 === 0
           ? new PenMotion(penUpHeight, penDownHeight, motion.duration())
           : new PenMotion(penDownHeight, penUpHeight, motion.duration()));
       }
-      // TODO: CHECK THAT Plan() doesn't overwrite the above motions with this.minPenPosition
-    }), this.minPenPosition)
+    }))
   }
 
   public serialize(): any {
     return {
-      motions: this.motions.map((m) => m.serialize()),
-      minPenPosition: this.minPenPosition
+      motions: this.motions.map((m) => m.serialize())
     }
   }
 }

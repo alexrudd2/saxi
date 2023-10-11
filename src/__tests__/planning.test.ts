@@ -5,11 +5,10 @@ describe("plan", () => {
   const device = Device()
   const positions = {
     up: AxidrawFast.penUpPos,
-    down: AxidrawFast.penDownPos,
-    zero: device.penPctToPos(0)
+    down: AxidrawFast.penDownPos
   }
   it.skip("handles an empty input", () => {
-    expect(plan([], AxidrawFast)).toEqual(new Plan([], positions.zero))
+    expect(plan([], AxidrawFast)).toEqual(new Plan([]))
   });
 
   function xyMotions(plan: Plan) {
