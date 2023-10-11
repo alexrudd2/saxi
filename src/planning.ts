@@ -620,5 +620,5 @@ export function plan(
 
   // Move to {x: 0, y: 0}
   motions.push(constantAccelerationPlan([curPos, { x: 0, y: 0 }], profile.penUpProfile))
-  return new Plan(motions, profile.penDownPos)
+  return new Plan(motions)
 }
