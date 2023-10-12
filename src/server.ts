@@ -94,10 +94,12 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
 
       const begin = Date.now();
       let wakeLock: any;
-      try {
-        wakeLock = new WakeLock("saxi plotting");
-      } catch (e) {
-        console.warn("Couldn't acquire wake lock. Ensure your machine does not sleep during plotting");
+      if (process.platform === 'darwin') {
+        try {
+          wakeLock = new WakeLock("saxi plotting");
+        } catch (e) {
+          console.warn("Couldn't acquire wake lock. Ensure your machine does not sleep during plotting");
+        }
       }
 
       try {

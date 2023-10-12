@@ -818,6 +818,7 @@ function LayerSelector({state}: {state: State}) {
         value={[...selectedLayers]}
         onChange={layersChanged}
         size={3}
+        disabled={state.progress != null}
       >
         {layers.map((layer) => <option key={layer}>{layer}</option>)}
       </select>
