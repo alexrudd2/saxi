@@ -1086,7 +1086,7 @@ function Root() {
     driver.onplan = (plan: Plan) => {
       setPlan(plan);
     };
-  }, IS_WEB ? [driver] : [])
+  }, [driver])
 
   useEffect(() => {
     const ondrop = (e: DragEvent) => {
