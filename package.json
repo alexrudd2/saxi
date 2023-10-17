@@ -21,7 +21,7 @@
   "scripts": {
     "prebuild": "npm run lint",
     "lint": "ts-standard",
-    "install:githooks": "git config --local core.hooksPath githooks",
+    "install:githooks": "git config --local core.hooksPath ./githooks",
     "format": "ts-standard --fix",
     "build": "npm run build:server && npm run build:ui",
     "build:server": "tsc",
