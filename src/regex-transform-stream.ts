@@ -1,6 +1,6 @@
-import "web-streams-polyfill/es2018"
+import 'web-streams-polyfill/es2018'
 export class RegexParser extends TransformStream {
-  public constructor(opts: { regex: RegExp }) {
+  public constructor (opts: { regex: RegExp }) {
     if (opts.regex === undefined) {
       throw new TypeError('"options.regex" must be a regular expression pattern or object')
     }
@@ -13,7 +13,7 @@ export class RegexParser extends TransformStream {
     let data = ''
     const decoder = new TextDecoder()
     super({
-      transform(chunk, controller) {
+      transform (chunk, controller) {
         const newData = data + decoder.decode(chunk)
         const parts = newData.split(regex)
         data = parts.pop()
@@ -21,7 +21,7 @@ export class RegexParser extends TransformStream {
           controller.enqueue(part)
         })
       },
-      flush(controller) {
+      flush (controller) {
         controller.enqueue(data)
         data = ''
       }

@@ -17,7 +17,7 @@ easy-to-use interface, and is exactingly precise.
 ### Usage
 
 ```
-$ npm i -g saxi
+$ npm install --global saxi
 $ saxi
 Server listening on http://0.0.0.0:9080
 Connecting to EBB on /dev/tty.usbmodem1461
@@ -69,11 +69,13 @@ To upgrade your AxiDraw's firmware, see [here](https://github.com/evil-mad/EggBo
 
 ### Developing
 
-To work on saxi, you can clone this repo and then run `npm start`:
+To work on saxi, you can clone this repo and then run:
 
 ```sh
 $ git clone https://github.com/nornagon/saxi
 $ cd saxi
+$ npm install
+$ npm install:githooks
 $ npm run dev
 ```
 
