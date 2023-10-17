@@ -1,4 +1,7 @@
-#!/bin/sh
+#!/bin/env bash
+
+set -o errexit
+set -o nounset
 
 npm run lint
 npm run test
