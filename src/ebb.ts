@@ -88,7 +88,7 @@ export class EBB {
         return result
       })
     } catch (err) {
-      throw new Error(`Error in response to query '${cmd}': ${err.message}`)
+      throw new Error(`Error in response to query '${cmd}': ${err?.message}`)
     }
   }
 
@@ -121,7 +121,7 @@ export class EBB {
         }
       })
     } catch (err) {
-      throw new Error(`Error in response to command '${cmd}': ${err.message}`)
+      throw new Error(`Error in response to command '${cmd}': ${err?.message ?? ''}`)
     }
   }
 
@@ -138,9 +138,8 @@ export class EBB {
   public async disableMotors (): Promise<void> {
     await this.command('EM,0,0')
     // if the board supports SR, we should also disable the servo motors.
-    if (await this.supportsSR())
+    if (await this.supportsSR()) { await this.setServoPowerTimeout(60000, false) }
     // 60 seconds is the default boot-time servo power timeout.
-    { await this.setServoPowerTimeout(60000, false) }
   }
 
   /**
@@ -152,14 +151,14 @@ export class EBB {
    * NB. this command is only avaliable on firmware v2.6.0 and hardware of at
    * least version 2.5.0.
    */
-  public async setServoPowerTimeout (timeout: number, power?: boolean) {
+  public async setServoPowerTimeout (timeout: number, power?: boolean): Promise<void> {
     await this.command(`SR,${(timeout * 1000) | 0}${power != null ? `,${power ? 1 : 0}` : ''}`)
   }
 
   // https://evil-mad.github.io/EggBot/ebb.html#S2 General RC Servo Output
   public async setPenHeight (height: number, rate: number, delay = 0): Promise<void> {
-    const output_pin = this.hardware === 'v3' ? 4 : 5
-    return await this.command(`S2,${height},${output_pin},${rate},${delay}`)
+    const outputPin = this.hardware === 'v3' ? 4 : 5
+    return await this.command(`S2,${height},${outputPin},${rate},${delay}`)
   }
 
   public async lowlevelMove (
@@ -226,7 +225,7 @@ export class EBB {
   public async waitUntilMotorsIdle (): Promise<void> {
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      const [, commandStatus, _motor1Status, _motor2Status, fifoStatus] = (await this.query('QM')).split(',')
+      const [, commandStatus, , , fifoStatus] = (await this.query('QM')).split(',')
       if (commandStatus === '0' && fifoStatus === '0') {
         break
       }
@@ -424,7 +423,7 @@ export class EBB {
   private async run<T>(g: (this: EBB) => Iterator<T>): Promise<T> {
     const cmd = g.call(this)
     const d = cmd.next()
-    if (d.done) { return await Promise.resolve(d.value) }
+    if (d.done !== undefined && d.done) { return await Promise.resolve(d.value) }
     this.commandQueue.push(cmd)
     return await new Promise((resolve, reject) => {
       cmd.resolve = resolve

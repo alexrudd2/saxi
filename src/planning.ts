@@ -255,7 +255,7 @@ function scanLeft<A, B> (a: A[], z: B, op: (b: B, a: A) => B): B[] {
   return b
 }
 
-function sortedIndex<T> (array: T[], obj: T) {
+function sortedIndex<T> (array: T[], obj: T): number {
   let low = 0
   let high = array.length
   while (low < high) {
@@ -327,14 +327,12 @@ export class Plan {
     return this.motions.slice(start).map((m) => m.duration()).reduce((a, b) => a + b, 0)
   }
 
-  public motion (i: number) { return this.motions[i] }
+  public motion (i: number): Motion { return this.motions[i] }
 
   public withPenHeights (penUpHeight: number, penDownHeight: number): Plan {
     let penMotionIndex = 0
     return new Plan(this.motions.map((motion, j) => {
-      if (motion instanceof XYMotion) {
-        return motion
-      } else if (motion instanceof PenMotion) {
+      if (motion instanceof PenMotion) {
         // TODO: Remove this hack by storing the pen-up/pen-down heights
         // in a single place, and reference them from the PenMotions.
         if (j === this.motions.length - 1) {
@@ -344,6 +342,8 @@ export class Plan {
           ? new PenMotion(penUpHeight, penDownHeight, motion.duration())
           : new PenMotion(penDownHeight, penUpHeight, motion.duration()))
       }
+
+      return motion // If XYMotion
     }))
   }
 

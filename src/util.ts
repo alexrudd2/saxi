@@ -73,7 +73,7 @@ function liangBarsky (aabb: [Vec2, Vec2], seg: [Vec2, Vec2]): Vec2 | null {
   let u2 = Infinity
 
   for (let i = 0; i < 4; i++) {
-    if (p[i] == 0) {
+    if (p[i] === 0) {
       if (q[i] < 0) { return null }
     } else {
       const t = q[i] / p[i]
@@ -98,7 +98,7 @@ function contains (aabb: [Vec2, Vec2], point: Vec2): boolean {
  * Returns a segment that is the subset of seg which is completely contained
  * within aabb, or null if seg is outside aabb.
  */
-function truncate (aabb: [Vec2, Vec2], seg: [Vec2, Vec2]): [Vec2, Vec2] | null {
+function truncate (aabb: [Vec2, Vec2], seg: [Vec2, Vec2]): [Vec2, Vec2] | [Vec2, null] | [null, Vec2] | null {
   const [a, b] = seg
   const containsA = contains(aabb, a)
   const containsB = contains(aabb, b)
@@ -107,7 +107,7 @@ function truncate (aabb: [Vec2, Vec2], seg: [Vec2, Vec2]): [Vec2, Vec2] | null {
   if (!containsA && containsB) return [liangBarsky(aabb, seg), seg[1]]
   const forwards = liangBarsky(aabb, seg)
   const backwards = liangBarsky(aabb, [seg[1], seg[0]])
-  return forwards && backwards ? [forwards, backwards] : null
+  return (forwards != null) && (backwards != null) ? [forwards, backwards] : null
 }
 
 /**
@@ -120,12 +120,22 @@ function cropLineToAabb (pointList: Vec2[], aabb: [Vec2, Vec2]): Vec2[][] {
   for (let i = 1; i < pointList.length; i++) {
     const [a, b] = [pointList[i - 1], pointList[i]]
     const truncated = truncate(aabb, [a, b])
-    if (truncated) {
-      if (!currentPointList) {
-        currentPointList = [truncated[0]]
-        truncatedPointLists.push(currentPointList)
+    if (truncated != null) {
+      if (currentPointList == null) {
+        if (truncated[0] != null) {
+          currentPointList = [truncated[0]]
+          truncatedPointLists.push(currentPointList)
+        }
       }
-      currentPointList.push(truncated[1])
+
+      if (truncated[1] != null) {
+        if (currentPointList == null) {
+          currentPointList = [truncated[1]]
+        } else {
+          currentPointList.push(truncated[1])
+        }
+      }
+
       if (truncated[1] !== b) {
         // the end was truncated, record the end point and end the line
         currentPointList = null

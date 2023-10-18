@@ -44,7 +44,7 @@ export function cli (argv: string[]): void {
               return PaperSize.standard[value]
             } else {
               const m = /^([0-9]*(?:\.[0-9]+)?)\s*x\s*([0-9]*(?:\.[0-9]+)?)\s*(cm|mm|in)$/i.exec(String(value).trim())
-              if (m) {
+              if (m != null) {
                 return new PaperSize({ x: Number(m[1]), y: Number(m[2]) })
               }
             }
@@ -209,7 +209,7 @@ export function cli (argv: string[]): void {
         console.log(`${p.motions.length} motions, estimated duration: ${formatDuration(p.duration())}`)
         console.log('connecting to plotter...')
         const ebb = await connectEBB(args.hardware, args.device)
-        if (!ebb) {
+        if (ebb == null) {
           console.error("Couldn't connect to device!")
           process.exit(1)
         }
@@ -226,7 +226,7 @@ export function cli (argv: string[]): void {
     async args => {
       console.log('connecting to plotter...')
       const ebb = await connectEBB(args.hardware, args.device)
-      if (!ebb) {
+      if (ebb == null) {
         console.error("Couldn't connect to device!")
         process.exit(1)
       }

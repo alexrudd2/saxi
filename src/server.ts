@@ -17,7 +17,7 @@ import { EBB, Hardware } from './ebb'
 type Com = string
 
 const getDeviceInfo = (ebb: EBB | null, com: Com) => {
-  return { com: ebb ? com : null, hardware: ebb?.hardware }
+  return { com: (ebb != null) ? com : null, hardware: ebb?.hardware }
 }
 
 export async function startServer (port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, maxPayloadSize = '200mb') {
@@ -49,10 +49,10 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
           ws.send(JSON.stringify({ c: 'pong' }))
           break
         case 'limp':
-          if (ebb) { ebb.disableMotors() }
+          if (ebb != null) { ebb.disableMotors() }
           break
         case 'setPenHeight':
-          if (ebb) {
+          if (ebb != null) {
             (async () => {
               if (await ebb.supportsSR()) {
                 await ebb.setServoPowerTimeout(10000, true)
@@ -66,7 +66,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
 
     ws.send(JSON.stringify({ c: 'dev', p: getDeviceInfo(ebb, com) }))
 
-    ws.send(JSON.stringify({ c: 'pause', p: { paused: !!unpaused } }))
+    ws.send(JSON.stringify({ c: 'pause', p: { paused: !(unpaused == null) } }))
     if (motionIdx != null) {
       ws.send(JSON.stringify({ c: 'progress', p: { motionIdx } }))
     }
@@ -118,7 +118,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
 
   app.post('/cancel', (req, res) => {
     cancelRequested = true
-    if (unpaused) {
+    if (unpaused != null) {
       signalUnpause()
     }
     unpaused = signalUnpause = null
@@ -126,7 +126,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
   })
 
   app.post('/pause', (req, res) => {
-    if (!unpaused) {
+    if (unpaused == null) {
       unpaused = new Promise(resolve => {
         signalUnpause = resolve
       })

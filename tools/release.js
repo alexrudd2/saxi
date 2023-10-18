@@ -1,7 +1,7 @@
 const semver = require('semver')
 const path = require('path')
 const fs = require('fs')
-const child_process = require('child_process')
+const childProcess = require('child_process')
 
 const repositoryRoot = path.join(__dirname, '..')
 const packageJsonPath = path.join(repositoryRoot, 'package.json')
@@ -27,7 +27,7 @@ const newPackageLockJson = { ...packageLock, version: newVersion }
 fs.writeFileSync(packageLockJsonPath, JSON.stringify(newPackageLockJson, null, 2) + '\n')
 
 function git (args) {
-  const r = child_process.spawnSync('git', args, { cwd: repositoryRoot })
+  const r = childProcess.spawnSync('git', args, { cwd: repositoryRoot })
   if (r.status !== 0) {
     console.error(r.stderr)
     throw new Error(`Command failed: git ${args.join(' ')}`)
