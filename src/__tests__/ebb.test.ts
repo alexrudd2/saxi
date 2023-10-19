@@ -1,7 +1,6 @@
 import { MockBinding } from '@serialport/binding-mock'
 import { EBB } from '../ebb'
 import { SerialPortSerialPort } from '../serialport-serialport'
-const { SerialPortMock: SerialPort } = require('serialport')
 
 jest.doMock('serialport', () => ({
   SerialPort

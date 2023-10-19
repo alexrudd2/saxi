@@ -163,6 +163,13 @@ export const AxidrawBrushlessFast: ToolingProfile = {
   penLiftDuration: 0.08
 }
 
+export interface BlockSerialized {
+  accel: number
+  duration: number
+  vInitial: number
+  p1: Vec2
+  p2: Vec2
+}
 export class Block {
   public static deserialize (o: any): Block {
     return new Block(o.accel, o.duration, o.vInitial, o.p1, o.p2)
@@ -202,7 +209,7 @@ export class Block {
     return { t: t + dt, p, s: s + ds, v, a }
   }
 
-  public serialize (): any {
+  public serialize (): BlockSerialized {
     return {
       accel: this.accel,
       duration: this.duration,
@@ -265,6 +272,11 @@ function sortedIndex<T> (array: T[], obj: T): number {
   return low
 }
 
+export interface XYMotionSerialized {
+  t: 'XYMotion'
+  blocks: BlockSerialized[]
+}
+
 export class XYMotion implements Motion {
   public static deserialize (o: any): XYMotion {
     return new XYMotion(o.blocks.map(Block.deserialize))
@@ -300,7 +312,7 @@ export class XYMotion implements Motion {
     return block.instant(t - this.ts[blockIdx], this.ts[blockIdx], this.ss[blockIdx])
   }
 
-  public serialize (): any {
+  public serialize (): XYMotionSerialized {
     return {
       t: 'XYMotion',
       blocks: this.blocks.map((b) => b.serialize())
@@ -310,11 +322,9 @@ export class XYMotion implements Motion {
 
 export class Plan {
   public static deserialize (o: any): Plan {
-    return new Plan(o.motions.map((m: any) => {
-      switch (m.t) {
-        case 'XYMotion': return XYMotion.deserialize(m)
-        case 'PenMotion': return PenMotion.deserialize(m)
-      }
+    return new Plan(o.motions.map((m: XYMotion | PenMotion) => {
+      if (m.t === 'XYMotion') return XYMotion.deserialize(m)
+      return PenMotion.deserialize(m)
     }))
   }
 
@@ -413,10 +423,14 @@ function cornerVelocity (seg1: Segment, seg2: Segment, vMax: number, accel: numb
  * @param p3 the final position
  */
 interface Triangle {
-  s1: number; s2: number
-  t1: number; t2: number
+  s1: number
+  s2: number
+  t1: number
+  t2: number
   vMax: number
-  p1: Vec2; p2: Vec2; p3: Vec2
+  p1: Vec2
+  p2: Vec2
+  p3: Vec2
 }
 /** Compute a triangular velocity profile with piecewise constant acceleration.
  *
@@ -475,9 +489,16 @@ function computeTriangle (
  * @param p4 the final position.
  */
 interface Trapezoid {
-  s1: number; s2: number; s3: number
-  t1: number; t2: number; t3: number
-  p1: Vec2; p2: Vec2; p3: Vec2; p4: Vec2
+  s1: number
+  s2: number
+  s3: number
+  t1: number
+  t2: number
+  t3: number
+  p1: Vec2
+  p2: Vec2
+  p3: Vec2
+  p4: Vec2
 }
 function computeTrapezoid (
   distance: number,

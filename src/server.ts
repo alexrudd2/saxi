@@ -16,11 +16,19 @@ import { EBB, Hardware } from './ebb'
 
 type Com = string
 
-const getDeviceInfo = (ebb: EBB | null, com: Com) => {
+const getDeviceInfo = (ebb: EBB | null, com: Com): { com: Com | null, hardware: Hardware | undefined } => {
   return { com: (ebb != null) ? com : null, hardware: ebb?.hardware }
 }
 
-export async function startServer (port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, maxPayloadSize = '200mb') {
+const printError = (error: any): void => {
+  if (error instanceof Error) {
+    console.error(error.message)
+  } else {
+    console.error(error)
+  }
+}
+
+export async function startServer (port: number, hardware: Hardware = 'v3', com: Com | null = null, enableCors = false, maxPayloadSize = '200mb'): Promise<http.Server> {
   const app = express()
   app.use('/', express.static(path.join(__dirname, '..', 'ui')))
   app.use(express.json({ limit: maxPayloadSize }))
@@ -35,21 +43,41 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
   let clients: WebSocket[] = []
   let cancelRequested = false
   let unpaused: Promise<void> | null = null
-  let signalUnpause: () => void | null = null
+  let signalUnpause: (() => void) | null = null
   let motionIdx: number | null = null
   let currentPlan: Plan | null = null
   let plotting = false
 
+  const withWakelock = (cb: (...args: any) => unknown) => {
+    return (...args: any[]) => {
+      let wakeLock: any
+      if (process.platform === 'darwin') {
+        try {
+          wakeLock = new WakeLock('saxi plotting')
+        } catch (e) {
+          console.warn("Couldn't acquire wake lock. Ensure your machine does not sleep during plotting")
+        }
+      }
+
+      cb(args)
+
+      if (wakeLock != null) {
+        wakeLock.release()
+      }
+    }
+  }
+
   wss.on('connection', (ws) => {
     clients.push(ws)
-    ws.on('message', (message) => {
-      const msg = JSON.parse(message.toString())
+    ws.on('message', (message, isBinary) => {
+      const msg = JSON.parse(isBinary ? message : message.toString())
+
       switch (msg.c) {
         case 'ping':
           ws.send(JSON.stringify({ c: 'pong' }))
           break
         case 'limp':
-          if (ebb != null) { ebb.disableMotors() }
+          ebb?.disableMotors().catch(printError)
           break
         case 'setPenHeight':
           if (ebb != null) {
@@ -58,7 +86,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
                 await ebb.setServoPowerTimeout(10000, true)
               }
               await ebb.setPenHeight(msg.p.height, msg.p.rate)
-            })()
+            })().catch(printError)
           }
           break
       }
@@ -79,10 +107,10 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     })
   })
 
-  app.post('/plot', async (req, res) => {
+  app.post('/plot', (req, res) => {
     if (plotting) {
       console.log('Received plot request, but a plot is already in progress!')
-      return res.status(400).end('Plot in progress')
+      res.status(400).end('Plot in progress')
     }
     plotting = true
     try {
@@ -93,39 +121,27 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
       res.status(200).end()
 
       const begin = Date.now()
-      let wakeLock: any
-      if (process.platform === 'darwin') {
-        try {
-          wakeLock = new WakeLock('saxi plotting')
-        } catch (e) {
-          console.warn("Couldn't acquire wake lock. Ensure your machine does not sleep during plotting")
-        }
-      }
 
-      try {
+      withWakelock(async () => {
         await doPlot(ebb != null ? realPlotter : simPlotter, plan)
         const end = Date.now()
         console.log(`Plot took ${formatDuration((end - begin) / 1000)}`)
-      } finally {
-        if (wakeLock) {
-          wakeLock.release()
-        }
-      }
+      })()
     } finally {
       plotting = false
     }
   })
 
-  app.post('/cancel', (req, res) => {
+  app.post('/cancel', (_, res) => {
     cancelRequested = true
     if (unpaused != null) {
-      signalUnpause()
+      signalUnpause?.()
     }
     unpaused = signalUnpause = null
     res.status(200).end()
   })
 
-  app.post('/pause', (req, res) => {
+  app.post('/pause', (_, res) => {
     if (unpaused == null) {
       unpaused = new Promise(resolve => {
         signalUnpause = resolve
@@ -135,15 +151,15 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     res.status(200).end()
   })
 
-  app.post('/resume', (req, res) => {
-    if (signalUnpause) {
+  app.post('/resume', (_, res) => {
+    if (signalUnpause != null) {
       signalUnpause()
       signalUnpause = unpaused = null
     }
     res.status(200).end()
   })
 
-  function broadcast (msg: any) {
+  function broadcast (msg: any): void {
     clients.forEach((ws) => {
       try {
         ws.send(JSON.stringify(msg))
@@ -162,20 +178,20 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
 
   const realPlotter: Plotter = {
     async prePlot (initialPenHeight: number): Promise<void> {
-      await ebb.enableMotors(2)
-      await ebb.setPenHeight(initialPenHeight, 1000, 1000)
+      await ebb?.enableMotors(2)
+      await ebb?.setPenHeight(initialPenHeight, 1000, 1000)
     },
     async executeMotion (motion: Motion, _progress: [number, number]): Promise<void> {
-      await ebb.executeMotion(motion)
+      await ebb?.executeMotion(motion)
     },
     async postCancel (): Promise<void> {
-      const device = Device(ebb.hardware)
+      const device = Device(ebb?.hardware)
       // TODO: switch to pen up position
-      await ebb.setPenHeight(device.penPctToPos(50), 1000)
+      await ebb?.setPenHeight(device.penPctToPos(50), 1000)
     },
     async postPlot (): Promise<void> {
-      await ebb.waitUntilMotorsIdle()
-      await ebb.disableMotors()
+      await ebb?.waitUntilMotorsIdle()
+      await ebb?.disableMotors()
     }
   }
 
@@ -196,8 +212,6 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
   }
 
   async function doPlot (plotter: Plotter, plan: Plan): Promise<void> {
-    cancelRequested = false
-    unpaused = null
     signalUnpause = null
     motionIdx = 0
 
@@ -233,14 +247,14 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
 
   return await new Promise<http.Server>((resolve) => {
     server.listen(port, () => {
-      async function connect () {
+      async function connect (): Promise<void> {
         const devices = ebbs(com, hardware)
         for await (const device of devices) {
           ebb = device
           broadcast({ c: 'dev', p: getDeviceInfo(ebb, com) })
         }
       }
-      connect()
+      connect().catch(printError)
       const { family, address, port } = server.address() as any
       const addr = `${family === 'IPv6' ? `[${address}]` : address}:${port}`
       console.log(`Server listening on http://${addr}`)
@@ -249,13 +263,13 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
   })
 }
 
-async function tryOpen (com: Com) {
+async function tryOpen (com: Com): Promise<SerialPortSerialPort> {
   const port = new SerialPortSerialPort(com)
   await port.open({ baudRate: 9600 })
   return port
 }
 
-async function sleep (ms: number) {
+async function sleep (ms: number): Promise<void> {
   return await new Promise((resolve) => setTimeout(resolve, ms))
 }
 
@@ -263,10 +277,10 @@ function isEBB (p: PortInfo): boolean {
   return p.manufacturer === 'SchmalzHaus' || p.manufacturer === 'SchmalzHaus LLC' || (p.vendorId == '04D8' && p.productId == 'FD92')
 }
 
-async function listEBBs () {
+async function listEBBs (): Promise<Array<PortInfo['path']>> {
   const Binding = autoDetect()
   const ports = await Binding.list()
-  return ports.filter(isEBB).map((p: { path: any }) => p.path)
+  return ports.filter(isEBB).map((portInfo: PortInfo) => portInfo.path)
 }
 
 export async function waitForEbb (): Promise<Com> {
@@ -302,7 +316,7 @@ async function * ebbs (path?: string, hardware: Hardware = 'v3') {
 }
 
 export async function connectEBB (hardware: Hardware = 'v3', device: string | undefined): Promise<EBB | null> {
-  if (!device) {
+  if (device == null) {
     const ebbs = await listEBBs()
     if (ebbs.length === 0) return null
     device = ebbs[0]

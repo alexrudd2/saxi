@@ -72,7 +72,7 @@ export class EBB {
   }
 
   private async write (str: string): Promise<void> {
-    if (process.env.DEBUG_SAXI_COMMANDS) {
+    if (process.env.DEBUG_SAXI_COMMANDS != null) {
       console.log(`writing: ${str}`)
     }
     const encoder = new TextEncoder()
@@ -88,7 +88,10 @@ export class EBB {
         return result
       })
     } catch (err) {
-      throw new Error(`Error in response to query '${cmd}': ${err?.message}`)
+      if (err instanceof Error) {
+        throw new Error(`Error in response to query '${cmd}': ${err?.message}`)
+      }
+      throw new Error(`Error in response to queryM '${cmd}'`)
     }
   }
 
@@ -106,7 +109,10 @@ export class EBB {
         return result
       })
     } catch (err) {
-      throw new Error(`Error in response to queryM '${cmd}': ${err.message}`)
+      if (err instanceof Error) {
+        throw new Error(`Error in response to queryM '${cmd}': ${err.message}`)
+      }
+      throw new Error(`Error in response to queryM '${cmd}'`)
     }
   }
 
@@ -121,7 +127,10 @@ export class EBB {
         }
       })
     } catch (err) {
-      throw new Error(`Error in response to command '${cmd}': ${err?.message ?? ''}`)
+      if (err instanceof Error) {
+        throw new Error(`Error in response to command '${cmd}': ${err?.message ?? ''}`)
+      }
+      throw new Error(`Error in response to command '${cmd}'`)
     }
   }
 
