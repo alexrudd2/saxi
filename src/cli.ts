@@ -10,14 +10,14 @@ import { Device, PlanOptions, defaultPlanOptions } from './planning'
 import { PaperSize } from './paper-size'
 import { Hardware } from './ebb'
 
-function parseSvg (svg: string) {
+function parseSvg (svg: string): HTMLElement {
   const window = new Window()
   window.document.documentElement.innerHTML = svg
   return window.document.documentElement
 }
 
 export function cli (argv: string[]): void {
-  yargs
+  void yargs
     .strict()
     .option('hardware', {
       describe: 'select hardware type',

@@ -175,3 +175,11 @@ export function dedupPoints (points: Vec2[], epsilon: number): Vec2[] {
   }
   return dedupedPoints
 }
+
+export const printError = (error: any): void => {
+  if (error instanceof Error) {
+    console.error(error.message)
+  } else {
+    console.error(error)
+  }
+}

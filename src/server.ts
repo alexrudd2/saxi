@@ -8,7 +8,7 @@ import { WakeLock } from 'wake-lock'
 import WebSocket from 'ws'
 import { SerialPortSerialPort } from './serialport-serialport'
 import { Device, PenMotion, Motion, Plan } from './planning'
-import { formatDuration } from './util'
+import { formatDuration, printError } from './util'
 import { autoDetect } from '@serialport/bindings-cpp'
 import * as _self from './server' // use self-import for test mocking
 
@@ -19,14 +19,6 @@ type Com = string
 
 const getDeviceInfo = (ebb: EBB | null, com: Com | null): { com: Com | null, hardware: Hardware | undefined } => {
   return { com: (ebb != null) ? com : null, hardware: ebb?.hardware }
-}
-
-const printError = (error: any): void => {
-  if (error instanceof Error) {
-    console.error(error.message)
-  } else {
-    console.error(error)
-  }
 }
 
 export async function startServer (port: number, hardware: Hardware = 'v3', com: Com | null = null, enableCors = false, maxPayloadSize = '200mb'): Promise<http.Server> {

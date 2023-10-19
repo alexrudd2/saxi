@@ -2,12 +2,12 @@ import { EventEmitter } from 'events'
 import { SerialPort as NodeSerialPort } from 'serialport'
 import { OpenOptions } from '@serialport/bindings-interface'
 
-function readableStreamFromAsyncIterable<T> (iterable: AsyncIterable<T>) {
+function readableStreamFromAsyncIterable<T> (iterable: AsyncIterable<T>): ReadableStream {
   const it = iterable[Symbol.asyncIterator]()
   return new ReadableStream({
     async pull (controller) {
       const { done, value } = await it.next()
-      if (done) {
+      if (done != null && done) {
         controller.close()
       } else {
         controller.enqueue(value)
@@ -57,7 +57,7 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
     return await new Promise((resolve, reject) => {
       this._port = new NodeSerialPort(opts, (err: any) => {
         this._port.once('close', () => this.emit('disconnect'))
-        if (err) reject(err)
+        if (err != null) reject(err)
         else {
           // Drain the port
           while (this._port.read() != null) { /* do nothing */ }
@@ -68,8 +68,8 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
       this.writable = new WritableStream({
         write: async (chunk) => {
           return await new Promise((resolve, reject) => {
-            this._port.write(Buffer.from(chunk), (err: Error) => {
-              if (err) reject(err)
+            this._port.write(Buffer.from(chunk), (err) => {
+              if (err instanceof Error) reject(err)
               else resolve()
               // TODO: check bytesWritten?
             })
@@ -85,8 +85,8 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
         dtr: signals.dataTerminalReady,
         rts: signals.requestToSend,
         brk: signals.break
-      }, (err: Error) => {
-        if (err) reject(err)
+      }, (err) => {
+        if (err instanceof Error) reject(err)
         else resolve()
       })
     })
@@ -102,8 +102,8 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
 
   public async close (): Promise<void> {
     return await new Promise((resolve, reject) => {
-      this._port.close((err: Error) => {
-        if (err) reject(err)
+      this._port.close((err) => {
+        if (err instanceof Error) reject(err)
         else resolve()
       })
     })
@@ -112,7 +112,7 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
   public addEventListener (type: 'connect' | 'disconnect', listener: (this: this, ev: Event) => any, useCapture?: boolean): void
   public addEventListener (type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void
   public addEventListener (type: any, listener: any, options?: any): void {
-    if (typeof options === 'object' && options.once) {
+    if (typeof options === 'object' && options.once != null) {
       this.once(type, listener)
     } else {
       this.on(type, listener)
@@ -122,7 +122,7 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
   public removeEventListener (type: 'connect' | 'disconnect', callback: (this: this, ev: Event) => any, useCapture?: boolean): void
   public removeEventListener (type: string, callback: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void
   public removeEventListener (type: any, callback: any, options?: any): void {
-    if (typeof options === 'object' && options.once) {
+    if (typeof options === 'object' && options.once != null) {
       this.off(type, callback)
     } else {
       this.off(type, callback)

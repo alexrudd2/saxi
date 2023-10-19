@@ -1,5 +1,6 @@
 import { Block, Motion, PenMotion, Plan, XYMotion } from './planning'
 import { RegexParser } from './regex-transform-stream'
+import { printError } from './util'
 import { Vec2, vsub } from './vec'
 
 /** Split d into its fractional and integral parts */
@@ -26,9 +27,10 @@ export class EBB {
   private cachedFirmwareVersion: [number, number, number] | undefined = undefined
 
   public constructor (port: SerialPort, hardware: Hardware = 'v3') {
+    if (port.readable == null || port.writable == null) throw new Error('Port not readable or port not writable')
     this.hardware = hardware
     this.port = port
-    this.writer = this.port.writable.getWriter()
+    this.writer = port.writable.getWriter()
     this.commandQueue = []
     this.readableClosed = port.readable
       .pipeThrough(new RegexParser({ regex: /[\r\n]+/ }))
@@ -41,9 +43,9 @@ export class EBB {
               return
             }
             try {
-              const d = this.commandQueue[0].next(chunk)
-              if (d.done) {
-                (this.commandQueue.shift() as any).resolve(d.value)
+              const done = this.commandQueue[0].next(chunk)
+              if (done != null && done.done) {
+                (this.commandQueue.shift() as any).resolve(done.value)
               }
             } catch (e) {
               (this.commandQueue.shift() as any).reject(e)
@@ -55,7 +57,7 @@ export class EBB {
       }))
   }
 
-  private get stepMultiplier () {
+  private get stepMultiplier (): number {
     switch (this.microsteppingMode) {
       case 5: return 1
       case 4: return 2
@@ -83,7 +85,7 @@ export class EBB {
   public async query (cmd: string): Promise<string> {
     try {
       return await this.run(function * (): Iterator<string, string, Buffer> {
-        this.write(`${cmd}\r`)
+        this.write(`${cmd}\r`).catch(printError)
         const result = (yield).toString('ascii')
         return result
       })
@@ -99,7 +101,7 @@ export class EBB {
   public async queryM (cmd: string): Promise<string[]> {
     try {
       return await this.run(function * (): Iterator<string[], string[], Buffer> {
-        this.write(`${cmd}\r`)
+        this.write(`${cmd}\r`).catch(printError)
         const result: string[] = []
         while (true) {
           const line = (yield).toString('ascii')
