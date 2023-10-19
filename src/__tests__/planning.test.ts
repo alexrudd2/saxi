@@ -1,8 +1,7 @@
-import { Plan, plan, Device, AxidrawFast, XYMotion, PenMotion, defaultPlanOptions } from '../planning'
+import { Plan, plan, AxidrawFast, XYMotion, PenMotion } from '../planning'
 import { Vec2 } from '../vec'
 
 describe('plan', () => {
-  const device = Device()
   const positions = {
     up: AxidrawFast.penUpPos,
     down: AxidrawFast.penDownPos
@@ -11,7 +10,7 @@ describe('plan', () => {
     expect(plan([], AxidrawFast)).toEqual(new Plan([]))
   })
 
-  function xyMotions (plan: Plan) {
+  function xyMotions (plan: Plan): Array<{ from: Vec2, to: Vec2, penPos: number }> {
     let curPenPos = 0
     const motions: Array<{ from: Vec2, to: Vec2, penPos: number }> = []
     for (const m of plan.motions) {

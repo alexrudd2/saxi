@@ -1,4 +1,4 @@
-import { startServer, waitForEbb } from '../server'
+import { startServer } from '../server'
 import type { Server } from 'http'
 import request from 'supertest'
 

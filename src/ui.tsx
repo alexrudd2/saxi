@@ -647,7 +647,7 @@ function PlanStatistics ({ plan }: { plan: Plan }): React.ReactElement {
   return (
     <div className='duration'>
       <div>Duration</div>
-      <div><strong>{plan?.duration != null ? formatDuration(plan.duration()) : '-'}</strong></div>
+      <div><strong>{plan.duration != null ? formatDuration(plan.duration()) : '-'}</strong></div>
     </div>
   )
 }
@@ -816,7 +816,7 @@ function PlanLoader (
     isLoadingFile: boolean
     isPlanning: boolean
   }
-) {
+): React.ReactElement | null {
   if (isLoadingFile || isPlanning) {
     return (
       <div className='preview-loader'>
@@ -925,7 +925,8 @@ function ResetToDefaultsButton (): React.ReactElement {
   return <button className='button-link' onClick={onClick}>reset all options</button>
 }
 
-function CropToMargins (): React.ReactElement {
+function CropToMargins ({ state }: { state: State }): React.ReactElement {
+  const dispatch = useContext(DispatchContext)
   return (
     <label className='flex-checkbox' title='Remove lines that fall outside the margins'>
       <input
@@ -967,7 +968,7 @@ function PlanOptions ({ state }: { state: State }): React.ReactElement {
           />
           fit page
         </label>
-        {!state.planOptions.fitPage ? <CropToMargins /> : null}
+        {!state.planOptions.fitPage ? <CropToMargins state={state} /> : null}
       </form>
       <div className='horizontal-labels'>
 
@@ -1093,11 +1094,11 @@ interface PortSelectorProps {
 function PortSelector ({ driver, setDriver, hardware }: PortSelectorProps): React.ReactElement {
   const [initializing, setInitializing] = useState(false)
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         const ports = await navigator.serial.getPorts()
         const port = ports[0]
-        if (port) {
+        if (port != null) {
           console.log('connecting to', port)
           const driver = await WebSerialDriver.connect(port, hardware)
           // get the first
@@ -1123,7 +1124,9 @@ function PortSelector ({ driver, setDriver, hardware }: PortSelectorProps): Reac
                   setDriver(driver)
                 })
                 .catch(error => {
-                  alert(`Failed to connect to serial device: ${error.message}`)
+                  if (error instanceof Error) {
+                    alert(`Failed to connect to serial device: ${error.message}`)
+                  }
                   console.error(error)
                 })
             }}
@@ -1267,13 +1270,17 @@ function Root (): React.ReactElement {
           <div className='control-panel-bottom'>
             <div className='section-header'>plot</div>
             <div className='section-body section-body__plot'>
-              <PlanStatistics plan={plan} />
-              <TimeLeft
-                plan={plan}
-                progress={state.progress}
-                currentMotionStartedTime={currentMotionStartedTime}
-                paused={state.paused}
-              />
+              {plan != null && (
+                <>
+                  <PlanStatistics plan={plan} />
+                  <TimeLeft
+                    plan={plan}
+                    progress={state.progress}
+                    currentMotionStartedTime={currentMotionStartedTime}
+                    paused={state.paused}
+                  />
+                </>
+              )}
               <PlotButtons plan={plan} isPlanning={isPlanning} state={state} driver={driver} />
             </div>
           </div>
@@ -1322,8 +1329,14 @@ function withSVG<T> (svgString: string, fn: (svg: SVGSVGElement) => T): T {
 export type Layer = (Vec2[]) & { stroke: string, groupId: string }
 export type Svg = Layer[]
 
+type FlattenedSvg = Array<{
+  points: any[][]
+  stroke: any
+  groupId: any
+}>
+
 function readSvg (svgString: string): Svg {
-  return withSVG(svgString, flattenSVG)
+  return withSVG<FlattenedSvg>(svgString, flattenSVG)
     .map(({ points, stroke, groupId }) => {
       return {
         ...points.map(([x, y]) => ({ x, y })),

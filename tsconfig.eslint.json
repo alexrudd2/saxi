@@ -10,5 +10,8 @@
   "include": [
     "./src/",
     "tools/release.js"
+  ],
+  "files": [
+    "src/global.d.ts"
   ]
 }
