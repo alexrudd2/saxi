@@ -10,7 +10,7 @@ import { Device, PlanOptions, defaultPlanOptions } from './planning'
 import { PaperSize } from './paper-size'
 import { Hardware } from './ebb'
 
-function parseSvg (svg: string): HTMLElement {
+function parseSvg (svg: string): SVGElement {
   const window = new Window()
   window.document.documentElement.innerHTML = svg
   return window.document.documentElement
@@ -156,6 +156,7 @@ export function cli (argv: string[]): void {
           default: defaultPlanOptions.rotateDrawing
         })
         .check((args) => {
+          if (args.landscape == null || args.portrait == null) return true
           if (args.landscape && args.portrait) {
             throw new Error('Only one of --portrait and --landscape may be specified')
           }
@@ -163,18 +164,16 @@ export function cli (argv: string[]): void {
         }),
       async args => {
         console.log('reading svg...')
+        if (args.file == null) return
         const svg = fs.readFileSync(args.file, 'utf8')
         console.log('parsing svg...')
         const parsed = parseSvg(svg)
         console.log('flattening svg...')
         const lines = flattenSVG(parsed, {})
         console.log('generating motion plan...')
-        const paperSize =
-          args.landscape
-            ? args['paper-size'].landscape
-            : args.portrait
-              ? args['paper-size'].portrait
-              : args['paper-size']
+        let paperSize = args['paper-size']
+        if (args.landscape != null && args.landscape) { paperSize = paperSize.landscape }
+        if (args.portrait != null && args.portrait) { paperSize = paperSize.portrait }
         const planOptions: PlanOptions = {
           paperSize,
           marginMm: args.margin,

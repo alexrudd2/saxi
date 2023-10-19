@@ -9,4 +9,5 @@ self.addEventListener('message', (m) => {
   (self as any).postMessage(serialized)
 })
 
-export default {} as typeof Worker & (new() => Worker)
+type WorkerMaker = typeof Worker & (new() => Worker)
+export default {} as WorkerMaker
