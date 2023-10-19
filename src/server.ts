@@ -13,10 +13,11 @@ import { autoDetect } from '@serialport/bindings-cpp'
 import * as _self from './server' // use self-import for test mocking
 
 import { EBB, Hardware } from './ebb'
+import { AddressInfo } from 'net'
 
 type Com = string
 
-const getDeviceInfo = (ebb: EBB | null, com: Com): { com: Com | null, hardware: Hardware | undefined } => {
+const getDeviceInfo = (ebb: EBB | null, com: Com | null): { com: Com | null, hardware: Hardware | undefined } => {
   return { com: (ebb != null) ? com : null, hardware: ebb?.hardware }
 }
 
@@ -69,8 +70,8 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
 
   wss.on('connection', (ws) => {
     clients.push(ws)
-    ws.on('message', (message, isBinary) => {
-      const msg = JSON.parse(isBinary ? message : message.toString())
+    ws.on('message', (message) => {
+      const msg = JSON.parse(message.toString('utf8'))
 
       switch (msg.c) {
         case 'ping':
@@ -196,7 +197,6 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
   }
 
   const simPlotter: Plotter = {
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
     async prePlot (_initialPenHeight: number): Promise<void> {
     },
     async executeMotion (motion: Motion, progress: [number, number]): Promise<void> {
@@ -206,7 +206,6 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     async postCancel (): Promise<void> {
       console.log('Plot cancelled')
     },
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
     async postPlot (): Promise<void> {
     }
   }
@@ -226,7 +225,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
       if (motion instanceof PenMotion) {
         penIsUp = motion.initialPos < motion.finalPos
       }
-      if (unpaused && penIsUp) {
+      if (unpaused != null && penIsUp) {
         await unpaused
         broadcast({ c: 'pause', p: { paused: false } })
       }
@@ -255,7 +254,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
         }
       }
       connect().catch(printError)
-      const { family, address, port } = server.address() as any
+      const { family, address, port } = server.address() as AddressInfo
       const addr = `${family === 'IPv6' ? `[${address}]` : address}:${port}`
       console.log(`Server listening on http://${addr}`)
       resolve(server)
@@ -274,7 +273,7 @@ async function sleep (ms: number): Promise<void> {
 }
 
 function isEBB (p: PortInfo): boolean {
-  return p.manufacturer === 'SchmalzHaus' || p.manufacturer === 'SchmalzHaus LLC' || (p.vendorId == '04D8' && p.productId == 'FD92')
+  return p.manufacturer === 'SchmalzHaus' || p.manufacturer === 'SchmalzHaus LLC' || (p.vendorId === '04D8' && p.productId === 'FD92')
 }
 
 async function listEBBs (): Promise<Array<PortInfo['path']>> {
@@ -294,10 +293,10 @@ export async function waitForEbb (): Promise<Com> {
   }
 }
 
-async function * ebbs (path?: string, hardware: Hardware = 'v3') {
+async function * ebbs (path: string | null, hardware: Hardware = 'v3'): AsyncGenerator<EBB | null, never, void> {
   while (true) {
     try {
-      const com: Com = path || (await _self.waitForEbb()) // use self-import for test mocking
+      const com: Com = path ?? (await _self.waitForEbb()) // use self-import for test mocking
       console.log(`Found EBB at ${com}`)
       const port = await tryOpen(com)
       const closed = new Promise((resolve) => {
@@ -308,7 +307,9 @@ async function * ebbs (path?: string, hardware: Hardware = 'v3') {
       yield null
       console.error('Lost connection to EBB, reconnecting...')
     } catch (e) {
-      console.error(`Error connecting to EBB: ${e.message}`)
+      if (e instanceof Error) {
+        console.error(`Error connecting to EBB: ${e.message}`)
+      }
       console.error('Retrying in 5 seconds...')
       await sleep(5000)
     }
