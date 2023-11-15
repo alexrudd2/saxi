@@ -119,6 +119,36 @@ $ tmux kill-session -t saxi
 
 ---
 
+#### Raspberry Pi Zero OTG
+
+![Pi Zero on an AxiDraw with a Y-shaped USB cable](docs/pi-zero.jpg)
+
+For the Pi Zero you can make a USB "OTG" cable out of two Micro-B cables and two 0.1" headers
+to tap into the AxiDraw's 5V servo supply to power the Pi.  This makes for a more compact
+installation without the need for an additional wall-wart.
+
+
+```
+           +------ Center pin on servo rail
+           | +---- Ground pin on servo rail
+           | |
+           | |
+Red   -----+-|---- Red
+Black -------+---- Black
+White ------------ White
+Green ------------ Green (sometimes Blue)
+```
+
+The Pi will also need to have the `dr_mode=host` parameter set in
+`config.txt` to force host mode, since normal USB Micro cables do not
+include the `ID` pin that would be used to signal that it is an OTG
+connection.
+
+```
+echo dtoverly=dwc2,dr_mode=host | sudo tee -a /boot/config.txt
+```
+
+
 #### CORS
 
 If you want to connect to saxi from a web page that isn't served by saxi
