@@ -144,6 +144,16 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     res.status(200).end();
   })
 
+  app.post("/change-hardware", (req, res) => {
+    if (ebb?.hardware === 'brushless') {
+      ebb.hardware = 'v3';
+    } else if (ebb?.hardware === 'v3') {
+      ebb.hardware = 'brushless';
+    }
+    // fixme: change planning.ts : Device
+    res.status(200).end();
+  })
+
   function broadcast(msg: any) {
     clients.forEach((ws) => {
       try {
