@@ -485,7 +485,11 @@ function HardwareOptions({ state }: { state: State }) {
       <input
         type="checkbox"
         checked={state.planOptions.hardware === 'brushless'}
-        onChange={(e) => setHardware(e.target.checked ? 'brushless' : 'v3')}
+        onChange={(e) => {
+          // fixme combine if possible
+          setHardware(e.target.checked ? 'brushless' : 'v3');
+          fetch("/change-hardware", { method: "POST" });
+        }}
       />
       brushless
     </label>
@@ -630,7 +634,7 @@ function PlanStatistics({plan}: {plan: Plan}) {
 
 function TimeLeft({plan, progress, currentMotionStartedTime, paused}: {
   plan: Plan;
-  progress: number | null; 
+  progress: number | null;
   currentMotionStartedTime: Date | null;
   paused: boolean;
 }) {
@@ -1216,9 +1220,9 @@ function Root() {
           <div className="section-header">plot</div>
           <div className="section-body section-body__plot">
             <PlanStatistics plan={plan} />
-            <TimeLeft 
-              plan={plan} 
-              progress={state.progress} 
+            <TimeLeft
+              plan={plan}
+              progress={state.progress}
               currentMotionStartedTime={currentMotionStartedTime}
               paused={state.paused}
             />
