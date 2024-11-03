@@ -104,13 +104,40 @@ interface Driver {
   ondevinfo: (devInfo: DeviceInfo) => void | null;
   onpause: (paused: boolean) => void | null;
   onconnectionchange: (connected: boolean) => void | null;
+
+  /**
+   * Called when plan loaded
+   */
   onplan: (plan: Plan) => void | null;
 
+  /**
+   * Send the pen to the top left corner of the page.
+   */
+  reset(): void;
+
+  /**
+   * Plot the given plan.
+   */
   plot(plan: Plan): void;
 
+  /**
+   * Cancel the current plot.
+   */
   cancel(): void;
+
+  /**
+   * Pause the current plot.
+   */
   pause(): void;
+
+  /**
+   * Resume the current plot.
+   */
   resume(): void;
+
+  /**
+   * Set the pen height.
+   */
   setPenHeight(height: number, rate: number): void;
   limp(): void;
 
@@ -118,6 +145,10 @@ interface Driver {
   close(): Promise<void>;
 }
 
+/**
+ * Web Serial driver for the EBB.
+ * Connects web server to the EBB via Web Serial.
+ */
 class WebSerialDriver implements Driver {
   public onprogress: (motionIdx: number) => void;
   public oncancelled: () => void;
@@ -232,6 +263,11 @@ class WebSerialDriver implements Driver {
     this.ebb.disableMotors()
   }
 }
+
+/**
+ * Driver for the Saxi server.
+ * Connects UI to Web Server via WebSocket.
+ */
 
 class SaxiDriver implements Driver {
   public static connect(): Driver {
