@@ -1,7 +1,7 @@
 import * as Optimization from "optimize-paths";
-import {Device, type Plan, type PlanOptions, plan} from "./planning";
-import {dedupPoints, scaleToPaper, cropToMargins} from "./util";
-import {type Vec2, vmul, vrot} from "./vec";
+import { Device, type Plan, type PlanOptions, plan } from "./planning";
+import { dedupPoints, scaleToPaper, cropToMargins } from "./util";
+import { type Vec2, vmul, vrot } from "./vec";
 
 // CSS, and thus SVG, defines 1px = 1/96th of 1in
 // https://www.w3.org/TR/css-values-4/#absolute-lengths
@@ -19,7 +19,7 @@ export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
   if (planOptions.rotateDrawing !== 0) {
     console.time("rotating paths");
     paths = paths.map((pl) => pl.map((p) => vrot(p,
-      vmul({x:planOptions.paperSize.size.x/2, y: planOptions.paperSize.size.y/2}, 1/mmPerSvgUnit),
+      vmul({ x:planOptions.paperSize.size.x/2, y: planOptions.paperSize.size.y/2 }, 1/mmPerSvgUnit),
       planOptions.rotateDrawing)
     ));
     console.timeEnd("rotating paths");

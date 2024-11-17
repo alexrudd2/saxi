@@ -1,6 +1,6 @@
 module.exports = {
   parser: '@typescript-eslint/parser',
-  plugins: ['@typescript-eslint'],
+  plugins: ['@typescript-eslint', '@stylistic/eslint-plugin'],
   extends: [
     'eslint:recommended',
     'plugin:react/recommended',
@@ -23,6 +23,11 @@ module.exports = {
       argsIgnorePattern: "^_",
       varsIgnorePattern: "^_",
     }],
+    '@stylistic/indent': ['error', 2],
+    "@stylistic/space-unary-ops": 2,
+    '@stylistic/object-curly-spacing': ['error', 'always'],
+    // "semi": [1, "always"],
+    // "consistent-return": 2,
   },
   settings: {
     react: {

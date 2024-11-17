@@ -1,5 +1,5 @@
-import type {PaperSize} from "./paper-size";
-import {vadd, type Vec2, vlen2, vmul, vsub} from "./vec";
+import type { PaperSize } from "./paper-size";
+import { vadd, type Vec2, vlen2, vmul, vsub } from "./vec";
 
 /** Format a smallish duration in 2h30m15s form */
 export function formatDuration(seconds: number): string {
@@ -28,7 +28,7 @@ function extent(pointLists: Vec2[][]): [Vec2, Vec2] {
       if (p.y < minY) { minY = p.y; }
     }
   }
-  return [{x: minX, y: minY}, {x: maxX, y: maxY}];
+  return [{ x: minX, y: minY }, { x: maxX, y: maxY }];
 }
 
 /**
@@ -54,8 +54,8 @@ function scaleToFit(pointLists: Vec2[][], targetMin: Vec2, targetMax: Vec2): Vec
 export function scaleToPaper(pointLists: Vec2[][], paperSize: PaperSize, marginMm: number): Vec2[][] {
   return scaleToFit(
     pointLists,
-    {x: marginMm, y: marginMm},
-    vsub(paperSize.size, {x: marginMm, y: marginMm})
+    { x: marginMm, y: marginMm },
+    vsub(paperSize.size, { x: marginMm, y: marginMm })
   );
 }
 
@@ -147,8 +147,8 @@ function cropLineToAabb(pointList: Vec2[], aabb: [Vec2, Vec2]): Vec2[][] {
  * Crops a drawing so it is kept entirely within the given margin.
  */
 export function cropToMargins(pointLists: Vec2[][], paperSize: PaperSize, marginMm: number): Vec2[][] {
-  const pageAabb: [Vec2, Vec2] = [{x: 0, y: 0}, paperSize.size]
-  const margin = {x: marginMm, y: marginMm}
+  const pageAabb: [Vec2, Vec2] = [{ x: 0, y: 0 }, paperSize.size]
+  const margin = { x: marginMm, y: marginMm }
   const insetAabb: [Vec2, Vec2] = [vadd(pageAabb[0], margin), vsub(pageAabb[1], margin)]
   const truncatedPointLists: Vec2[][] = []
   for (const pointList of pointLists) {
