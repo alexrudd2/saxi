@@ -24,7 +24,7 @@ module.exports = {
       varsIgnorePattern: "^_",
     }],
     '@stylistic/indent': ['error', 2],
-    "@stylistic/space-unary-ops": 2,
+    "@stylistic/space-infix-ops": 1,
     '@stylistic/object-curly-spacing': ['error', 'always'],
     // "semi": [1, "always"],
     // "consistent-return": 2,

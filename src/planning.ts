@@ -193,7 +193,7 @@ export class Block {
 
   public get vFinal(): number { return Math.max(0, this.vInitial + this.accel * this.duration); }
 
-  public instant(tU: number, dt= 0, ds= 0): Instant {
+  public instant(tU: number, dt = 0, ds = 0): Instant {
     const t = Math.max(0, Math.min(this.duration, tU));
     const a = this.accel;
     const v = this.vInitial + this.accel * t;

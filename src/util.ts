@@ -123,7 +123,7 @@ function cropLineToAabb(pointList: Vec2[], aabb: [Vec2, Vec2]): Vec2[][] {
   const truncatedPointLists: Vec2[][] = []
   let currentPointList: Vec2[] | null = null
   for (let i = 1; i < pointList.length; i++) {
-    const [a, b] = [pointList[i-1], pointList[i]]
+    const [a, b] = [pointList[i - 1], pointList[i]]
     const truncated = truncate(aabb, [a, b])
     if (truncated) {
       if (!currentPointList) {

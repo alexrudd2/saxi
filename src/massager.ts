@@ -19,7 +19,7 @@ export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
   if (planOptions.rotateDrawing !== 0) {
     console.time("rotating paths");
     paths = paths.map((pl) => pl.map((p) => vrot(p,
-      vmul({ x:planOptions.paperSize.size.x/2, y: planOptions.paperSize.size.y/2 }, 1/mmPerSvgUnit),
+      vmul({ x:planOptions.paperSize.size.x / 2, y: planOptions.paperSize.size.y / 2 }, 1 / mmPerSvgUnit),
       planOptions.rotateDrawing)
     ));
     console.timeEnd("rotating paths");
