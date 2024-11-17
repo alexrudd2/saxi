@@ -1,6 +1,6 @@
-import {type Block, type Motion, PenMotion, type Plan, XYMotion} from "./planning";
+import { type Block, type Motion, PenMotion, type Plan, XYMotion } from "./planning";
 import { RegexParser } from "./regex-transform-stream";
-import {type Vec2, vsub} from "./vec";
+import { type Vec2, vsub } from "./vec";
 
 /** Split d into its fractional and integral parts */
 function modf(d: number): [number, number] {
@@ -21,7 +21,7 @@ export class EBB {
   private microsteppingMode = 0;
 
   /** Accumulated XY error, used to correct for movements with sub-step resolution */
-  private error: Vec2 = {x: 0, y: 0};
+  private error: Vec2 = { x: 0, y: 0 };
 
   private cachedFirmwareVersion: [number, number, number] | undefined = undefined;
 
