@@ -475,20 +475,10 @@ function PenHeight({ state, driver }: { state: State; driver: Driver }) {
 }
 
 function HardwareOptions({ state }: { state: State }) {
-  const dispatch = useContext(DispatchContext);
-  const setHardware = (hardware: string) => dispatch({
-    type: "SET_PLAN_OPTION",
-    value: { hardware }
-  });
   return <div>
-    <label className="flex-checkbox" title="Use brushless upgrade kit pin and power settings">
-      <input
-        type="checkbox"
-        checked={state.planOptions.hardware === 'brushless'}
-        onChange={(e) => setHardware(e.target.checked ? 'brushless' : 'v3')}
-      />
-      brushless
-    </label>
+    <div title="Motor type (affects pin and power settings)">
+      motor: {state.planOptions.hardware}
+    </div>
   </div>;
 }
 
