@@ -72,7 +72,6 @@
     "optimize-paths": "^1.2.2",
     "serialport": "^12.0.0 || ^13.0.0",
     "svgdom": "0.1.16",
-    "wake-lock": "^0.2.0",
     "web-streams-polyfill": "^4.0.0",
     "ws": "^8.0.0",
     "yargs": "^17.0.0"
@@ -88,6 +87,7 @@
     "cli.js"
   ],
   "optionalDependencies": {
-    "@esbuild/linux-arm": "^0.19.2 || ^0.20.0 || ^0.24.0"
+    "@esbuild/linux-arm": "^0.19.2 || ^0.20.0 || ^0.24.0",
+    "wake-lock": "^0.2.0"
   }
 }
