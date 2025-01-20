@@ -98,7 +98,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
       if (process.platform === 'darwin') {
         try {
           wakeLock = new WakeLock("saxi plotting");
-        } catch (e) {
+        } catch {
           console.warn("Couldn't acquire wake lock. Ensure your machine does not sleep during plotting");
         }
       }
