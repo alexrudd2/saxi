@@ -7,11 +7,8 @@ declare module 'wake-lock';
 declare module 'color-interpolate';
 declare module 'colormap';
 
-declare module 'flatten-svg/index' {
-  export { flattenSVG } from "flatten-svg/svg-to-paths";
-
-}
-declare module 'flatten-svg/svg-to-paths' {
+// https://github.com/nornagon/flatten-svg/issues/27
+declare module 'flatten-svg' {
   interface Options {
     maxError: number;
   }
@@ -23,10 +20,6 @@ declare module 'flatten-svg/svg-to-paths' {
   }
   export function flattenSVG(svg: SVGElement, options?: Partial<Options>): Line[];
 
-}
-declare module 'flatten-svg' {
-  import main = require('flatten-svg/index');
-  export = main;
 }
 
 declare const IS_WEB: boolean
