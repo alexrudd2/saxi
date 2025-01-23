@@ -72,9 +72,9 @@ function reducer(state: State, action: any): State {
     case "SET_PLAN_OPTION":
       return { ...state, planOptions: { ...state.planOptions, ...action.value } };
     case "SET_VISUALIZATION_OPTION":
-      return {...state, visualizationOptions: {...state.visualizationOptions, ...action.value }};
+      return { ...state, visualizationOptions: { ...state.visualizationOptions, ...action.value } };
     case "SET_SVGIO_OPTION":
-      return {...state, svgIoOptions: {...state.svgIoOptions, ...action.value }}
+      return { ...state, svgIoOptions: { ...state.svgIoOptions, ...action.value } }
     case "SET_DEVICE_INFO":
       return { ...state, deviceInfo: action.value };
     case "SET_PAUSED":
@@ -334,7 +334,7 @@ class SaxiDriver implements Driver {
     fetch("/plot", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: new Blob([ JSON.stringify(plan.serialize()) ], { type: 'application/json' })
+      body: new Blob([JSON.stringify(plan.serialize())], { type: 'application/json' })
     });
   }
 
@@ -658,7 +658,7 @@ function PaperConfig({ state }: { state: State }) {
               if (Number(value) < 0) { (e.target as HTMLInputElement).value = "270"; }
               if (Number(value) > 270) { (e.target as HTMLInputElement).value = "0"; }
             }}
-            onChange={(e) => dispatch({ type: "SET_PLAN_OPTION", value: { rotateDrawing: e.target.value } })}/>
+            onChange={(e) => dispatch({ type: "SET_PLAN_OPTION", value: { rotateDrawing: e.target.value } })} />
         </div>
       </label>
     </div>
@@ -1271,12 +1271,14 @@ function Root() {
             <VisualizationOptions state={state} />
           </div>
         </details>
-        <details>
-          <summary className="section-header">AI</summary>
-          <div className="section-body">
-            <SvgIoOptions state={state} />
-          </div>
-        </details>
+        {REACT_APP_ENABLE_SVG_IO
+          ? <details>
+            <summary className="section-header">AI</summary>
+            <div className="section-body">
+              <SvgIoOptions state={state} />
+            </div>
+          </details>
+          : ''}
         <div className="spacer" />
         <div className="control-panel-bottom">
           <div className="section-header">plot</div>
