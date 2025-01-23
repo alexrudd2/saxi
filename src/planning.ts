@@ -193,13 +193,13 @@ export class Block {
 
   public get vFinal(): number { return Math.max(0, this.vInitial + this.accel * this.duration); }
 
-  public instant(tU: number, dt= 0, ds= 0): Instant {
+  public instant(tU: number, dt = 0, ds = 0): Instant {
     const t = Math.max(0, Math.min(this.duration, tU));
     const a = this.accel;
     const v = this.vInitial + this.accel * t;
     const s = Math.max(0, Math.min(this.distance, this.vInitial * t + a * t * t / 2));
     const p = vadd(this.p1, vmul(vnorm(vsub(this.p2, this.p1)), s));
-    return {t: t + dt, p, s: s + ds, v, a};
+    return { t: t + dt, p, s: s + ds, v, a };
   }
 
   public serialize(): any {
@@ -439,7 +439,7 @@ function computeTriangle(
   const t1 = (vMax - initialVel) / accel;
   const t2 = (finalVel - vMax) / -accel;
   const p2 = vadd(p1, vmul(vnorm(vsub(p3, p1)), acceleratingDistance));
-  return {s1: acceleratingDistance, s2: deceleratingDistance, t1, t2, vMax, p1, p2, p3};
+  return { s1: acceleratingDistance, s2: deceleratingDistance, t1, t2, vMax, p1, p2, p3 };
 }
 
 /** Represents a trapezoidal velocity profile for moving in a straight line.
@@ -492,7 +492,7 @@ function computeTrapezoid(
   const dir = vnorm(vsub(p4, p1));
   const p2 = vadd(p1, vmul(dir, s1));
   const p3 = vadd(p1, vmul(dir, (distance - s3)));
-  return {s1, s2, s3, t1, t2, t3, p1, p2, p3, p4};
+  return { s1, s2, s3, t1, t2, t3, p1, p2, p3, p4 };
 }
 
 function dedupPoints(points: Vec2[], epsilon: number): Vec2[] {
