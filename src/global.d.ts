@@ -23,3 +23,4 @@ declare module 'flatten-svg' {
 }
 
 declare const IS_WEB: boolean
+declare const REACT_APP_ENABLE_SVG_IO: boolean;
