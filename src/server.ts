@@ -7,7 +7,7 @@ import type { PortInfo } from "@serialport/bindings-interface"
 import { WakeLock } from "wake-lock";
 import WebSocket from "ws";
 import { SerialPortSerialPort } from "./serialport-serialport";
-import { Device, PenMotion, type Motion, Plan } from "./planning";
+import { PenMotion, type Motion, Plan } from "./planning";
 import { formatDuration } from "./util";
 import { autoDetect } from '@serialport/bindings-cpp';
 import * as _self from './server'  // use self-import for test mocking
@@ -157,7 +157,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
   interface Plotter {
     prePlot: (initialPenHeight: number) => Promise<void>;
     executeMotion: (m: Motion, progress: [number, number]) => Promise<void>;
-    postCancel: () => Promise<void>;
+    postCancel: (initialPenHeight: number) => Promise<void>;
     postPlot: () => Promise<void>;
   }
 
@@ -169,10 +169,8 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     async executeMotion(motion: Motion, _progress: [number, number]): Promise<void> {
       await ebb.executeMotion(motion);
     },
-    async postCancel(): Promise<void> {
-      const device = Device(ebb.hardware)
-      // TODO: switch to pen up position
-      await ebb.setPenHeight(device.penPctToPos(50), 1000);
+    async postCancel(initialPenHeight: number): Promise<void> {
+      await ebb.setPenHeight(initialPenHeight, 1000);
     },
     async postPlot(): Promise<void> {
       await ebb.waitUntilMotorsIdle();
@@ -188,7 +186,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
       console.log(`Motion ${progress[0] + 1}/${progress[1]}`);
       await new Promise((resolve) => setTimeout(resolve, motion.duration() * 1000));
     },
-    async postCancel(): Promise<void> {
+    async postCancel(_initialPenHeight: number): Promise<void> {
       console.log("Plot cancelled");
     },
     // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -223,7 +221,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     motionIdx = null;
     currentPlan = null;
     if (cancelRequested) {
-      await plotter.postCancel();
+      await plotter.postCancel(firstPenMotion.initialPos);
       broadcast({ c: "cancelled" });
       cancelRequested = false;
     } else {
