@@ -312,6 +312,7 @@ export class Plan {
       switch (m.t) {
         case "XYMotion": return XYMotion.deserialize(m);
         case "PenMotion": return PenMotion.deserialize(m);
+        default: throw new Error(`Wrong parameter: ${m.t}`);
       }
     }));
   }
@@ -340,6 +341,7 @@ export class Plan {
           ? new PenMotion(penUpHeight, penDownHeight, motion.duration())
           : new PenMotion(penDownHeight, penUpHeight, motion.duration()));
       }
+      throw new Error(`Wrong motion ${motion}`);
     }));
   }
 

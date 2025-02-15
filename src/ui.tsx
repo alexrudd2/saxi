@@ -363,7 +363,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
     return JSON.stringify(po, (k, v) => v instanceof Set ? [...v] : v);
   }
 
-  function attemptRejigger(previousOptions: PlanOptions, newOptions: PlanOptions, previousPlan: Plan) {
+  function attemptRejigger(previousOptions: PlanOptions, newOptions: PlanOptions, previousPlan: Plan): Plan | null {
     const newOptionsWithOldPenHeights = {
       ...newOptions,
       penUpHeight: previousOptions.penUpHeight,
@@ -377,6 +377,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
         device.penPctToPos(newOptions.penDownHeight)
       );
     }
+    return null;
   }
 
   const lastPaths = useRef(null);
@@ -385,7 +386,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
 
   useEffect(() => {
     if (!paths) {
-      return;
+      return null;
     }
     if (lastPlan.current != null && lastPaths.current === paths) {
       const rejiggered = attemptRejigger(lastPlanOptions.current ?? defaultPlanOptions, planOptions, lastPlan.current);
@@ -393,7 +394,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
         setPlan(rejiggered);
         lastPlan.current = rejiggered;
         lastPlanOptions.current = planOptions;
-        return;
+        return null;
       }
     }
     lastPaths.current = paths;
@@ -682,6 +683,7 @@ function PlanPreview(
         )}
       </g>;
     }
+    return [];
   }, [plan, strokeWidth, colorPathsByStrokeOrder]);
 
   // w/h of svg.
