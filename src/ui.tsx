@@ -386,7 +386,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
 
   useEffect(() => {
     if (!paths) {
-      return null;
+      return () =>{};
     }
     if (lastPlan.current != null && lastPaths.current === paths) {
       const rejiggered = attemptRejigger(lastPlanOptions.current ?? defaultPlanOptions, planOptions, lastPlan.current);
@@ -394,7 +394,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
         setPlan(rejiggered);
         lastPlan.current = rejiggered;
         lastPlanOptions.current = planOptions;
-        return null;
+        return () =>{};
       }
     }
     lastPaths.current = paths;
