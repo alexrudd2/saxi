@@ -1,9 +1,9 @@
 import yargs from "yargs";
-import {connectEBB, startServer} from "./server";
-import {replan} from "./massager";
-import {Window} from "svgdom";
+import { connectEBB, startServer } from "./server";
+import { replan } from "./massager";
+import { Window } from "svgdom";
 import * as fs from "node:fs";
-import {flattenSVG} from "flatten-svg";
+import { flattenSVG } from "flatten-svg";
 import type { Vec2 } from "./vec";
 import { formatDuration } from "./util";
 import { Device, type PlanOptions, defaultPlanOptions } from "./planning";
@@ -45,7 +45,7 @@ export function cli(argv: string[]): void {
             } else {
               const m = /^([0-9]*(?:\.[0-9]+)?)\s*x\s*([0-9]*(?:\.[0-9]+)?)\s*(cm|mm|in)$/i.exec(String(value).trim())
               if (m) {
-                return new PaperSize({x: Number(m[1]), y: Number(m[2])})
+                return new PaperSize({ x: Number(m[1]), y: Number(m[2]) })
               }
             }
             throw new Error(`Paper size should be a standard size (${Object.keys(PaperSize.standard).join(", ")}) or a custom size such as "100x100mm" or "16x10in"`)
@@ -219,7 +219,7 @@ export function cli(argv: string[]): void {
       }
     )
     .command('pen [percent]', 'put the pen to [percent]', yargs => yargs
-      .positional('percent', { type: 'number', description: 'percent height between 0 and 100', required: true})
+      .positional('percent', { type: 'number', description: 'percent height between 0 and 100', required: true })
       .check(args => args.percent >= 0 && args.percent <= 100),
     async args => {
       console.log('connecting to plotter...')
@@ -260,7 +260,7 @@ export function cli(argv: string[]): void {
 
 function linesToVecs(lines: any[]): Vec2[][] {
   return lines.map((line) => {
-    const a = line.points.map(([x, y]: [number, number]) => ({x, y}));
+    const a = line.points.map(([x, y]: [number, number]) => ({ x, y }));
     (a as any).stroke = line.stroke;
     (a as any).groupId = line.groupId;
     return a;

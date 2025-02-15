@@ -68,7 +68,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
       const msg = JSON.parse(message.toString());
       switch (msg.c) {
         case "ping":
-          ws.send(JSON.stringify({c: "pong"}));
+          ws.send(JSON.stringify({ c: "pong" }));
           break;
         case "limp":
           if (ebb) { ebb.disableMotors(); }
@@ -87,14 +87,14 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     });
 
     // send starting params to clients
-    ws.send(JSON.stringify({c: 'dev', p: getDeviceInfo(ebb, com)}))
+    ws.send(JSON.stringify({ c: 'dev', p: getDeviceInfo(ebb, com) }))
 
-    ws.send(JSON.stringify({c: "pause", p: {paused: !!unpaused}}));
+    ws.send(JSON.stringify({ c: "pause", p: { paused: !!unpaused } }));
     if (motionIdx != null) {
-      ws.send(JSON.stringify({c: "progress", p: {motionIdx}}));
+      ws.send(JSON.stringify({ c: "progress", p: { motionIdx } }));
     }
     if (currentPlan != null) {
-      ws.send(JSON.stringify({c: "plan", p: {plan: currentPlan}}));
+      ws.send(JSON.stringify({ c: "plan", p: { plan: currentPlan } }));
     }
 
     ws.on("close", () => {
@@ -124,7 +124,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
       if (process.platform === 'darwin') {
         try {
           wakeLock = new WakeLock("saxi plotting");
-        } catch (e) {
+        } catch {
           console.warn("Couldn't acquire wake lock. Ensure your machine does not sleep during plotting");
         }
       }
@@ -157,7 +157,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
       unpaused = new Promise(resolve => {
         signalUnpause = resolve;
       });
-      broadcast({c: "pause", p: {paused: true}});
+      broadcast({ c: "pause", p: { paused: true } });
     }
     res.status(200).end();
   });
@@ -234,14 +234,14 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     let penIsUp = true;
 
     for (const motion of plan.motions) {
-      broadcast({c: "progress", p: {motionIdx}});
+      broadcast({ c: "progress", p: { motionIdx } });
       await plotter.executeMotion(motion, [motionIdx, plan.motions.length]);
       if (motion instanceof PenMotion) {
         penIsUp = motion.initialPos < motion.finalPos;
       }
       if (unpaused && penIsUp) {
         await unpaused;
-        broadcast({c: "pause", p: {paused: false}});
+        broadcast({ c: "pause", p: { paused: false } });
       }
       if (cancelRequested) { break; }
       motionIdx += 1;
@@ -250,10 +250,10 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     currentPlan = null;
     if (cancelRequested) {
       await plotter.postCancel();
-      broadcast({c: "cancelled"});
+      broadcast({ c: "cancelled" });
       cancelRequested = false;
     } else {
-      broadcast({c: "finished"});
+      broadcast({ c: "finished" });
     }
     await plotter.postPlot();
   }
@@ -268,7 +268,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
         }
       }
       connect();
-      const {family, address, port} = server.address() as any;
+      const { family, address, port } = server.address() as any;
       const addr = `${family === "IPv6" ? `[${address}]` : address}:${port}`;
       console.log(`Server listening on http://${addr}`);
       resolve(server);
