@@ -5,13 +5,13 @@ import { type Vec2, vmul, vrot } from "./vec";
 
 // CSS, and thus SVG, defines 1px = 1/96th of 1in
 // https://www.w3.org/TR/css-values-4/#absolute-lengths
-const svgUnitsPerInch = 96
-const mmPerInch = 25.4
-const mmPerSvgUnit = mmPerInch / svgUnitsPerInch
+const svgUnitsPerInch = 96;
+const mmPerInch = 25.4;
+const mmPerSvgUnit = mmPerInch / svgUnitsPerInch;
 
 export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
   let paths = inPaths;
-  const device = Device(planOptions.hardware)
+  const device = Device(planOptions.hardware);
 
   // Rotate drawing around center of paper to handle plotting portrait drawings
   // along y-axis of plotter
@@ -30,9 +30,9 @@ export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
   if (planOptions.fitPage) {
     paths = scaleToPaper(paths, planOptions.paperSize, planOptions.marginMm);
   } else {
-    paths = paths.map(ps => ps.map(p => vmul(p, mmPerSvgUnit)))
+    paths = paths.map(ps => ps.map(p => vmul(p, mmPerSvgUnit)));
     if (planOptions.cropToMargins) {
-      paths = cropToMargins(paths, planOptions.paperSize, planOptions.marginMm)
+      paths = cropToMargins(paths, planOptions.paperSize, planOptions.marginMm);
     }
   }
 
@@ -71,10 +71,10 @@ export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
   }
 
   // Convert the paths to units of "steps".
-  paths = paths.map((ps) => ps.map((p) => vmul(p, device.stepsPerMm)))
+  paths = paths.map((ps) => ps.map((p) => vmul(p, device.stepsPerMm)));
 
   // And finally, motion planning.
-  console.time('planning pen motions')
+  console.time('planning pen motions');
   const theplan = plan(paths, {
     penUpPos: device.penPctToPos(planOptions.penUpHeight),
     penDownPos: device.penPctToPos(planOptions.penDownHeight),
@@ -93,5 +93,5 @@ export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
   });
   console.timeEnd("planning pen motions");
 
-  return theplan
+  return theplan;
 }

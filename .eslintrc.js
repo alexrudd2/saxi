@@ -25,7 +25,7 @@ module.exports = {
     '@stylistic/indent': ['error', 2],
     "@stylistic/space-infix-ops": 1,
     '@stylistic/object-curly-spacing': ['error', 'always'],
-    // "semi": [1, "always"],
+    "semi": [1, "always"],
     // "consistent-return": 2,
   },
   settings: {
