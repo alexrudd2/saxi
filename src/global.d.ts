@@ -22,4 +22,4 @@ declare module 'flatten-svg' {
 
 }
 
-declare const IS_WEB: boolean
+declare const IS_WEB: boolean;
