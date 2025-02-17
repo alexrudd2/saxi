@@ -1,8 +1,8 @@
 // Cribbed from https://github.com/fogleman/axi/blob/master/axi/planner.py
-import type { Hardware } from './ebb'
-import { PaperSize } from './paper-size'
-import { vadd, vdot, type Vec2, vlen, vmul, vnorm, vsub } from './vec'
-const epsilon = 1e-9
+import type { Hardware } from './ebb';
+import { PaperSize } from './paper-size';
+import { vadd, vdot, type Vec2, vlen, vmul, vnorm, vsub } from './vec';
+const epsilon = 1e-9;
 
 export interface PlanOptions {
   paperSize: PaperSize;
@@ -64,7 +64,7 @@ export const defaultPlanOptions: PlanOptions = {
   minimumPathLength: 0,
 
   hardware: 'v3'
-}
+};
 
 interface Instant {
   t: number;
@@ -90,9 +90,9 @@ interface ToolingProfile {
 }
 
 export const Device = (hardware = 'v3'): Device => {
-  if (hardware === 'brushless') return AxidrawBrushless
-  return Axidraw
-}
+  if (hardware === 'brushless') return AxidrawBrushless;
+  return Axidraw;
+};
 
 export interface Device {
   stepsPerMm: number
@@ -111,10 +111,10 @@ const Axidraw: Device = {
   penServoMax: 28000, // pen up
 
   penPctToPos (pct: number): number {
-    const t = pct / 100.0
-    return Math.round(this.penServoMin * t + this.penServoMax * (1 - t))
+    const t = pct / 100.0;
+    return Math.round(this.penServoMin * t + this.penServoMax * (1 - t));
   }
-}
+};
 
 // brushless servo (https://shop.evilmadscientist.com/productsmenu/else?id=56)
 const AxidrawBrushless: Device = {
@@ -124,10 +124,10 @@ const AxidrawBrushless: Device = {
   penServoMax: 12600, // pen up
 
   penPctToPos (pct: number): number {
-    const t = pct / 100.0
-    return Math.round(this.penServoMin * t + this.penServoMax * (1 - t))
+    const t = pct / 100.0;
+    return Math.round(this.penServoMin * t + this.penServoMax * (1 - t));
   }
-}
+};
 
 export const AxidrawFast: ToolingProfile = {
   penDownProfile: {
@@ -144,7 +144,7 @@ export const AxidrawFast: ToolingProfile = {
   penDownPos: Axidraw.penPctToPos(60),
   penDropDuration: 0.12,
   penLiftDuration: 0.12
-}
+};
 
 export const AxidrawBrushlessFast: ToolingProfile = {
   penDownProfile: {
@@ -161,7 +161,7 @@ export const AxidrawBrushlessFast: ToolingProfile = {
   penDownPos: AxidrawBrushless.penPctToPos(60),
   penDropDuration: 0.08,
   penLiftDuration: 0.08
-}
+};
 
 export class Block {
   public static deserialize(o: any): Block {
@@ -312,8 +312,9 @@ export class Plan {
       switch (m.t) {
         case "XYMotion": return XYMotion.deserialize(m);
         case "PenMotion": return PenMotion.deserialize(m);
+        default: throw new Error(`Wrong parameter: ${m.t}`);
       }
-    }))
+    }));
   }
 
   public motions: Motion[];
@@ -334,19 +335,20 @@ export class Plan {
         // TODO: Remove this hack by storing the pen-up/pen-down heights
         // in a single place, and reference them from the PenMotions.
         if (j === this.motions.length - 1) {
-          return new PenMotion(penDownHeight, penUpHeight, motion.duration())
+          return new PenMotion(penDownHeight, penUpHeight, motion.duration());
         }
         return (penMotionIndex++ % 2 === 0
           ? new PenMotion(penUpHeight, penDownHeight, motion.duration())
           : new PenMotion(penDownHeight, penUpHeight, motion.duration()));
       }
-    }))
+      throw new Error(`Wrong motion ${motion}`);
+    }));
   }
 
   public serialize(): any {
     return {
       motions: this.motions.map((m) => m.serialize())
-    }
+    };
   }
 }
 
@@ -601,24 +603,24 @@ export function plan(
   paths: Vec2[][],
   profile: ToolingProfile
 ): Plan {
-  const motions: Motion[] = []
-  let curPos = { x: 0, y: 0 }
+  const motions: Motion[] = [];
+  let curPos = { x: 0, y: 0 };
 
   const penMotions = {
     up: new PenMotion(profile.penDownPos, profile.penUpPos, profile.penLiftDuration),
     down: new PenMotion(profile.penUpPos, profile.penDownPos, profile.penDropDuration)
-  }
+  };
 
   // For each path - move to the initial position, put the pen down, draw the path, bring pen up
   paths.forEach(path => {
-    const motion = constantAccelerationPlan(path, profile.penDownProfile)
-    const position = constantAccelerationPlan([curPos, motion.p1], profile.penUpProfile)
+    const motion = constantAccelerationPlan(path, profile.penDownProfile);
+    const position = constantAccelerationPlan([curPos, motion.p1], profile.penUpProfile);
 
-    motions.push(position, penMotions.down, motion, penMotions.up)
-    curPos = motion.p2
-  })
+    motions.push(position, penMotions.down, motion, penMotions.up);
+    curPos = motion.p2;
+  });
 
   // Move to {x: 0, y: 0}
-  motions.push(constantAccelerationPlan([curPos, { x: 0, y: 0 }], profile.penUpProfile))
-  return new Plan(motions)
+  motions.push(constantAccelerationPlan([curPos, { x: 0, y: 0 }], profile.penUpProfile));
+  return new Plan(motions);
 }

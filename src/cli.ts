@@ -11,9 +11,9 @@ import { PaperSize } from "./paper-size";
 import type { Hardware } from "./ebb";
 
 function parseSvg(svg: string) {
-  const window = new Window
-  window.document.documentElement.innerHTML = svg
-  return window.document.documentElement
+  const window = new Window;
+  window.document.documentElement.innerHTML = svg;
+  return window.document.documentElement;
 }
 
 export function cli(argv: string[]): void {
@@ -41,14 +41,14 @@ export function cli(argv: string[]): void {
           describe: "Paper size to use",
           coerce: (value) => {
             if (Object.prototype.hasOwnProperty.call(PaperSize.standard, value)) {
-              return PaperSize.standard[value]
+              return PaperSize.standard[value];
             } else {
-              const m = /^([0-9]*(?:\.[0-9]+)?)\s*x\s*([0-9]*(?:\.[0-9]+)?)\s*(cm|mm|in)$/i.exec(String(value).trim())
+              const m = /^([0-9]*(?:\.[0-9]+)?)\s*x\s*([0-9]*(?:\.[0-9]+)?)\s*(cm|mm|in)$/i.exec(String(value).trim());
               if (m) {
-                return new PaperSize({ x: Number(m[1]), y: Number(m[2]) })
+                return new PaperSize({ x: Number(m[1]), y: Number(m[2]) });
               }
             }
-            throw new Error(`Paper size should be a standard size (${Object.keys(PaperSize.standard).join(", ")}) or a custom size such as "100x100mm" or "16x10in"`)
+            throw new Error(`Paper size should be a standard size (${Object.keys(PaperSize.standard).join(", ")}) or a custom size such as "100x100mm" or "16x10in"`);
           },
           required: true
         })
@@ -157,22 +157,22 @@ export function cli(argv: string[]): void {
         })
         .check((args) => {
           if (args.landscape && args.portrait) {
-            throw new Error("Only one of --portrait and --landscape may be specified")
+            throw new Error("Only one of --portrait and --landscape may be specified");
           }
-          return true
+          return true;
         }),
       async args => {
-        console.log("reading svg...")
-        const svg = fs.readFileSync(args.file, 'utf8')
-        console.log("parsing svg...")
-        const parsed = parseSvg(svg)
-        console.log("flattening svg...")
-        const lines = flattenSVG(parsed, {})
-        console.log("generating motion plan...")
+        console.log("reading svg...");
+        const svg = fs.readFileSync(args.file, 'utf8');
+        console.log("parsing svg...");
+        const parsed = parseSvg(svg);
+        console.log("flattening svg...");
+        const lines = flattenSVG(parsed, {});
+        console.log("generating motion plan...");
         const paperSize =
           args.landscape ? args['paper-size'].landscape
             : args.portrait ? args['paper-size'].portrait
-              : args['paper-size']
+              : args['paper-size'];
         const planOptions: PlanOptions = {
           paperSize,
           marginMm: args.margin,
@@ -202,37 +202,37 @@ export function cli(argv: string[]): void {
           minimumPathLength: args["minimum-path-length"],
           pathJoinRadius: args["path-join-radius"],
           pointJoinRadius: args["point-join-radius"],
-        }
-        const p = replan(linesToVecs(lines), planOptions)
-        console.log(`${p.motions.length} motions, estimated duration: ${formatDuration(p.duration())}`)
-        console.log("connecting to plotter...")
-        const ebb = await connectEBB(args.hardware, args.device)
+        };
+        const p = replan(linesToVecs(lines), planOptions);
+        console.log(`${p.motions.length} motions, estimated duration: ${formatDuration(p.duration())}`);
+        console.log("connecting to plotter...");
+        const ebb = await connectEBB(args.hardware, args.device);
         if (!ebb) {
-          console.error("Couldn't connect to device!")
-          process.exit(1)
+          console.error("Couldn't connect to device!");
+          process.exit(1);
         }
-        console.log("plotting...")
-        const startTime = +new Date
-        await ebb.executePlan(p)
-        console.log(`done! took ${formatDuration((+new Date - startTime) / 1000)}`)
-        await ebb.close()
+        console.log("plotting...");
+        const startTime = +new Date;
+        await ebb.executePlan(p);
+        console.log(`done! took ${formatDuration((+new Date - startTime) / 1000)}`);
+        await ebb.close();
       }
     )
     .command('pen [percent]', 'put the pen to [percent]', yargs => yargs
       .positional('percent', { type: 'number', description: 'percent height between 0 and 100', required: true })
       .check(args => args.percent >= 0 && args.percent <= 100),
     async args => {
-      console.log('connecting to plotter...')
-      const ebb = await connectEBB(args.hardware, args.device)
+      console.log('connecting to plotter...');
+      const ebb = await connectEBB(args.hardware, args.device);
       if (!ebb) {
-        console.error("Couldn't connect to device!")
-        process.exit(1)
+        console.error("Couldn't connect to device!");
+        process.exit(1);
       }
-      const device = Device(ebb.hardware)
-      await ebb.setPenHeight(device.penPctToPos(args.percent), 1000)
+      const device = Device(ebb.hardware);
+      await ebb.setPenHeight(device.penPctToPos(args.percent), 1000);
 
-      console.log(`moving to ${args.percent}%...`)
-      await ebb.close()
+      console.log(`moving to ${args.percent}%...`);
+      await ebb.close();
     })
     .command('$0', 'run the saxi web server',
       args => args
@@ -256,10 +256,10 @@ export function cli(argv: string[]): void {
           default: '',
         }),
       args => {
-        startServer(args.port, args.hardware, args.device, args['enable-cors'], args['max-payload-size'], args['svgio-api-key'])
+        startServer(args.port, args.hardware, args.device, args['enable-cors'], args['max-payload-size'], args['svgio-api-key']);
       }
     )
-    .parse(argv)
+    .parse(argv);
 }
 
 function linesToVecs(lines: any[]): Vec2[][] {

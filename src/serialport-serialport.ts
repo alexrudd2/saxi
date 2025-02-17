@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import { SerialPort as NodeSerialPort } from "serialport";
-import type { OpenOptions } from "@serialport/bindings-interface"
+import type { OpenOptions } from "@serialport/bindings-interface";
 
 function readableStreamFromAsyncIterable<T>(iterable: AsyncIterable<T>) {
   const it = iterable[Symbol.asyncIterator]();
@@ -24,11 +24,11 @@ interface SerialPortOpenOptions extends Omit<OpenOptions, 'parity'> {
 
 export class SerialPortSerialPort extends EventEmitter implements SerialPort {
   private _path: string;
-  private _port: NodeSerialPort
+  private _port: NodeSerialPort;
 
   public constructor(path: string) {
-    super()
-    this._path = path
+    super();
+    this._path = path;
   }
 
   public onconnect: (this: this, ev: Event) => any;
@@ -37,20 +37,20 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
   public writable: WritableStream<Uint8Array>;
 
   public forget(): Promise<void> {
-    return Promise.resolve()
+    return Promise.resolve();
   }
 
   public open(options: SerialOptions): Promise<void> {
     const opts: SerialPortOpenOptions = {
       baudRate: options.baudRate,
       path: this._path,
-    }
+    };
     if (options.dataBits != null)
-      opts.dataBits = options.dataBits as any
+      opts.dataBits = options.dataBits as 5 | 6 | 7 | 8;
     if (options.stopBits != null)
-      opts.stopBits = options.stopBits as any
+      opts.stopBits = options.stopBits as 1 | 1.5 | 2;
     if (options.parity != null)
-      opts.parity = options.parity
+      opts.parity = options.parity;
 
     /*
       TODO:
@@ -59,27 +59,27 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
       */
     return new Promise((resolve, reject) => {
       this._port = new NodeSerialPort(opts, (err: any) => {
-        this._port.once('close', () => this.emit('disconnect'))
-        if (err) reject(err)
+        this._port.once('close', () => this.emit('disconnect'));
+        if (err) reject(err);
         else {
           // Drain the port
           while (this._port.read() != null) { /* do nothing */ }
-          resolve()
+          resolve();
         }
-      })
-      this.readable = readableStreamFromAsyncIterable(this._port)
+      });
+      this.readable = readableStreamFromAsyncIterable(this._port);
       this.writable = new WritableStream({
         write: (chunk) => {
           return new Promise((resolve, reject) => {
             this._port.write(Buffer.from(chunk), (err: Error) => {
-              if (err) reject(err)
-              else resolve()
+              if (err) reject(err);
+              else resolve();
               // TODO: check bytesWritten?
-            })
-          })
+            });
+          });
         }
-      })
-    })
+      });
+    });
   }
   public setSignals(signals: SerialOutputSignals): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -88,10 +88,10 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
         rts: signals.requestToSend,
         brk: signals.break
       }, (err: Error) => {
-        if (err) reject(err)
-        else resolve()
-      })
-    })
+        if (err) reject(err);
+        else resolve();
+      });
+    });
   }
   public getSignals(): Promise<SerialInputSignals> {
     throw new Error("Method not implemented.");
@@ -102,33 +102,29 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
   public close(): Promise<void> {
     return new Promise((resolve, reject) => {
       this._port.close((err: Error) => {
-        if (err) reject(err)
-        else resolve()
-      })
-    })
+        if (err) reject(err);
+        else resolve();
+      });
+    });
   }
 
   public addEventListener(type: "connect" | "disconnect", listener: (this: this, ev: Event) => any, useCapture?: boolean): void;
   public addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
   public addEventListener(type: any, listener: any, options?: any): void {
     if (typeof options === 'object' && options.once) {
-      this.once(type, listener)
+      this.once(type, listener);
     } else {
-      this.on(type, listener)
+      this.on(type, listener);
     }
   }
 
   public removeEventListener(type: "connect" | "disconnect", callback: (this: this, ev: Event) => any, useCapture?: boolean): void;
   public removeEventListener(type: string, callback: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
-  public removeEventListener(type: any, callback: any, options?: any): void {
-    if (typeof options === 'object' && options.once) {
-      this.off(type, callback)
-    } else {
-      this.off(type, callback)
-    }
+  public removeEventListener(type: any, callback: any, _options?: any): void {
+    this.off(type, callback);
   }
 
   public dispatchEvent(event: Event): boolean {
-    return this.emit(event.type)
+    return this.emit(event.type);
   }
 }
