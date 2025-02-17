@@ -250,9 +250,13 @@ export function cli(argv: string[]): void {
         .option('max-payload-size', {
           describe: 'maximum payload size to accept',
           default: '200mb',
+        })
+        .option('svgio-api-key', {
+          describe: 'API Key - to enable AI image generation with SVG IO',
+          default: '',
         }),
       args => {
-        startServer(args.port, args.hardware, args.device, args['enable-cors'], args['max-payload-size'])
+        startServer(args.port, args.hardware, args.device, args['enable-cors'], args['max-payload-size'], args['svgio-api-key'])
       }
     )
     .parse(argv)

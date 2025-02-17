@@ -23,7 +23,7 @@
     "lint": "eslint --cache --ext .ts,.tsx src && eslint --format stylish --fix src",
     "build": "npm run build:server && npm run build:ui",
     "build:server": "tsc",
-    "build:ui": "node --experimental-modules -r dotenv/config build.mjs",
+    "build:ui": "node --experimental-modules build.mjs",
     "prepare": "rimraf dist && npm run build",
     "start": "npm run build && node cli.js",
     "dev": "BUILD_MODE=development npm start",
@@ -67,7 +67,6 @@
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
     "express": "^4.17.9",
     "flatten-svg": "^0.3.0",
     "optimize-paths": "^1.2.2",

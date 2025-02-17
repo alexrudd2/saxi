@@ -25,7 +25,6 @@ const defaultVisualizationOptions = {
 }
 
 const defaultSvgIoOptions = {
-  apiKey: '',
   prompt: '',
   status: '',
   vecType: 'FLAT_VECTOR'
@@ -96,6 +95,7 @@ function reducer(state: State, action: any): State {
 interface DeviceInfo {
   path: string;
   hardware: Hardware;
+  svgIoEnabled: boolean;
 }
 
 interface Driver {
@@ -273,7 +273,9 @@ class SaxiDriver implements Driver {
       if (this.onconnectionchange) {
         this.onconnectionchange(true);
       }
+
       this.pingInterval = window.setInterval(() => this.ping(), 30000);
+      this.dev(); // request device info upon start
     });
     this.socket.addEventListener("message", (e: MessageEvent) => {
       const msg = JSON.parse(e.data);
@@ -363,6 +365,7 @@ class SaxiDriver implements Driver {
 
   public limp() { this.send({ c: "limp" }); }
   public ping() { this.send({ c: "ping" }); }
+  public dev() { this.send({ c: "dev" }); }
 }
 
 const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
@@ -529,6 +532,7 @@ function SvgIoOptions({ state }: { state: State }) {
   const generateImage = async () => {
     dispatch({ type: "SET_SVGIO_OPTION", value: { status: 'Generating ...' } })
     try {
+      // TODO do this in the server instead
       const apiResp = await fetch('https://api.svg.io/v1/generate-image', {
         method: 'post',
         headers: {
@@ -1271,14 +1275,15 @@ function Root() {
             <VisualizationOptions state={state} />
           </div>
         </details>
-        {REACT_APP_ENABLE_SVG_IO
+        {state.deviceInfo?.svgIoEnabled
           ? <details>
             <summary className="section-header">AI</summary>
             <div className="section-body">
               <SvgIoOptions state={state} />
             </div>
           </details>
-          : ''}
+          : <></>
+        }
         <div className="spacer" />
         <div className="control-panel-bottom">
           <div className="section-header">plot</div>
