@@ -89,13 +89,13 @@ interface DeviceInfo {
 }
 
 interface Driver {
-  onprogress: (motionIdx: number) => void | null;
-  oncancelled: () => void | null;
-  onfinished: () => void | null;
-  ondevinfo: (devInfo: DeviceInfo) => void | null;
-  onpause: (paused: boolean) => void | null;
-  onconnectionchange: (connected: boolean) => void | null;
-  onplan: (plan: Plan) => void | null;
+  onprogress: ((motionIdx: number) => void) | null;
+  oncancelled: (() => void) | null;
+  onfinished: (() => void) | null;
+  ondevinfo: ((devInfo: DeviceInfo) => void) | null;
+  onpause: ((paused: boolean) => void) | null;
+  onconnectionchange: ((connected: boolean) => void) | null;
+  onplan: ((plan: Plan) => void) | null;
 
   plot(plan: Plan): void;
 
@@ -118,8 +118,8 @@ class WebSerialDriver implements Driver {
   public onconnectionchange: (connected: boolean) => void;
   public onplan: (plan: Plan) => void;
 
-  private _unpaused: Promise<void> = null;
-  private _signalUnpause: () => void = null;
+  private _unpaused: Promise<void> | null = null;
+  private _signalUnpause: (() => void) | null = null;
   private _cancelRequested = false;
 
   public static async connect(port?: SerialPort, hardware: Hardware = 'v3') {
@@ -231,13 +231,13 @@ class SaxiDriver implements Driver {
     return d;
   }
 
-  public onprogress: (motionIdx: number) => void | null;
-  public oncancelled: () => void | null;
-  public onfinished: () => void | null;
-  public ondevinfo: (devInfo: DeviceInfo) => void | null;
-  public onpause: (paused: boolean) => void | null;
-  public onconnectionchange: (connected: boolean) => void | null;
-  public onplan: (plan: Plan) => void | null;
+  public onprogress: ((motionIdx: number) => void) | null = null;
+  public oncancelled: (() => void) | null = null;
+  public onfinished: (() => void) | null = null;
+  public ondevinfo: ((devInfo: DeviceInfo) => void) | null = null;
+  public onpause: ((paused: boolean) => void) | null = null;
+  public onconnectionchange: ((connected: boolean) => void) | null = null;
+  public onplan: ((plan: Plan) => void) | null = null;
 
   private socket: WebSocket;
   private connected: boolean;
@@ -622,7 +622,7 @@ function PlanStatistics({ plan }: { plan: Plan }) {
 
 function TimeLeft({ plan, progress, currentMotionStartedTime, paused }: {
   plan: Plan;
-  progress: number | null; 
+  progress: number | null;
   currentMotionStartedTime: Date | null;
   paused: boolean;
 }) {
@@ -1219,9 +1219,9 @@ function Root() {
           <div className="section-header">plot</div>
           <div className="section-body section-body__plot">
             <PlanStatistics plan={plan} />
-            <TimeLeft 
-              plan={plan} 
-              progress={state.progress} 
+            <TimeLeft
+              plan={plan}
+              progress={state.progress}
               currentMotionStartedTime={currentMotionStartedTime}
               paused={state.paused}
             />
