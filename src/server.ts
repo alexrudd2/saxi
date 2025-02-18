@@ -35,7 +35,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
   let clients: WebSocket[] = [];
   let cancelRequested = false;
   let unpaused: Promise<void> | null = null;
-  let signalUnpause: () => void | null = null;
+  let signalUnpause: (() => void) | null = null;
   let motionIdx: number | null = null;
   let currentPlan: Plan | null = null;
   let plotting = false;
