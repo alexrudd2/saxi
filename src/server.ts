@@ -172,6 +172,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     },
     async postCancel(initialPenHeight: number): Promise<void> {
       await ebb.setPenHeight(initialPenHeight, 1000);
+      await ebb.query('HM,4000'); // HM returns carriage home without 3rd and 4th arguments
     },
     async postPlot(): Promise<void> {
       await ebb.waitUntilMotorsIdle();
