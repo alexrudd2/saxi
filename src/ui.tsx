@@ -97,6 +97,9 @@ interface DeviceInfo {
   hardware: Hardware;
 }
 
+/**
+ * Driver for the Axi machine.
+ */
 interface Driver {
   onprogress: (motionIdx: number) => void | null;
   oncancelled: () => void | null;
@@ -146,8 +149,9 @@ interface Driver {
 }
 
 /**
- * Web Serial driver for the EBB.
- * Connects web server to the EBB via Web Serial.
+ * Web Serial driver for the EBB. Implement interface by connecting directly to the Axi 
+ * machine. Used on serverless configuration (IS_WEB=true), where the control is handled
+ * directly on the browser.
  */
 class WebSerialDriver implements Driver {
   public onprogress: (motionIdx: number) => void;
@@ -266,10 +270,10 @@ class WebSerialDriver implements Driver {
 }
 
 /**
- * Driver for the Saxi server.
- * Connects UI to Web Server via WebSocket.
+ * Saxi Serial driver for the EBB. Implement interface by connecting to the Axi 
+ * through the saxi web server, which handles the control. Used in the default
+ * configuration (IS_WEB=true).
  */
-
 class SaxiDriver implements Driver {
   public static connect(): Driver {
     const d = new SaxiDriver();
