@@ -28,7 +28,7 @@ const defaultSvgIoOptions = {
   prompt: '',
   status: '',
   vecType: 'FLAT_VECTOR'
-}
+};
 
 const initialState = {
   connected: true,
@@ -73,7 +73,7 @@ function reducer(state: State, action: any): State {
     case "SET_VISUALIZATION_OPTION":
       return { ...state, visualizationOptions: { ...state.visualizationOptions, ...action.value } };
     case "SET_SVGIO_OPTION":
-      return { ...state, svgIoOptions: { ...state.svgIoOptions, ...action.value } }
+      return { ...state, svgIoOptions: { ...state.svgIoOptions, ...action.value } };
     case "SET_DEVICE_INFO":
       return { ...state, deviceInfo: action.value };
     case "SET_PAUSED":
@@ -400,7 +400,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
 
   useEffect(() => {
     if (!paths) {
-      return () => {};
+      return () => { };
     }
     if (lastPlan.current != null && lastPaths.current === paths) {
       const rejiggered = attemptRejigger(lastPlanOptions.current ?? defaultPlanOptions, planOptions, lastPlan.current);
@@ -408,7 +408,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
         setPlan(rejiggered);
         lastPlan.current = rejiggered;
         lastPlanOptions.current = planOptions;
-        return () => {};
+        return () => { };
       }
     }
     lastPaths.current = paths;
@@ -528,24 +528,19 @@ function VisualizationOptions({ state }: { state: State }) {
  * Use svg.io API: https://api.svg.io/v1/docs
  */
 function SvgIoOptions({ state }: { state: State }) {
-  const { apiKey, prompt, vecType, status } = state.svgIoOptions;
+  const { prompt, vecType, status } = state.svgIoOptions;
   const dispatch = useContext(DispatchContext);
-  // Call the API and load the generated image
+  // call server
   const generateImage = async () => {
-    dispatch({ type: "SET_SVGIO_OPTION", value: { status: 'Generating ...' } })
+    dispatch({ type: "SET_SVGIO_OPTION", value: { status: 'Generating ...' } });
     try {
-      // TODO do this in the server instead
-      const apiResp = await fetch('https://api.svg.io/v1/generate-image', {
-        method: 'post',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ prompt, style: vecType, negativePrompt: '' })
+      
+      const imgResp = await fetch("/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: new Blob([JSON.stringify({ prompt, vecType })], { type: 'application/json' }),
       });
-      dispatch({ type: "SET_SVGIO_OPTION", value: { status: 'Loading ...' } })
-      const imageUrl = (await apiResp.json()).data[0].svgUrl;
-      const imgResp = await fetch(imageUrl);
+      dispatch({ type: "SET_SVGIO_OPTION", value: { status: 'Loading ...' } });
       const imgData = await imgResp.text();
       dispatch(setPaths(readSvg(imgData)));
     } catch (error) {
@@ -553,13 +548,9 @@ function SvgIoOptions({ state }: { state: State }) {
     } finally {
       dispatch({ type: "SET_SVGIO_OPTION", value: { status: '' } });
     }
-  }
+  };
   return <>
     <div>
-      <label title="Need an API Key">svg.io API Key
-        <input type="text" value={apiKey}
-          onChange={(e) => dispatch({ type: "SET_SVGIO_OPTION", value: { apiKey: e.target.value } })} />
-      </label>
       <label>Type
         <select value={vecType}
           onChange={(e) => dispatch({ type: "SET_SVGIO_OPTION", value: { vecType: e.target.value } })}>
@@ -576,7 +567,7 @@ function SvgIoOptions({ state }: { state: State }) {
         </textarea>
       </label>
     </div>
-    {apiKey !== '' && prompt !== ''
+    {prompt !== ''
       ? <div>
         {status ? <span>{status}</span> : <button onClick={generateImage}>Generate!</button>}
       </div>

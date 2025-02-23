@@ -1,6 +1,6 @@
 import cors from "cors";
 import "web-streams-polyfill/polyfill";
-import express from "express";
+import express, { Request, Response } from "express";
 import http from "node:http";
 import path from "node:path";
 import type { PortInfo } from "@serialport/bindings-interface";
@@ -11,6 +11,8 @@ import { PenMotion, type Motion, Plan } from "./planning";
 import { formatDuration } from "./util";
 import { autoDetect } from '@serialport/bindings-cpp';
 import * as _self from './server';  // use self-import for test mocking
+import fetch from 'node-fetch';
+// import fs from 'node:fs';
 
 import { EBB, type Hardware } from './ebb';
 
@@ -20,7 +22,7 @@ const getDeviceInfo = (ebb: EBB | null, com: Com, svgIoEnabled: boolean = false)
   return { com: ebb ? com : null, hardware: ebb?.hardware, svgIoEnabled: svgIoEnabled };
 };
 
-export async function startServer (port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, maxPayloadSize = '200mb', svgIoApiKey = '') {
+export async function startServer(port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, maxPayloadSize = '200mb', svgIoApiKey = '') {
   const app = express();
   app.use('/', express.static(path.join(__dirname, '..', 'ui')));
   app.use(express.json({ limit: maxPayloadSize }));
@@ -148,6 +150,37 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     res.status(200).end();
   });
 
+  app.post("/generate", async (req: Request, res: Response) => {
+    if (plotting) {
+      console.log("Received genreate request, but a plot is already in progress!");
+      res.status(400).end('Plot in progress');
+      return;
+    }
+    const { prompt, vecType } = req.body;
+    console.log(prompt);
+    console.log(vecType);
+    try {
+      // call the api and return the svg
+      const apiResp = await fetch('https://api.svg.io/v1/generate-image', {
+        method: 'post',
+        headers: {
+          Authorization: `Bearer ${svgIoApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt, style: vecType, negativePrompt: '' })
+      });
+      const imageUrl = (await apiResp.json()).data[0].svgUrl;
+      // const imgResp = await fetch('https://upload.wikimedia.org/wikipedia/commons/4/4a/GHS-pictogram-explos.svg');
+      const imgResp = await fetch(imageUrl);
+      const imgData = await imgResp.text();
+      // console.log('imgData=', imgData);
+      res.status(200).send(imgData).end();
+    } catch (err) {
+      console.error(err);
+      res.status(400).end();
+    }
+  });
+
   function broadcast(msg: any) {
     for (const client of clients) {
       try {
@@ -237,7 +270,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
 
   return new Promise<http.Server>((resolve) => {
     server.listen(port, () => {
-      async function connect () {
+      async function connect() {
         const devices = ebbs(com, hardware);
         for await (const device of devices) {
           ebb = device;
@@ -253,7 +286,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
   });
 }
 
-async function tryOpen (com: Com) {
+async function tryOpen(com: Com) {
   const port = new SerialPortSerialPort(com);
   await port.open({ baudRate: 9600 });
   return port;
@@ -273,8 +306,8 @@ async function listEBBs() {
   return ports.filter(isEBB).map((p: { path: string }) => p.path);
 }
 
-export async function waitForEbb (): Promise<Com> {
-// eslint-disable-next-line no-constant-condition
+export async function waitForEbb(): Promise<Com> {
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     const ebbs = await listEBBs();
     if (ebbs.length) {
@@ -284,7 +317,7 @@ export async function waitForEbb (): Promise<Com> {
   }
 }
 
-async function * ebbs (path?: string, hardware: Hardware = 'v3') {
+async function* ebbs(path?: string, hardware: Hardware = 'v3') {
   while (true) {
     try {
       const com: Com = path || (await _self.waitForEbb()); // use self-import for test mocking
@@ -305,7 +338,7 @@ async function * ebbs (path?: string, hardware: Hardware = 'v3') {
   }
 }
 
-export async function connectEBB (hardware: Hardware = 'v3', device: string | undefined): Promise<EBB | null> {
+export async function connectEBB(hardware: Hardware = 'v3', device: string | undefined): Promise<EBB | null> {
   if (!device) {
     const ebbs = await listEBBs();
     if (ebbs.length === 0) return null;
