@@ -1,4 +1,4 @@
-import * as Optimization from "optimize-paths";
+import { reorder as sortPaths, elideShorterThan, merge as joinNearbyPaths } from "optimize-paths";
 import { Device, type Plan, type PlanOptions, plan } from "./planning";
 import { dedupPoints, scaleToPaper, cropToMargins } from "./util";
 import { type Vec2, vmul, vrot } from "./vec";
@@ -51,19 +51,19 @@ export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
 
   if (planOptions.sortPaths) {
     console.time("sorting paths");
-    paths = Optimization.reorder(paths);
+    paths = sortPaths(paths);
     console.timeEnd("sorting paths");
   }
 
   if (planOptions.minimumPathLength > 0) {
     console.time("eliding short paths");
-    paths = Optimization.elideShorterThan(paths, planOptions.minimumPathLength);
+    paths = elideShorterThan(paths, planOptions.minimumPathLength);
     console.timeEnd("eliding short paths");
   }
 
   if (planOptions.pathJoinRadius > 0) {
     console.time("joining nearby paths");
-    paths = Optimization.merge(
+    paths = joinNearbyPaths(
       paths,
       planOptions.pathJoinRadius
     );

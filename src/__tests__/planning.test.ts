@@ -1,5 +1,5 @@
-import {Plan, plan, Device, AxidrawFast, XYMotion, PenMotion, defaultPlanOptions} from '../planning';
-import {Vec2} from '../vec';
+import { Plan, plan, Device, AxidrawFast, XYMotion, PenMotion, defaultPlanOptions } from '../planning';
+import type { Vec2 } from '../vec';
 
 describe("plan", () => {
   const device = Device()

@@ -2,7 +2,7 @@ import yargs from "yargs";
 import { connectEBB, startServer } from "./server";
 import { replan } from "./massager";
 import { Window } from "svgdom";
-import * as fs from "node:fs";
+import { readFileSync } from "node:fs";
 import { flattenSVG } from "flatten-svg";
 import type { Vec2 } from "./vec";
 import { formatDuration } from "./util";
@@ -42,11 +42,10 @@ export function cli(argv: string[]): void {
           coerce: (value) => {
             if (Object.prototype.hasOwnProperty.call(PaperSize.standard, value)) {
               return PaperSize.standard[value];
-            } else {
-              const m = /^([0-9]*(?:\.[0-9]+)?)\s*x\s*([0-9]*(?:\.[0-9]+)?)\s*(cm|mm|in)$/i.exec(String(value).trim());
-              if (m) {
-                return new PaperSize({ x: Number(m[1]), y: Number(m[2]) });
-              }
+            }
+            const m = /^([0-9]*(?:\.[0-9]+)?)\s*x\s*([0-9]*(?:\.[0-9]+)?)\s*(cm|mm|in)$/i.exec(String(value).trim());
+            if (m) {
+              return new PaperSize({ x: Number(m[1]), y: Number(m[2]) });
             }
             throw new Error(`Paper size should be a standard size (${Object.keys(PaperSize.standard).join(", ")}) or a custom size such as "100x100mm" or "16x10in"`);
           },
@@ -163,7 +162,7 @@ export function cli(argv: string[]): void {
         }),
       async args => {
         console.log("reading svg...");
-        const svg = fs.readFileSync(args.file, 'utf8');
+        const svg = readFileSync(args.file, 'utf8');
         console.log("parsing svg...");
         const parsed = parseSvg(svg);
         console.log("flattening svg...");

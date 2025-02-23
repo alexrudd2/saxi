@@ -73,7 +73,7 @@ function liangBarsky(aabb: [Vec2, Vec2], seg: [Vec2, Vec2]): Vec2 | null {
   let u2 = Infinity;
 
   for (let i = 0; i < 4; i++) {
-    if (p[i] == 0) {
+    if (p[i] === 0) {
       if (q[i] < 0)
         return null;
     } else {

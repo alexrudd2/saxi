@@ -149,13 +149,13 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
   });
 
   function broadcast(msg: any) {
-    clients.forEach((ws) => {
+    for (const client of clients) {
       try {
-        ws.send(JSON.stringify(msg));
+        client.send(JSON.stringify(msg));
       } catch (e) {
         console.warn(e);
       }
-    });
+    }
   }
 
   interface Plotter {
@@ -167,7 +167,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
 
   const realPlotter: Plotter = {
     async prePlot(initialPenHeight: number): Promise<void> {
-      await ebb.enableMotors(2);
+      await ebb.enableMotors(1); // 16x microstepping, matches defaults from Axidraw
       await ebb.setPenHeight(initialPenHeight, 1000, 1000);
     },
     async executeMotion(motion: Motion, _progress: [number, number]): Promise<void> {
@@ -175,6 +175,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     },
     async postCancel(initialPenHeight: number): Promise<void> {
       await ebb.setPenHeight(initialPenHeight, 1000);
+      await ebb.query('HM,4000'); // HM returns carriage home without 3rd and 4th arguments
     },
     async postPlot(): Promise<void> {
       await ebb.waitUntilMotorsIdle();
@@ -263,7 +264,7 @@ function sleep(ms: number) {
 }
 
 function isEBB(p: PortInfo): boolean {
-  return p.manufacturer === "SchmalzHaus" || p.manufacturer === "SchmalzHaus LLC" || (p.vendorId == "04D8" && p.productId == "FD92");
+  return p.manufacturer === "SchmalzHaus" || p.manufacturer === "SchmalzHaus LLC" || (p.vendorId === "04D8" && p.productId === "FD92");
 }
 
 async function listEBBs() {
