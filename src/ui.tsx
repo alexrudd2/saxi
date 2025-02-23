@@ -156,7 +156,7 @@ class WebSerialDriver implements Driver {
   }
 
   public async plot(plan: Plan): Promise<void> {
-    const microsteppingMode = 2;
+    const microsteppingMode = 1; // 16x microstepping, matches defaults from Axidraw
     this._unpaused = null;
     this._cancelRequested = false;
     await this.ebb.enableMotors(microsteppingMode);
