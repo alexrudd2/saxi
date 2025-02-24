@@ -16,6 +16,7 @@ const buildOptions = {
   loader: { '.svg': 'file' },
   define: {
     IS_WEB: process.env.IS_WEB ?? '0',
+    REACT_APP_ENABLE_SVG_IO: process.env.REACT_APP_ENABLE_SVG_IO ?? 'false',
   },
   plugins: [ inlineWorker(),
     html({
