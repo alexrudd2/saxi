@@ -118,7 +118,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     }
   });
 
-  app.post("/cancel", (req, res) => {
+  app.post("/cancel", (_req, res) => {
     cancelRequested = true;
     if (unpaused) {
       signalUnpause();
@@ -127,7 +127,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     res.status(200).end();
   });
 
-  app.post("/pause", (req, res) => {
+  app.post("/pause", (_req, res) => {
     if (!unpaused) {
       unpaused = new Promise(resolve => {
         signalUnpause = resolve;
@@ -137,7 +137,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     res.status(200).end();
   });
 
-  app.post("/resume", (req, res) => {
+  app.post("/resume", (_req, res) => {
     if (signalUnpause) {
       signalUnpause();
       signalUnpause = unpaused = null;
