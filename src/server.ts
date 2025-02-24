@@ -2,6 +2,7 @@ import cors from "cors";
 import "web-streams-polyfill/polyfill";
 import express from "express";
 import http from "node:http";
+import type { AddressInfo } from "node:net";
 import path from "node:path";
 import type { PortInfo } from "@serialport/bindings-interface";
 import { WakeLock } from "wake-lock";
@@ -242,7 +243,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
         }
       }
       connect();
-      const { family, address, port } = server.address() as any;
+      const { family, address, port } = server.address() as AddressInfo;
       const addr = `${family === "IPv6" ? `[${address}]` : address}:${port}`;
       console.log(`Server listening on http://${addr}`);
       resolve(server);
