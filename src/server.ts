@@ -1,5 +1,6 @@
 import cors from "cors";
 import "web-streams-polyfill/polyfill";
+import type { Response, Request } from "express";
 import express from "express";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
@@ -80,7 +81,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     });
   });
 
-  app.post("/plot", async (req, res) => {
+  app.post("/plot", async (req: Request, res: Response) => {
     if (plotting) {
       console.log("Received plot request, but a plot is already in progress!");
       res.status(400).end('Plot in progress');
@@ -119,7 +120,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     }
   });
 
-  app.post("/cancel", (_req, res) => {
+  app.post("/cancel", (_req: Request, res: Response) => {
     cancelRequested = true;
     if (unpaused) {
       signalUnpause();
@@ -128,7 +129,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     res.status(200).end();
   });
 
-  app.post("/pause", (_req, res) => {
+  app.post("/pause", (_req: Request, res: Response) => {
     if (!unpaused) {
       unpaused = new Promise(resolve => {
         signalUnpause = resolve;
@@ -138,7 +139,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     res.status(200).end();
   });
 
-  app.post("/resume", (_req, res) => {
+  app.post("/resume", (_req: Request, res: Response) => {
     if (signalUnpause) {
       signalUnpause();
       signalUnpause = unpaused = null;
