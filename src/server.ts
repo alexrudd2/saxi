@@ -84,7 +84,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
   app.post("/plot", async (req: Request, res: Response) => {
     if (plotting) {
       console.log("Received plot request, but a plot is already in progress!");
-      res.status(400).end('Plot in progress');
+      res.status(400).send('Plot in progress');
       return;
     }
     plotting = true;
