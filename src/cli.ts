@@ -3,7 +3,7 @@ import { connectEBB, startServer } from "./server";
 import { replan } from "./massager";
 import { Window } from "svgdom";
 import { readFileSync } from "node:fs";
-import { flattenSVG } from "flatten-svg";
+import { flattenSVG, type Line } from "flatten-svg";
 import type { Vec2 } from "./vec";
 import { formatDuration } from "./util";
 import { Device, type PlanOptions, defaultPlanOptions } from "./planning";
@@ -257,7 +257,7 @@ export function cli(argv: string[]): void {
     .parse(argv);
 }
 
-function linesToVecs(lines: any[]): Vec2[][] {
+function linesToVecs(lines: Line[]): Vec2[][] {
   return lines.map((line) => {
     const a = line.points.map(([x, y]: [number, number]) => ({ x, y }));
     (a as any).stroke = line.stroke;
