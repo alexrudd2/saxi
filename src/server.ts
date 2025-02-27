@@ -304,7 +304,7 @@ async function * ebbs (path?: string, hardware: Hardware = 'v3') {
   }
 }
 
-export async function connectEBB (hardware: Hardware = 'v3', device: string | undefined): Promise<EBB | null> {
+export async function connectEBB (hardware: Hardware, device: string | undefined): Promise<EBB | null> {
   if (!device) {
     const ebbs = await listEBBs();
     if (ebbs.length === 0) return null;
