@@ -31,8 +31,8 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
     this._path = path;
   }
 
-  public onconnect: (this: this, ev: Event) => any;
-  public ondisconnect: (this: this, ev: Event) => any;
+  public onconnect: (this: this, ev: Event) => void;
+  public ondisconnect: (this: this, ev: Event) => void;
   public readable: ReadableStream<Uint8Array>;
   public writable: WritableStream<Uint8Array>;
 
@@ -58,7 +58,7 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
       flowControl?: FlowControlType | undefined;
       */
     return new Promise((resolve, reject) => {
-      this._port = new NodeSerialPort(opts, (err: any) => {
+      this._port = new NodeSerialPort(opts, (err) => {
         this._port.once('close', () => this.emit('disconnect'));
         if (err) reject(err);
         else {
