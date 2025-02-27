@@ -31,8 +31,8 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
     this._path = path;
   }
 
-  public onconnect: (this: this, ev: Event) => any;
-  public ondisconnect: (this: this, ev: Event) => any;
+  public onconnect: (this: this, ev: Event) => void;
+  public ondisconnect: (this: this, ev: Event) => void;
   public readable: ReadableStream<Uint8Array>;
   public writable: WritableStream<Uint8Array>;
 
@@ -58,12 +58,11 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
       flowControl?: FlowControlType | undefined;
       */
     return new Promise((resolve, reject) => {
-      this._port = new NodeSerialPort(opts, (err: any) => {
+      this._port = new NodeSerialPort(opts, (err) => {
         this._port.once('close', () => this.emit('disconnect'));
         if (err) reject(err);
         else {
-          // Drain the port
-          while (this._port.read() != null) { /* do nothing */ }
+          this._port.drain();
           resolve();
         }
       });
@@ -108,8 +107,9 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
     });
   }
 
-  public addEventListener(type: "connect" | "disconnect", listener: (this: this, ev: Event) => any, useCapture?: boolean): void;
+  public addEventListener(type: "connect" | "disconnect", listener: (this: this, ev: Event) => void, useCapture?: boolean): void;
   public addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
+  // biome-ignore lint/suspicious/noExplicitAny: match EventEmitter
   public addEventListener(type: any, listener: any, options?: any): void {
     if (typeof options === 'object' && options.once) {
       this.once(type, listener);
@@ -118,8 +118,9 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
     }
   }
 
-  public removeEventListener(type: "connect" | "disconnect", callback: (this: this, ev: Event) => any, useCapture?: boolean): void;
+  public removeEventListener(type: "connect" | "disconnect", callback: (this: this, ev: Event) => void, useCapture?: boolean): void;
   public removeEventListener(type: string, callback: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
+  // biome-ignore lint/suspicious/noExplicitAny: match EventEmitter
   public removeEventListener(type: any, callback: any, _options?: any): void {
     this.off(type, callback);
   }

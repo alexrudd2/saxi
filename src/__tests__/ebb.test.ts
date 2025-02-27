@@ -4,8 +4,8 @@ import { MockBinding } from '@serialport/binding-mock';
 jest.doMock('serialport', () => ({
   SerialPort: SerialPort,
 }));
-import {EBB} from "../ebb";
-import {SerialPortSerialPort} from "../serialport-serialport";
+import { EBB } from "../ebb";
+import { SerialPortSerialPort } from "../serialport-serialport";
 
 describe("EBB", () => {
   afterEach(() => {

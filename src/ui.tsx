@@ -89,13 +89,13 @@ interface DeviceInfo {
 }
 
 interface Driver {
-  onprogress: (motionIdx: number) => void | null;
-  oncancelled: () => void | null;
-  onfinished: () => void | null;
-  ondevinfo: (devInfo: DeviceInfo) => void | null;
-  onpause: (paused: boolean) => void | null;
-  onconnectionchange: (connected: boolean) => void | null;
-  onplan: (plan: Plan) => void | null;
+  onprogress: ((motionIdx: number) => void) | null;
+  oncancelled: (() => void) | null;
+  onfinished: (() => void) | null;
+  ondevinfo: ((devInfo: DeviceInfo) => void) | null;
+  onpause: ((paused: boolean) => void) | null;
+  onconnectionchange: ((connected: boolean) => void) | null;
+  onplan: ((plan: Plan) => void) | null;
 
   plot(plan: Plan): void;
 
@@ -118,8 +118,8 @@ class WebSerialDriver implements Driver {
   public onconnectionchange: (connected: boolean) => void;
   public onplan: (plan: Plan) => void;
 
-  private _unpaused: Promise<void> = null;
-  private _signalUnpause: () => void = null;
+  private _unpaused: Promise<void> | null = null;
+  private _signalUnpause: (() => void) | null = null;
   private _cancelRequested = false;
 
   public static async connect(port?: SerialPort, hardware: Hardware = 'v3') {
@@ -156,7 +156,7 @@ class WebSerialDriver implements Driver {
   }
 
   public async plot(plan: Plan): Promise<void> {
-    const microsteppingMode = 2;
+    const microsteppingMode = 1; // 16x microstepping, matches defaults from Axidraw
     this._unpaused = null;
     this._cancelRequested = false;
     await this.ebb.enableMotors(microsteppingMode);
@@ -184,6 +184,7 @@ class WebSerialDriver implements Driver {
         const penMotion = plan.motions.find((motion): motion is PenMotion => motion instanceof PenMotion);
         const penUpPosition = penMotion ? Math.max(penMotion.initialPos, penMotion.finalPos) :  device.penPctToPos(50);
         await this.ebb.setPenHeight(penUpPosition, 1000);
+        await this.ebb.query('HM,4000'); // HM returns carriage home without 3rd and 4th arguments
       }
       if (this.oncancelled) this.oncancelled();
     } else {
@@ -231,13 +232,13 @@ class SaxiDriver implements Driver {
     return d;
   }
 
-  public onprogress: (motionIdx: number) => void | null;
-  public oncancelled: () => void | null;
-  public onfinished: () => void | null;
-  public ondevinfo: (devInfo: DeviceInfo) => void | null;
-  public onpause: (paused: boolean) => void | null;
-  public onconnectionchange: (connected: boolean) => void | null;
-  public onplan: (plan: Plan) => void | null;
+  public onprogress: ((motionIdx: number) => void) | null = null;
+  public oncancelled: (() => void) | null = null;
+  public onfinished: (() => void) | null = null;
+  public ondevinfo: ((devInfo: DeviceInfo) => void) | null = null;
+  public onpause: ((paused: boolean) => void) | null = null;
+  public onconnectionchange: ((connected: boolean) => void) | null = null;
+  public onplan: ((plan: Plan) => void) | null = null;
 
   private socket: WebSocket;
   private connected: boolean;
@@ -386,7 +387,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
 
   useEffect(() => {
     if (!paths) {
-      return () =>{};
+      return () => {};
     }
     if (lastPlan.current != null && lastPaths.current === paths) {
       const rejiggered = attemptRejigger(lastPlanOptions.current ?? defaultPlanOptions, planOptions, lastPlan.current);
@@ -394,7 +395,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
         setPlan(rejiggered);
         lastPlan.current = rejiggered;
         lastPlanOptions.current = planOptions;
-        return () =>{};
+        return () => {};
       }
     }
     lastPaths.current = paths;
@@ -414,8 +415,8 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
     };
     worker.addEventListener("message", listener);
     return () => {
-      worker.terminate();
       worker.removeEventListener("message", listener);
+      worker.terminate();
       setIsPlanning(false);
     };
   }, [paths, serialize(planOptions)]);
@@ -469,8 +470,8 @@ function PenHeight({ state, driver }: { state: State; driver: Driver }) {
       </label>
     </div>
     <div className="flex">
-      <button onClick={penUp}>pen up</button>
-      <button onClick={penDown}>pen down</button>
+      <button type="button" onClick={penUp}>pen up</button>
+      <button type="button" onClick={penDown}>pen down</button>
     </div>
   </Fragment>;
 }
@@ -518,6 +519,7 @@ function SwapPaperSizesButton({ onClick }: { onClick: () => void }) {
     viewBox="0 0 14.05 11.46"
     onClick={onClick}
   >
+    <title>swap width and height</title>
     <g>
       <polygon points="14.05 3.04 8.79 0 8.79 1.78 1.38 1.78 1.38 4.29 8.79 4.29 8.79 6.08 14.05 3.04" />
       <polygon points="0 8.43 5.26 11.46 5.26 9.68 12.67 9.68 12.67 7.17 5.26 7.17 5.26 5.39 0 8.43" />
@@ -608,7 +610,7 @@ function PaperConfig({ state }: { state: State }) {
 
 function MotorControl({ driver }: { driver: Driver }) {
   return <div>
-    <button onClick={() => driver.limp()}>disengage motors</button>
+    <button type="button" onClick={() => driver.limp()}>disengage motors</button>
   </div>;
 }
 
@@ -621,7 +623,7 @@ function PlanStatistics({ plan }: { plan: Plan }) {
 
 function TimeLeft({ plan, progress, currentMotionStartedTime, paused }: {
   plan: Plan;
-  progress: number | null; 
+  progress: number | null;
   currentMotionStartedTime: Date | null;
   paused: boolean;
 }) {
@@ -668,11 +670,10 @@ function PlanPreview(
       const palette = colorPathsByStrokeOrder
         ? interpolator(colormap({ colormap: 'spring' }))
         : () => 'rgba(0, 0, 0, 0.8)';
-      const lines = plan.motions.map((m) => {
-        if (m instanceof XYMotion) {
-          return m.blocks.map((b) => b.p1).concat([m.p2]);
-        } else { return []; }
-      }).filter((m) => m.length);
+      const lines = plan.motions
+        .filter((m) => m instanceof XYMotion)
+        .map((m) => m.blocks.map((b) => b.p1).concat([m.p2]))  // Map each XYMotion to its start/end points
+        .filter((m) => m.length);
       return <g transform={`scale(${1 / device.stepsPerMm})`}>
         <title>Plot origin</title>
         <text x={lines[0][0].x} y={lines[0][0].y}
@@ -740,6 +741,7 @@ function PlanPreview(
             `translate(${posXMm / ps.size.x * 50}%,${posYMm / ps.size.y * 50}%)`
         }}
       >
+        <title>Progress percentage bar</title>
         <g>
           <path
             d={`M-${width} 0l${width * 2} 0M0 -${height}l0 ${height * 2}`}
@@ -770,6 +772,7 @@ function PlanPreview(
       height={height}
       viewBox={`0 0 ${ps.size.x} ${ps.size.y}`}
     >
+      <title>Plot preview</title>
       {memoizedPlanPreview}
       {margins}
     </svg>
@@ -848,11 +851,13 @@ function PlotButtons(
     {
       isPlanning
         ? <button
+          type="button"
           className="replan-button"
           disabled={true}>
           Replanning...
         </button>
         : <button
+          type="button"
           className={`plot-button ${state.progress != null ? "plot-button--plotting" : ""}`}
           disabled={plan == null || state.progress != null}
           onClick={() => plot(plan)}>
@@ -861,11 +866,12 @@ function PlotButtons(
     }
     <div className={`button-row`}>
       <button
+        type="button"
         className={`cancel-button ${state.progress != null ? "cancel-button--active" : ""}`}
         onClick={state.paused ? resume : pause}
         disabled={plan == null || state.progress == null}
       >{state.paused ? "Resume" : "Pause"}</button>
-      <button
+      <button type="button"
         className={`cancel-button ${state.progress != null ? "cancel-button--active" : ""}`}
         onClick={cancel}
         disabled={plan == null || state.progress == null}
@@ -882,7 +888,7 @@ function ResetToDefaultsButton() {
     dispatch({ type: "SET_PLAN_OPTION", value: { ...defaultPlanOptions } });
   };
 
-  return <button className="button-link" onClick={onClick}>reset all options</button>;
+  return <button type="reset" className="button-link" onClick={onClick}>reset all options</button>;
 
 }
 
@@ -1066,6 +1072,7 @@ function PortSelector({ driver, setDriver, hardware }: PortSelectorProps) {
     {driver ? `Connected: ${driver.name()}` : null}
     {!driver ?
       <button
+        type="button"
         disabled={initializing}
         onClick={async () => {
           try {
@@ -1213,9 +1220,9 @@ function Root() {
           <div className="section-header">plot</div>
           <div className="section-body section-body__plot">
             <PlanStatistics plan={plan} />
-            <TimeLeft 
-              plan={plan} 
-              progress={state.progress} 
+            <TimeLeft
+              plan={plan}
+              progress={state.progress}
               currentMotionStartedTime={currentMotionStartedTime}
               paused={state.paused}
             />

@@ -17,9 +17,9 @@ export class RegexParser extends TransformStream {
         const newData = data + decoder.decode(chunk);
         const parts = newData.split(regex);
         data = parts.pop();
-        parts.forEach(part => {
+        for (const part of parts) {
           controller.enqueue(part);
-        });
+        }
       },
       flush(controller) {
         controller.enqueue(data);

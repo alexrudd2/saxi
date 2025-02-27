@@ -1,5 +1,5 @@
 import { startServer, waitForEbb } from '../server';
-import type { Server } from 'http';
+import type { Server } from 'node:http';
 import request from 'supertest';
 
 jest.mock("../serialport-serialport")

@@ -1,7 +1,9 @@
 import cors from "cors";
 import "web-streams-polyfill/polyfill";
+import type { Response, Request } from "express";
 import express from "express";
 import http from "node:http";
+import type { AddressInfo } from "node:net";
 import path from "node:path";
 import type { PortInfo } from "@serialport/bindings-interface";
 import { WakeLock } from "wake-lock";
@@ -35,7 +37,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
   let clients: WebSocket[] = [];
   let cancelRequested = false;
   let unpaused: Promise<void> | null = null;
-  let signalUnpause: () => void | null = null;
+  let signalUnpause: (() => void) | null = null;
   let motionIdx: number | null = null;
   let currentPlan: Plan | null = null;
   let plotting = false;
@@ -79,7 +81,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     });
   });
 
-  app.post("/plot", async (req, res) => {
+  app.post("/plot", async (req: Request, res: Response) => {
     if (plotting) {
       console.log("Received plot request, but a plot is already in progress!");
       res.status(400).end('Plot in progress');
@@ -118,7 +120,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     }
   });
 
-  app.post("/cancel", (req, res) => {
+  app.post("/cancel", (_req: Request, res: Response) => {
     cancelRequested = true;
     if (unpaused != null) {
       signalUnpause();
@@ -127,8 +129,8 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     res.status(200).end();
   });
 
-  app.post("/pause", (req, res) => {
-    if (unpaused == null) {
+  app.post("/pause", (_req: Request, res: Response) => {
+    if (!unpaused == null) {
       unpaused = new Promise(resolve => {
         signalUnpause = resolve;
       });
@@ -137,8 +139,8 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     res.status(200).end();
   });
 
-  app.post("/resume", (req, res) => {
-    if (signalUnpause != null) {
+  app.post("/resume", (_req: Request, res: Response) => {
+    if (signalUnpause == null) {
       signalUnpause();
       signalUnpause = unpaused = null;
     }
@@ -146,13 +148,13 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
   });
 
   function broadcast(msg: any) {
-    clients.forEach((ws) => {
+    for (const client of clients) {
       try {
-        ws.send(JSON.stringify(msg));
+        client.send(JSON.stringify(msg));
       } catch (e) {
         console.warn(e);
       }
-    });
+    }
   }
 
   interface Plotter {
@@ -164,7 +166,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
 
   const realPlotter: Plotter = {
     async prePlot(initialPenHeight: number): Promise<void> {
-      await ebb?.enableMotors(2);
+      await ebb?.enableMotors(1); // 16x microstepping, matches defaults from Axidraw
       await ebb?.setPenHeight(initialPenHeight, 1000, 1000);
     },
     async executeMotion(motion: Motion, _progress: [number, number]): Promise<void> {
@@ -172,6 +174,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     },
     async postCancel(initialPenHeight: number): Promise<void> {
       await ebb?.setPenHeight(initialPenHeight, 1000);
+      await ebb?.query('HM,4000'); // HM returns carriage home without 3rd and 4th arguments
     },
     async postPlot(): Promise<void> {
       await ebb?.waitUntilMotorsIdle();
@@ -241,7 +244,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
         }
       }
       connect();
-      const { family, address, port } = server.address() as any;
+      const { family, address, port } = server.address() as AddressInfo;
       const addr = `${family === "IPv6" ? `[${address}]` : address}:${port}`;
       console.log(`Server listening on http://${addr}`);
       resolve(server);
@@ -260,7 +263,7 @@ function sleep(ms: number) {
 }
 
 function isEBB(p: PortInfo): boolean {
-  return p.manufacturer === "SchmalzHaus" || p.manufacturer === "SchmalzHaus LLC" || (p.vendorId == "04D8" && p.productId == "FD92");
+  return p.manufacturer === "SchmalzHaus" || p.manufacturer === "SchmalzHaus LLC" || (p.vendorId === "04D8" && p.productId === "FD92");
 }
 
 async function listEBBs() {
@@ -301,7 +304,7 @@ async function * ebbs (path?: string, hardware: Hardware = 'v3') {
   }
 }
 
-export async function connectEBB (hardware: Hardware = 'v3', device: string | undefined): Promise<EBB | null> {
+export async function connectEBB (hardware: Hardware, device: string | undefined): Promise<EBB | null> {
   if (device == null) {
     const ebbs = await listEBBs();
     if (ebbs.length === 0) return null;
