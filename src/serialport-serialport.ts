@@ -62,8 +62,7 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
         this._port.once('close', () => this.emit('disconnect'));
         if (err) reject(err);
         else {
-          // Drain the port
-          while (this._port.read() != null) { /* do nothing */ }
+          this._port.drain();
           resolve();
         }
       });
