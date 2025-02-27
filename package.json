@@ -67,7 +67,7 @@
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.18.2",
+    "express": "^5.0.1",
     "flatten-svg": "^0.3.0",
     "optimize-paths": "^1.2.2",
     "serialport": "^12.0.0 || ^13.0.0",
