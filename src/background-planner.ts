@@ -6,7 +6,7 @@ self.addEventListener("message", (m) => {
   console.time("serializing");
   const serialized = plan.serialize();
   console.timeEnd("serializing");
-  (self as any).postMessage(serialized);
+  self.postMessage(serialized);
 });
 
 export default {} as typeof Worker & {
