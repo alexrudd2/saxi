@@ -107,8 +107,9 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
     });
   }
 
-  public addEventListener(type: "connect" | "disconnect", listener: (this: this, ev: Event) => any, useCapture?: boolean): void;
+  public addEventListener(type: "connect" | "disconnect", listener: (this: this, ev: Event) => void, useCapture?: boolean): void;
   public addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
+  // biome-ignore lint/suspicious/noExplicitAny: match EventEmitter
   public addEventListener(type: any, listener: any, options?: any): void {
     if (typeof options === 'object' && options.once) {
       this.once(type, listener);
@@ -117,8 +118,9 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
     }
   }
 
-  public removeEventListener(type: "connect" | "disconnect", callback: (this: this, ev: Event) => any, useCapture?: boolean): void;
+  public removeEventListener(type: "connect" | "disconnect", callback: (this: this, ev: Event) => void, useCapture?: boolean): void;
   public removeEventListener(type: string, callback: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
+  // biome-ignore lint/suspicious/noExplicitAny: match EventEmitter
   public removeEventListener(type: any, callback: any, _options?: any): void {
     this.off(type, callback);
   }
