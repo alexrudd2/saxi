@@ -8,6 +8,18 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# Allow one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+# Grant GITHUB_TOKEN the permissions required to make a Pages deployment
+permissions:
+  pages: write      # to deploy to Pages
+  id-token: write   # to verify the deployment originates from an appropriate source
 
 jobs:
   build:
@@ -27,3 +39,36 @@ jobs:
         cache: 'npm'
     - run: npm ci
     - run: npm test
+  
+  pre-publish:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Setup Pages
+      uses: actions/configure-pages@v5
+    - name: Setup Node 22.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22.x
+        cache: 'npm'
+    # install packages and build
+    - run: npm ci
+    - run: IS_WEB=1 npm run build:ui
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+          # upload build materials
+          path: 'dist/ui'
+
+  # Deployment job
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: pre-publish
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
