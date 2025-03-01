@@ -736,7 +736,7 @@ function PlanPreview(
         height={height * 2}
         viewBox={`${-width} ${-height} ${width * 2} ${height * 2}`}
         style={{
-          transform: `translateZ(0.001px) ` +
+          transform: "translateZ(0.001px) " +
             `translate(${-width}px, ${-height}px) ` +
             `translate(${posXMm / ps.size.x * 50}%,${posYMm / ps.size.y * 50}%)`
         }}
@@ -864,7 +864,7 @@ function PlotButtons(
           {plan && state.progress != null ? "Plotting..." : "Plot"}
         </button>
     }
-    <div className={`button-row`}>
+    <div className={"button-row"}>
       <button
         type="button"
         className={`cancel-button ${state.progress != null ? "cancel-button--active" : ""}`}
@@ -1191,7 +1191,7 @@ function Root() {
   return <DispatchContext.Provider value={dispatch}>
     <div className={`root ${state.connected ? "connected" : "disconnected"}`}>
       <div className="control-panel">
-        <div className={`saxi-title red`} title={state.deviceInfo ? state.deviceInfo.path : null}>
+        <div className={"saxi-title red"} title={state.deviceInfo ? state.deviceInfo.path : null}>
           <span className="red reg">s</span><span className="teal">axi</span>
         </div>
         {IS_WEB ? <PortSelector driver={driver} setDriver={setDriver} hardware={state.deviceInfo?.hardware ?? 'v3'} /> : null}
