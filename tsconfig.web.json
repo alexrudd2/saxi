@@ -2,8 +2,8 @@
   "compilerOptions": {
     "esModuleInterop": true,
     "noImplicitAny": true,
-    "module": "es6",
-    "target": "es6",
+    "module": "es2022",
+    "target": "es2022",
     "moduleResolution": "node",
     "jsx": "react",
     "allowJs": true
