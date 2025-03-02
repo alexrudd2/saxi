@@ -13,8 +13,7 @@ import { PenMotion, type Motion, Plan } from "./planning";
 import { formatDuration } from "./util";
 import { autoDetect } from '@serialport/bindings-cpp';
 import * as _self from './server';  // use self-import for test mocking
-import fetch from 'node-fetch';
-// import fs from 'node:fs';
+import fetch from 'node-fetch';  // node-fetch is needed - tsc overrides default fetch
 
 import { EBB, type Hardware } from './ebb';
 
@@ -159,8 +158,6 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
       return;
     }
     const { prompt, vecType } = req.body;
-    console.log(prompt);
-    console.log(vecType);
     try {
       // call the api and return the svg
       const apiResp = await fetch('https://api.svg.io/v1/generate-image', {
@@ -171,11 +168,10 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
         },
         body: JSON.stringify({ prompt, style: vecType, negativePrompt: '' })
       });
-      const imageUrl = (await apiResp.json()).data[0].svgUrl;
-      // const imgResp = await fetch('https://upload.wikimedia.org/wikipedia/commons/4/4a/GHS-pictogram-explos.svg');
+      const data: any = await apiResp.json();
+      const imageUrl = data['data'][0].svgUrl;
       const imgResp = await fetch(imageUrl);
       const imgData = await imgResp.text();
-      // console.log('imgData=', imgData);
       res.status(200).send(imgData).end();
     } catch (err) {
       console.error(err);
