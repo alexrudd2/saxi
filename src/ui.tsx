@@ -99,13 +99,13 @@ interface DeviceInfo {
 }
 
 interface Driver {
-  onprogress: (motionIdx: number) => void | null;
-  oncancelled: () => void | null;
-  onfinished: () => void | null;
-  ondevinfo: (devInfo: DeviceInfo) => void | null;
-  onpause: (paused: boolean) => void | null;
-  onconnectionchange: (connected: boolean) => void | null;
-  onplan: (plan: Plan) => void | null;
+  onprogress: ((motionIdx: number) => void) | null;
+  oncancelled: (() => void) | null;
+  onfinished: (() => void) | null;
+  ondevinfo: ((devInfo: DeviceInfo) => void) | null;
+  onpause: ((paused: boolean) => void) | null;
+  onconnectionchange: ((connected: boolean) => void) | null;
+  onplan: ((plan: Plan) => void) | null;
 
   plot(plan: Plan): void;
 
@@ -128,8 +128,8 @@ class WebSerialDriver implements Driver {
   public onconnectionchange: (connected: boolean) => void;
   public onplan: (plan: Plan) => void;
 
-  private _unpaused: Promise<void> = null;
-  private _signalUnpause: () => void = null;
+  private _unpaused: Promise<void> | null = null;
+  private _signalUnpause: (() => void) | null = null;
   private _cancelRequested = false;
 
   public static async connect(port?: SerialPort, hardware: Hardware = 'v3') {
@@ -242,13 +242,13 @@ class SaxiDriver implements Driver {
     return d;
   }
 
-  public onprogress: (motionIdx: number) => void | null;
-  public oncancelled: () => void | null;
-  public onfinished: () => void | null;
-  public ondevinfo: (devInfo: DeviceInfo) => void | null;
-  public onpause: (paused: boolean) => void | null;
-  public onconnectionchange: (connected: boolean) => void | null;
-  public onplan: (plan: Plan) => void | null;
+  public onprogress: ((motionIdx: number) => void) | null = null;
+  public oncancelled: (() => void) | null = null;
+  public onfinished: (() => void) | null = null;
+  public ondevinfo: ((devInfo: DeviceInfo) => void) | null = null;
+  public onpause: ((paused: boolean) => void) | null = null;
+  public onconnectionchange: ((connected: boolean) => void) | null = null;
+  public onplan: ((plan: Plan) => void) | null = null;
 
   private socket: WebSocket;
   private connected: boolean;
@@ -801,7 +801,7 @@ function PlanPreview(
         height={height * 2}
         viewBox={`${-width} ${-height} ${width * 2} ${height * 2}`}
         style={{
-          transform: `translateZ(0.001px) ` +
+          transform: "translateZ(0.001px) " +
             `translate(${-width}px, ${-height}px) ` +
             `translate(${posXMm / ps.size.x * 50}%,${posYMm / ps.size.y * 50}%)`
         }}
@@ -929,7 +929,7 @@ function PlotButtons(
           {plan && state.progress != null ? "Plotting..." : "Plot"}
         </button>
     }
-    <div className={`button-row`}>
+    <div className={"button-row"}>
       <button
         type="button"
         className={`cancel-button ${state.progress != null ? "cancel-button--active" : ""}`}
@@ -1256,7 +1256,7 @@ function Root() {
   return <DispatchContext.Provider value={dispatch}>
     <div className={`root ${state.connected ? "connected" : "disconnected"}`}>
       <div className="control-panel">
-        <div className={`saxi-title red`} title={state.deviceInfo ? state.deviceInfo.path : null}>
+        <div className={"saxi-title red"} title={state.deviceInfo ? state.deviceInfo.path : null}>
           <span className="red reg">s</span><span className="teal">axi</span>
         </div>
         {IS_WEB ? <PortSelector driver={driver} setDriver={setDriver} hardware={state.deviceInfo?.hardware ?? 'v3'} /> : null}

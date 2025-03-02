@@ -1,7 +1,9 @@
 import cors from "cors";
 import "web-streams-polyfill/polyfill";
-import express, { Request, Response } from "express";
+import type { Response, Request } from "express";
+import express from "express";
 import http from "node:http";
+import type { AddressInfo } from "node:net";
 import path from "node:path";
 import type { PortInfo } from "@serialport/bindings-interface";
 import { WakeLock } from "wake-lock";
@@ -37,7 +39,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
   let clients: WebSocket[] = [];
   let cancelRequested = false;
   let unpaused: Promise<void> | null = null;
-  let signalUnpause: () => void | null = null;
+  let signalUnpause: (() => void) | null = null;
   let motionIdx: number | null = null;
   let currentPlan: Plan | null = null;
   let plotting = false;
@@ -84,10 +86,10 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
     });
   });
 
-  app.post("/plot", async (req, res) => {
+  app.post("/plot", async (req: Request, res: Response) => {
     if (plotting) {
       console.log("Received plot request, but a plot is already in progress!");
-      res.status(400).end('Plot in progress');
+      res.status(400).send('Plot in progress');
       return;
     }
     plotting = true;
@@ -123,7 +125,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
     }
   });
 
-  app.post("/cancel", (req, res) => {
+  app.post("/cancel", (_req: Request, res: Response) => {
     cancelRequested = true;
     if (unpaused) {
       signalUnpause();
@@ -132,7 +134,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
     res.status(200).end();
   });
 
-  app.post("/pause", (req, res) => {
+  app.post("/pause", (_req: Request, res: Response) => {
     if (!unpaused) {
       unpaused = new Promise(resolve => {
         signalUnpause = resolve;
@@ -142,7 +144,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
     res.status(200).end();
   });
 
-  app.post("/resume", (req, res) => {
+  app.post("/resume", (_req: Request, res: Response) => {
     if (signalUnpause) {
       signalUnpause();
       signalUnpause = unpaused = null;
@@ -278,7 +280,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
         }
       }
       connect();
-      const { family, address, port } = server.address() as any;
+      const { family, address, port } = server.address() as AddressInfo;
       const addr = `${family === "IPv6" ? `[${address}]` : address}:${port}`;
       console.log(`Server listening on http://${addr}`);
       resolve(server);
@@ -338,7 +340,7 @@ async function* ebbs(path?: string, hardware: Hardware = 'v3') {
   }
 }
 
-export async function connectEBB(hardware: Hardware = 'v3', device: string | undefined): Promise<EBB | null> {
+export async function connectEBB (hardware: Hardware, device: string | undefined): Promise<EBB | null> {
   if (!device) {
     const ebbs = await listEBBs();
     if (ebbs.length === 0) return null;

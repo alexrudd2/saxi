@@ -28,11 +28,11 @@ export function vdot(a: Vec2, b: Vec2): number {
 export function vrot(v: Vec2, c: Vec2, a: number): Vec2 {
   if (a === 0) return v;
 
-  const radians = (Math.PI / 180) * a,
-    cos = Math.cos(radians),
-    sin = Math.sin(radians),
-    nx = cos * (v.x - c.x) - sin * (v.y - c.y) + c.x,
-    ny = cos * (v.y - c.y) + sin * (v.x - c.x) + c.y;
+  const radians = (Math.PI / 180) * a;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const nx = cos * (v.x - c.x) - sin * (v.y - c.y) + c.x;
+  const ny = cos * (v.y - c.y) + sin * (v.x - c.x) + c.y;
       
   return { x:nx, y:ny };
 }

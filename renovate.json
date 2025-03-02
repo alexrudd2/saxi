@@ -5,7 +5,7 @@
     ":automergeLinters",
     "group:nodeJs"
   ],
-  "rangeStrategy": "widen",
+  "rangeStrategy": "replace",
   "packageRules": [
     {
       "matchManagers": [
