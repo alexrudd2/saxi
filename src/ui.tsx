@@ -24,6 +24,12 @@ const defaultVisualizationOptions = {
   colorPathsByStrokeOrder: false,
 };
 
+const defaultSvgIoOptions = {
+  prompt: '',
+  status: '',
+  vecType: 'FLAT_VECTOR'
+};
+
 const initialState = {
   connected: true,
 
@@ -34,6 +40,7 @@ const initialState = {
   // UI state
   planOptions: defaultPlanOptions,
   visualizationOptions: defaultVisualizationOptions,
+  svgIoOptions: defaultSvgIoOptions,
 
   // Options used to produce the current value of |plan|.
   plannedOptions: null as PlanOptions | null,
@@ -65,6 +72,8 @@ function reducer(state: State, action: any): State {
       return { ...state, planOptions: { ...state.planOptions, ...action.value } };
     case "SET_VISUALIZATION_OPTION":
       return { ...state, visualizationOptions: { ...state.visualizationOptions, ...action.value } };
+    case "SET_SVGIO_OPTION":
+      return { ...state, svgIoOptions: { ...state.svgIoOptions, ...action.value } };
     case "SET_DEVICE_INFO":
       return { ...state, deviceInfo: action.value };
     case "SET_PAUSED":
@@ -86,6 +95,7 @@ function reducer(state: State, action: any): State {
 interface DeviceInfo {
   path: string;
   hardware: Hardware;
+  svgIoEnabled: boolean;
 }
 
 interface Driver {
@@ -182,7 +192,7 @@ class WebSerialDriver implements Driver {
       if (!penIsUp) {
         // Move to the pen up position, or 50% if no position was found
         const penMotion = plan.motions.find((motion): motion is PenMotion => motion instanceof PenMotion);
-        const penUpPosition = penMotion ? Math.max(penMotion.initialPos, penMotion.finalPos) :  device.penPctToPos(50);
+        const penUpPosition = penMotion ? Math.max(penMotion.initialPos, penMotion.finalPos) : device.penPctToPos(50);
         await this.ebb.setPenHeight(penUpPosition, 1000);
         await this.ebb.query('HM,4000'); // HM returns carriage home without 3rd and 4th arguments
       }
@@ -264,7 +274,9 @@ class SaxiDriver implements Driver {
       if (this.onconnectionchange) {
         this.onconnectionchange(true);
       }
+
       this.pingInterval = window.setInterval(() => this.ping(), 30000);
+      this.dev(); // request device info upon start
     });
     this.socket.addEventListener("message", (e: MessageEvent) => {
       const msg = JSON.parse(e.data);
@@ -325,7 +337,7 @@ class SaxiDriver implements Driver {
     fetch("/plot", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: new Blob([ JSON.stringify(plan.serialize()) ], { type: 'application/json' })
+      body: new Blob([JSON.stringify(plan.serialize())], { type: 'application/json' })
     });
   }
 
@@ -354,6 +366,7 @@ class SaxiDriver implements Driver {
 
   public limp() { this.send({ c: "limp" }); }
   public ping() { this.send({ c: "ping" }); }
+  public dev() { this.send({ c: "dev" }); }
 }
 
 const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
@@ -510,6 +523,58 @@ function VisualizationOptions({ state }: { state: State }) {
   </>;
 }
 
+/**
+ * Options to get an AI-Generated SVG image.
+ * Use svg.io API: https://api.svg.io/v1/docs
+ */
+function SvgIoOptions({ state }: { state: State }) {
+  const { prompt, vecType, status } = state.svgIoOptions;
+  const dispatch = useContext(DispatchContext);
+  // call server
+  const generateImage = async () => {
+    dispatch({ type: "SET_SVGIO_OPTION", value: { status: 'Generating ...' } });
+    try {
+
+      const imgResp = await fetch("/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: new Blob([JSON.stringify({ prompt, vecType })], { type: 'application/json' }),
+      });
+      dispatch({ type: "SET_SVGIO_OPTION", value: { status: 'Loading ...' } });
+      const imgData = await imgResp.text();
+      dispatch(setPaths(readSvg(imgData)));
+    } catch (error) {
+      console.error(error);
+    } finally {
+      dispatch({ type: "SET_SVGIO_OPTION", value: { status: '' } });
+    }
+  };
+  return <>
+    <div>
+      <label>Type
+        <select value={vecType}
+          onChange={(e) => dispatch({ type: "SET_SVGIO_OPTION", value: { vecType: e.target.value } })}>
+          <option value={"FLAT_VECTOR"}>Flat</option>
+          <option value={"FLAT_VECTOR_OUTLINE"}>Outline</option>
+          <option value={"FLAT_VECTOR_SILHOUETTE"}>Silhouette</option>
+          <option value={"FLAT_VECTOR_ONE_LINE_ART"}>One Line Art</option>
+          <option value={"FLAT_VECTOR_LINE_ART"}>Line Art</option>
+        </select>
+      </label>
+      <label title="prompt">Prompt
+        <textarea value={prompt} size={"3"}
+          onChange={(e) => dispatch({ type: "SET_SVGIO_OPTION", value: { prompt: e.target.value } })}>
+        </textarea>
+      </label>
+    </div>
+    {prompt !== ''
+      ? <div>
+        {status ? <span>{status}</span> : <button onClick={generateImage}>Generate!</button>}
+      </div>
+      : ''}
+  </>;
+}
+
 function SwapPaperSizesButton({ onClick }: { onClick: () => void }) {
   return <svg
     className="paper-sizes__swap"
@@ -584,14 +649,14 @@ function PaperConfig({ state }: { state: State }) {
       <label>
         rotate drawing (degrees)
         <div className="horizontal-labels">
-          <img src={rotateDrawingIcon} alt="rotate drawing (degrees)"/>
+          <img src={rotateDrawingIcon} alt="rotate drawing (degrees)" />
           <input type="number" min="-90" step="90" max="360" placeholder="0" value={state.planOptions.rotateDrawing}
             onInput={(e) => {
               const value = (e.target as HTMLInputElement).value;
               if (Number(value) < 0) { (e.target as HTMLInputElement).value = "270"; }
               if (Number(value) > 270) { (e.target as HTMLInputElement).value = "0"; }
             }}
-            onChange={(e) => dispatch({ type: "SET_PLAN_OPTION", value: { rotateDrawing: e.target.value } })}/>
+            onChange={(e) => dispatch({ type: "SET_PLAN_OPTION", value: { rotateDrawing: e.target.value } })} />
         </div>
       </label>
     </div>
@@ -934,7 +999,7 @@ function PlanOptions({ state }: { state: State }) {
     <div className="horizontal-labels">
 
       <label title="point-joining radius (mm)" >
-        <img src={pointJoinRadiusIcon} alt="point-joining radius (mm)"/>
+        <img src={pointJoinRadiusIcon} alt="point-joining radius (mm)" />
         <input
           type="number"
           value={state.planOptions.pointJoinRadius}
@@ -1215,6 +1280,15 @@ function Root() {
             <VisualizationOptions state={state} />
           </div>
         </details>
+        {state.deviceInfo?.svgIoEnabled
+          ? <details>
+            <summary className="section-header">AI</summary>
+            <div className="section-body">
+              <SvgIoOptions state={state} />
+            </div>
+          </details>
+          : <></>
+        }
         <div className="spacer" />
         <div className="control-panel-bottom">
           <div className="section-header">plot</div>
@@ -1237,7 +1311,7 @@ function Root() {
           plan={plan}
         />
         <PlanLoader isPlanning={isPlanning} isLoadingFile={isLoadingFile} />
-        {showDragTarget ? <DragTarget/> : null}
+        {showDragTarget ? <DragTarget /> : null}
       </div>
     </div>
   </DispatchContext.Provider>;
