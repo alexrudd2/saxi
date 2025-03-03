@@ -1,4 +1,5 @@
 import yargs from "yargs";
+import { hideBin } from 'yargs/helpers';
 import { connectEBB, startServer } from "./server";
 import { replan } from "./massager";
 import { Window } from "svgdom";
@@ -17,7 +18,7 @@ function parseSvg(svg: string) {
 }
 
 export function cli(argv: string[]): void {
-  yargs
+  yargs(hideBin(process.argv))
     .strict()
     .option('hardware', {
       describe: 'select hardware type',
