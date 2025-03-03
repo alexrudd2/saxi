@@ -9,13 +9,12 @@ import type { PortInfo } from "@serialport/bindings-interface";
 import { WakeLock } from "wake-lock";
 import type WebSocket from 'ws';
 import { WebSocketServer } from 'ws';
-import { SerialPortSerialPort } from "./serialport-serialport";
-import { PenMotion, type Motion, Plan } from "./planning";
-import { formatDuration } from "./util";
+import { SerialPortSerialPort } from "./serialport-serialport.js";
+import { PenMotion, type Motion, Plan } from "./planning.js";
+import { formatDuration } from "./util.js";
 import { autoDetect } from '@serialport/bindings-cpp';
-import * as _self from './server';  // use self-import for test mocking
-
-import { EBB, type Hardware } from './ebb';
+import * as _self from './server.js';  // use self-import for test mocking
+import { EBB, type Hardware } from './ebb.js';
 
 type Com = string
 
