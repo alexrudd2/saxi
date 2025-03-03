@@ -163,8 +163,15 @@ export const AxidrawBrushlessFast: ToolingProfile = {
   penLiftDuration: 0.08
 };
 
+interface BlockData {
+  accel: number;
+  duration: number;
+  vInitial: number;
+  p1: Vec2;
+  p2: Vec2;
+}
 export class Block {
-  public static deserialize(o: any): Block {
+  public static deserialize(o: BlockData): Block {
     return new Block(o.accel, o.duration, o.vInitial, o.p1, o.p2);
   }
 
@@ -202,7 +209,7 @@ export class Block {
     return { t: t + dt, p, s: s + ds, v, a };
   }
 
-  public serialize(): any {
+  public serialize(): BlockData {
     return {
       accel: this.accel,
       duration: this.duration,
