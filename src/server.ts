@@ -4,7 +4,6 @@ import type { Response, Request } from "express";
 import express from "express";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import path from "node:path";
 import type { PortInfo } from "@serialport/bindings-interface";
 import { WakeLock } from "wake-lock";
 import type WebSocket from 'ws';
@@ -15,6 +14,9 @@ import { formatDuration } from "./util.js";
 import { autoDetect } from '@serialport/bindings-cpp';
 import * as _self from './server.js';  // use self-import for test mocking
 import { EBB, type Hardware } from './ebb.js';
+import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
+import path from 'node:path';
 
 type Com = string
 
@@ -24,6 +26,7 @@ const getDeviceInfo = (ebb: EBB | null, com: Com) => {
 
 export async function startServer (port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, maxPayloadSize = '200mb') {
   const app = express();
+  const __dirname = dirname(fileURLToPath(import.meta.url));
   app.use('/', express.static(path.join(__dirname, '..', 'ui')));
   app.use(express.json({ limit: maxPayloadSize }));
   if (enableCors) {
