@@ -14,9 +14,9 @@
     "hardware",
     "robot"
   ],
-  "main": "index.mjs",
+  "main": "index.js",
   "bin": {
-    "saxi": "cli.mjs"
+    "saxi": "cli.js"
   },
   "scripts": {
     "prebuild": "npm run lint",
@@ -25,7 +25,7 @@
     "build:server": "tsc",
     "build:ui": "node --experimental-modules build.mjs",
     "prepare": "rimraf dist && npm run build",
-    "start": "npm run build && node cli.mjs",
+    "start": "npm run build && node cli.js",
     "dev": "BUILD_MODE=development npm start",
     "deploy": "rimraf dist/ui && IS_WEB=1 npm run build:ui && gh-pages --dist dist/ui",
     "test": "jest"
@@ -79,13 +79,12 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "type": "module",
   "jest": {
     "preset": "ts-jest"
   },
   "files": [
     "/dist",
-    "cli.mjs"
+    "cli.js"
   ],
   "optionalDependencies": {
     "@esbuild/linux-arm": "^0.25.0",

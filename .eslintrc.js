@@ -7,7 +7,7 @@ module.exports = {
     'plugin:@typescript-eslint/recommended',
   ],
   parserOptions: {
-    ecmaVersion: 2022,
+    ecmaVersion: 2018,
     sourceType: 'module',
   },
   root: true,

@@ -6,7 +6,7 @@ const buildOptions = {
   entryPoints: ['src/ui.tsx'],
   bundle: true,
   platform: 'browser',
-  target: 'es2022',
+  target: 'es2020',
   minify: true,
   sourcemap: true,
   metafile: true,
@@ -27,7 +27,7 @@ const buildOptions = {
       }]
     })
   ],
-  resolveExtensions: ['.mjs', '.js', '.ts', '.tsx', '.svg', '.worker.js'],
+  resolveExtensions: ['.js', '.ts', '.tsx', '.svg', '.worker.js'],
 };
 
 (async () => {
