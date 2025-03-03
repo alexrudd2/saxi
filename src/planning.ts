@@ -168,15 +168,15 @@ export class Block {
     return new Block(o.accel, o.duration, o.vInitial, o.p1, o.p2);
   }
 
-  public accel: number;
-  public duration: number;
-  public vInitial: number;
-  public p1: Vec2;
-  public p2: Vec2;
-
   public distance: number;
 
-  public constructor(accel: number, duration: number, vInitial: number, p1: Vec2, p2: Vec2) {
+  constructor(
+    public accel: number,
+    public duration: number,
+    public vInitial: number,
+    public p1: Vec2,
+    public p2: Vec2
+  ) {
     if (!(vInitial >= 0)) {
       throw new Error(`vInitial must be >= 0, but was ${vInitial}`);
     }
