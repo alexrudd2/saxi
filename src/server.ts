@@ -20,7 +20,7 @@ import { EBB, type Hardware } from './ebb';
 type Com = string
 
 const getDeviceInfo = (ebb: EBB | null, com: Com) => {
-  return { com: ebb ? com : null, hardware: ebb?.hardware };
+  return { com: ebb != null ? com : null, hardware: ebb?.hardware };
 };
 
 export async function startServer (port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, maxPayloadSize = '200mb') {
@@ -52,10 +52,10 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
           ws.send(JSON.stringify({ c: "pong" }));
           break;
         case "limp":
-          if (ebb) { ebb.disableMotors(); }
+          if (ebb != null) { ebb.disableMotors(); }
           break;
         case "setPenHeight":
-          if (ebb) {
+          if (ebb != null) {
             (async () => {
               if (await ebb.supportsSR()) {
                 await ebb.setServoPowerTimeout(10000, true);
@@ -123,7 +123,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
 
   app.post("/cancel", (_req: Request, res: Response) => {
     cancelRequested = true;
-    if (unpaused) {
+    if (unpaused != null) {
       signalUnpause();
     }
     unpaused = signalUnpause = null;
@@ -131,7 +131,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
   });
 
   app.post("/pause", (_req: Request, res: Response) => {
-    if (!unpaused) {
+    if (!unpaused == null) {
       unpaused = new Promise(resolve => {
         signalUnpause = resolve;
       });
@@ -141,7 +141,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
   });
 
   app.post("/resume", (_req: Request, res: Response) => {
-    if (signalUnpause) {
+    if (signalUnpause == null) {
       signalUnpause();
       signalUnpause = unpaused = null;
     }
@@ -167,19 +167,19 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
 
   const realPlotter: Plotter = {
     async prePlot(initialPenHeight: number): Promise<void> {
-      await ebb.enableMotors(1); // 16x microstepping, matches defaults from Axidraw
-      await ebb.setPenHeight(initialPenHeight, 1000, 1000);
+      await ebb?.enableMotors(1); // 16x microstepping, matches defaults from Axidraw
+      await ebb?.setPenHeight(initialPenHeight, 1000, 1000);
     },
     async executeMotion(motion: Motion, _progress: [number, number]): Promise<void> {
-      await ebb.executeMotion(motion);
+      await ebb?.executeMotion(motion);
     },
     async postCancel(initialPenHeight: number): Promise<void> {
-      await ebb.setPenHeight(initialPenHeight, 1000);
-      await ebb.query('HM,4000'); // HM returns carriage home without 3rd and 4th arguments
+      await ebb?.setPenHeight(initialPenHeight, 1000);
+      await ebb?.query('HM,4000'); // HM returns carriage home without 3rd and 4th arguments
     },
     async postPlot(): Promise<void> {
-      await ebb.waitUntilMotorsIdle();
-      await ebb.disableMotors();
+      await ebb?.waitUntilMotorsIdle();
+      await ebb?.disableMotors();
     },
   };
 
@@ -306,7 +306,7 @@ async function * ebbs (path?: string, hardware: Hardware = 'v3') {
 }
 
 export async function connectEBB (hardware: Hardware, device: string | undefined): Promise<EBB | null> {
-  if (!device) {
+  if (device == null) {
     const ebbs = await listEBBs();
     if (ebbs.length === 0) return null;
     device = ebbs[0];
