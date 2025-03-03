@@ -10,8 +10,11 @@
     "baseUrl": ".",
     "jsx": "react",
     "paths": {
-      "*": [
-        "node_modules/*"
+      "@serialport/bindings-interface": [
+        "node_modules/@serialport/bindings-interface"
+      ],
+      "@serialport/binding-mock": [
+        "node_modules/@serialport/binding-mock"
       ]
     }
   },
