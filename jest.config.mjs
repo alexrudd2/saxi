@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   preset: 'ts-jest',
   moduleNameMapper: {
     './ebb.js': './ebb.ts',
