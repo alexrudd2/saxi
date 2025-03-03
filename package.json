@@ -80,9 +80,6 @@
     "node": ">=18.0.0"
   },
   "type": "module",
-  "jest": {
-    "preset": "ts-jest"
-  },
   "files": [
     "/dist",
     "cli.mjs"
