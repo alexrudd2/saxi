@@ -7,7 +7,8 @@ import type { AddressInfo } from "node:net";
 import path from "node:path";
 import type { PortInfo } from "@serialport/bindings-interface";
 import { WakeLock } from "wake-lock";
-import WebSocket from "ws";
+import type WebSocket from 'ws';
+import { WebSocketServer } from 'ws';
 import { SerialPortSerialPort } from "./serialport-serialport.js";
 import { PenMotion, type Motion, Plan } from "./planning.js";
 import { formatDuration } from "./util.js";
@@ -30,7 +31,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
   }
 
   const server = http.createServer(app);
-  const wss = new WebSocket.Server({ server });
+  const wss = new WebSocketServer({ server });
 
   let ebb: EBB | null;
   let clients: WebSocket[] = [];
