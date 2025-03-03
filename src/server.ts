@@ -25,7 +25,7 @@ const getDeviceInfo = (ebb: EBB | null, com: Com) => {
 
 export async function startServer (port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, maxPayloadSize = '200mb') {
   const app = express();
-  app.use('/', express.static(path.join(__dirname, '..', 'ui')));
+  app.use('/', express.static(path.join(process.cwd(), 'ui')));
   app.use(express.json({ limit: maxPayloadSize }));
   if (enableCors) {
     app.use(cors());
