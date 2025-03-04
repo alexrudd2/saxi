@@ -4,18 +4,18 @@ import type { Response, Request } from "express";
 import express from "express";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import path from "node:path";
 import type { PortInfo } from "@serialport/bindings-interface";
 import { WakeLock } from "wake-lock";
-import WebSocket from "ws";
-import { SerialPortSerialPort } from "./serialport-serialport";
-import { PenMotion, type Motion, Plan } from "./planning";
-import { formatDuration } from "./util";
+import type WebSocket from 'ws';
+import { WebSocketServer } from 'ws';
+import { SerialPortSerialPort } from "./serialport-serialport.js";
+import { PenMotion, type Motion, Plan } from "./planning.js";
+import { formatDuration } from "./util.js";
 import { autoDetect } from '@serialport/bindings-cpp';
-import * as _self from './server';  // use self-import for test mocking
+import * as _self from './server.js';  // use self-import for test mocking
 import fetch from 'node-fetch';  // node-fetch is needed - tsc overrides default fetch
-
-import { EBB, type Hardware } from './ebb';
+import { EBB, type Hardware } from './ebb.js';
+import path from 'node:path';
 
 type Com = string
 
@@ -25,14 +25,14 @@ const getDeviceInfo = (ebb: EBB | null, com: Com, svgIoEnabled: boolean = false)
 
 export async function startServer(port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, maxPayloadSize = '200mb', svgIoApiKey = '') {
   const app = express();
-  app.use('/', express.static(path.join(__dirname, '..', 'ui')));
+  app.use('/', express.static(path.join(path.resolve(), 'dist', 'ui')));
   app.use(express.json({ limit: maxPayloadSize }));
   if (enableCors) {
     app.use(cors());
   }
 
   const server = http.createServer(app);
-  const wss = new WebSocket.Server({ server });
+  const wss = new WebSocketServer({ server });
 
   let ebb: EBB | null;
   let clients: WebSocket[] = [];

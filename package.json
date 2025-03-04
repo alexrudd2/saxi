@@ -46,7 +46,7 @@
     "@types/react-dom": "^19.0.0",
     "@types/supertest": "^6.0.2",
     "@types/w3c-web-serial": "^1.0.8",
-    "@types/ws": "8.0.0 - 8.5",
+    "@types/ws": "8.18",
     "@types/yargs": "^17.0.0",
     "@typescript-eslint/eslint-plugin": "^6.6.0 || ^7.0.0 || ^8.0.0",
     "@typescript-eslint/parser": "^6.6.0 || ^7.0.0 || ^8.0.0",
@@ -82,9 +82,6 @@
     "node": ">=18.0.0"
   },
   "type": "module",
-  "jest": {
-    "preset": "ts-jest"
-  },
   "files": [
     "/dist",
     "cli.mjs"
