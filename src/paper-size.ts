@@ -1,4 +1,4 @@
-import { type Vec2, vmul } from "./vec";
+import { type Vec2, vmul } from "./vec.js";
 
 function vround(v: Vec2, digits = 2): Vec2 {
   return { x: Number(v.x.toFixed(digits)), y: Number(v.y.toFixed(digits)) };

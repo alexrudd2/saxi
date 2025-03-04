@@ -6,11 +6,11 @@ import colormap from "colormap";
 
 import { flattenSVG } from "flatten-svg";
 import { PaperSize } from "./paper-size";
-import { Device, Plan, type PlanOptions, defaultPlanOptions, XYMotion, PenMotion } from "./planning";
-import { formatDuration } from "./util";
-import type { Vec2 } from "./vec";
+import { Device, Plan, type PlanOptions, defaultPlanOptions, XYMotion, PenMotion } from "./planning.js";
+import { formatDuration } from "./util.js";
+import type { Vec2 } from "./vec.js";
 
-import PlanWorker from "./plan.worker";
+import PlanWorker from "./plan.worker.js";
 
 import "./style.css";
 

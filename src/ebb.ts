@@ -1,6 +1,6 @@
-import { type Block, type Motion, PenMotion, type Plan, XYMotion } from "./planning";
-import { RegexParser } from "./regex-transform-stream";
-import { type Vec2, vsub } from "./vec";
+import { type Block, type Motion, PenMotion, type Plan, XYMotion } from "./planning.js";
+import { RegexParser } from "./regex-transform-stream.js";
+import { type Vec2, vsub } from "./vec.js";
 
 /** Split d into its fractional and integral parts */
 function modf(d: number): [number, number] {
