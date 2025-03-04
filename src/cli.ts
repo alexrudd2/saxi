@@ -1,14 +1,15 @@
 import yargs from "yargs";
-import { connectEBB, startServer } from "./server";
-import { replan } from "./massager";
+import { hideBin } from 'yargs/helpers';
+import { connectEBB, startServer } from "./server.js";
+import { replan } from "./massager.js";
 import { Window } from "svgdom";
 import { readFileSync } from "node:fs";
 import { flattenSVG, type Line } from "flatten-svg";
-import type { Vec2 } from "./vec";
-import { formatDuration } from "./util";
-import { Device, type PlanOptions, defaultPlanOptions } from "./planning";
-import { PaperSize } from "./paper-size";
-import type { Hardware } from "./ebb";
+import type { Vec2 } from "./vec.js";
+import { formatDuration } from "./util.js";
+import { Device, type PlanOptions, defaultPlanOptions } from "./planning.js";
+import { PaperSize } from "./paper-size.js";
+import type { Hardware } from "./ebb.js";
 
 function parseSvg(svg: string) {
   const window = new Window;
@@ -17,7 +18,7 @@ function parseSvg(svg: string) {
 }
 
 export function cli(argv: string[]): void {
-  yargs
+  yargs(hideBin(process.argv))
     .strict()
     .option('hardware', {
       describe: 'select hardware type',
