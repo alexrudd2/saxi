@@ -14,8 +14,6 @@ import { formatDuration } from "./util.js";
 import { autoDetect } from '@serialport/bindings-cpp';
 import * as _self from './server.js';  // use self-import for test mocking
 import { EBB, type Hardware } from './ebb.js';
-import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
 import path from 'node:path';
 
 type Com = string
@@ -26,8 +24,7 @@ const getDeviceInfo = (ebb: EBB | null, com: Com) => {
 
 export async function startServer (port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, maxPayloadSize = '200mb') {
   const app = express();
-  const __dirname = dirname(fileURLToPath(import.meta.url));
-  app.use('/', express.static(path.join(__dirname, '..', 'ui')));
+  app.use('/', express.static(path.join(path.resolve(), 'dist', 'ui')));
   app.use(express.json({ limit: maxPayloadSize }));
   if (enableCors) {
     app.use(cors());
