@@ -540,11 +540,17 @@ function SvgIoOptions({ state }: { state: State }) {
         headers: { "Content-Type": "application/json" },
         body: new Blob([JSON.stringify({ prompt, vecType })], { type: 'application/json' }),
       });
-      dispatch({ type: "SET_SVGIO_OPTION", value: { status: 'Loading ...' } });
-      const imgData = await imgResp.text();
-      dispatch(setPaths(readSvg(imgData)));
+      if (imgResp.ok) {
+        dispatch({ type: "SET_SVGIO_OPTION", value: { status: 'Loading ...' } });
+        const imgData = await imgResp.text();
+        dispatch(setPaths(readSvg(imgData)));
+      } else {
+        const msg = await imgResp.text();
+        alert(`Error generating image: ${msg ? msg : imgResp.statusText}`);  
+      }
     } catch (error) {
       console.error(error);
+      alert(`Error generating image ${error}`);
     } finally {
       dispatch({ type: "SET_SVGIO_OPTION", value: { status: '' } });
     }

@@ -26,7 +26,7 @@
     "build:ui": "node --experimental-modules build.mjs",
     "prepare": "rimraf dist && npm run build",
     "start": "npm run build && node cli.mjs",
-    "start-svgio": "npm run build && node cli.js --svgio-api-key YOUR_API_KEY",
+    "start-svgio": "npm run build && node cli.mjs --svgio-api-key SVGIO_4QBHU0JEQ8CD2LQCHQBKUJ2GT06VU6M2MVSHCJDICMG29XI56U23R7EL2T",
     "dev": "BUILD_MODE=development npm start",
     "deploy": "rimraf dist/ui && IS_WEB=1 npm run build:ui && gh-pages --dist dist/ui",
     "test": "jest"
@@ -70,7 +70,6 @@
     "cors": "^2.8.5",
     "express": "^5.0.1",
     "flatten-svg": "^0.3.0",
-    "node-fetch": "^3.3.2",
     "optimize-paths": "^1.2.2",
     "serialport": "^12.0.0 || ^13.0.0",
     "svgdom": "0.1.20",

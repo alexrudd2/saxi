@@ -13,7 +13,6 @@ import { PenMotion, type Motion, Plan } from "./planning.js";
 import { formatDuration } from "./util.js";
 import { autoDetect } from '@serialport/bindings-cpp';
 import * as _self from './server.js';  // use self-import for test mocking
-import fetch from 'node-fetch';  // node-fetch is needed - tsc overrides default fetch
 import { EBB, type Hardware } from './ebb.js';
 import path from 'node:path';
 
@@ -158,6 +157,8 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
       return;
     }
     const { prompt, vecType } = req.body;
+    console.log('prompt=', prompt);
+    console.log('vecType=', vecType);
     try {
       // call the api and return the svg
       const apiResp = await fetch('https://api.svg.io/v1/generate-image', {
@@ -169,13 +170,22 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
         body: JSON.stringify({ prompt, style: vecType, negativePrompt: '' })
       });
       const data: any = await apiResp.json();
+      if (!apiResp.ok) {
+        const message = data.message ? data.message : apiResp.statusText;
+        res.status(apiResp.status).send(message).end();
+        return;
+      }
       const imageUrl = data['data'][0].svgUrl;
       const imgResp = await fetch(imageUrl);
+      if (!imgResp.ok) {
+        res.status(500).send(imgResp.statusText).end();
+        return;
+      }
       const imgData = await imgResp.text();
       res.status(200).send(imgData).end();
     } catch (err) {
       console.error(err);
-      res.status(400).end();
+      res.status(500).end();
     }
   });
 
