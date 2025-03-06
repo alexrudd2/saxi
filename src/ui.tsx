@@ -615,7 +615,7 @@ function MotorControl({ driver }: { driver: Driver }) {
 function PlanStatistics({ plan }: { plan: Plan }) {
   return <div className="duration">
     <div>Duration</div>
-    <div><strong>{plan && plan.duration ? formatDuration(plan.duration()) : "-"}</strong></div>
+    <div><strong>{plan?.duration ? formatDuration(plan.duration()) : "-"}</strong></div>
   </div>;
 }
 
@@ -637,7 +637,7 @@ function TimeLeft({ plan, progress, currentMotionStartedTime, paused }: {
     return () => {
       clearInterval(interval);
     };
-  }, [setTime]);
+  }, []);
 
   if (!plan || !plan.duration || progress === null || paused) {
     return null;
@@ -699,7 +699,7 @@ function PlanPreview(
 
   const [microprogress, setMicroprogress] = useState(0);
   useLayoutEffect(() => {
-    let rafHandle: number = null;
+    let rafHandle: number;
     let cancelled = false;
     if (state.progress != null) {
       const startingTime = Date.now();
@@ -708,7 +708,6 @@ function PlanPreview(
         setMicroprogress(Date.now() - startingTime);
         rafHandle = requestAnimationFrame(updateProgress);
       };
-      // rafHandle = requestAnimationFrame(updateProgress)
       updateProgress();
     }
     return () => {
@@ -734,6 +733,7 @@ function PlanPreview(
         height={height * 2}
         viewBox={`${-width} ${-height} ${width * 2} ${height * 2}`}
         style={{
+          // biome-ignore lint/style/useTemplate: multi-line
           transform: "translateZ(0.001px) " +
             `translate(${-width}px, ${-height}px) ` +
             `translate(${posXMm / ps.size.x * 50}%,${posYMm / ps.size.y * 50}%)`
@@ -1097,7 +1097,7 @@ function Root() {
   useEffect(() => {
     if (isDriverConnected) return;
     if (IS_WEB) {
-      setDriver(null as Driver);
+      setDriver(null);
     } else {
       setDriver(SaxiDriver.connect());
     }
