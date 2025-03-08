@@ -18,8 +18,8 @@ import path from 'node:path';
 
 type Com = string
 
-const getDeviceInfo = (ebb: EBB | null, com: Com, svgIoEnabled: boolean = false) => {
-  return { com: ebb ? com : null, hardware: ebb?.hardware, svgIoEnabled: svgIoEnabled };
+const getDeviceInfo = (ebb: EBB | null, com: Com) => {
+  return { com: ebb ? com : null, hardware: ebb?.hardware };
 };
 
 export async function startServer(port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, maxPayloadSize = '200mb', svgIoApiKey = '') {
@@ -66,7 +66,9 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
       }
     });
 
-    ws.send(JSON.stringify({ c: 'dev', p: getDeviceInfo(ebb, com, svgIoApiKey !== '') }));
+    ws.send(JSON.stringify({ c: 'dev', p: getDeviceInfo(ebb, com) }));
+
+    ws.send(JSON.stringify({ c: 'svgio-enabled', p: svgIoApiKey !== '' }));
 
     ws.send(JSON.stringify({ c: "pause", p: { paused: !!unpaused } }));
     if (motionIdx != null) {
@@ -266,7 +268,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
         const devices = ebbs(com, hardware);
         for await (const device of devices) {
           ebb = device;
-          broadcast({ c: 'dev', p: getDeviceInfo(ebb, com, svgIoApiKey !== '') });
+          broadcast({ c: 'dev', p: getDeviceInfo(ebb, com) });
         }
       }
       connect();
