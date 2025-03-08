@@ -1,8 +1,8 @@
 /**
  * Backend web server for controlling the EBB.
- * Serves both the front end UI as static files - made with React, and backend
+ * Serve both the front end UI as static files - made with React, and backend
  * API for controlling the EBB.
- * Keeps open web sockets to the front end for real-time updates.
+ * Keep open web sockets to the front end for real-time updates.
  */
 
 import cors from "cors";

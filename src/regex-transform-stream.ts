@@ -1,5 +1,12 @@
 import "web-streams-polyfill/polyfill";
+
+/**
+ * Process a Stream by splitting it using a regular expression as a separator.
+ */
 export class RegexParser extends TransformStream {
+  /**
+   * @param opts regular expression of a separator.
+   */
   public constructor(opts: { regex: RegExp }) {
     if (opts.regex === undefined) {
       throw new TypeError('"options.regex" must be a regular expression pattern or object');

@@ -98,7 +98,7 @@ interface DeviceInfo {
 }
 
 /**
- * Driver for the Axi machine.
+ * Driver interface for the Axi machine.
  */
 interface Driver {
   onprogress: ((motionIdx: number) => void) | null;
