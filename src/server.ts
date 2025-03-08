@@ -7,19 +7,21 @@
 
 import cors from "cors";
 import "web-streams-polyfill/polyfill";
+import type { Response, Request } from "express";
 import express from "express";
 import http from "node:http";
-import path from "node:path";
+import type { AddressInfo } from "node:net";
 import type { PortInfo } from "@serialport/bindings-interface";
 import { WakeLock } from "wake-lock";
-import WebSocket from "ws";
-import { SerialPortSerialPort } from "./serialport-serialport";
-import { PenMotion, type Motion, Plan } from "./planning";
-import { formatDuration } from "./util";
+import type WebSocket from 'ws';
+import { WebSocketServer } from 'ws';
+import { SerialPortSerialPort } from "./serialport-serialport.js";
+import { PenMotion, type Motion, Plan } from "./planning.js";
+import { formatDuration } from "./util.js";
 import { autoDetect } from '@serialport/bindings-cpp';
-import * as _self from './server';  // use self-import for test mocking
-
-import { EBB, type Hardware } from './ebb';
+import * as _self from './server.js';  // use self-import for test mocking
+import { EBB, type Hardware } from './ebb.js';
+import path from 'node:path';
 
 type Com = string
 
@@ -44,14 +46,14 @@ const getDeviceInfo = (ebb: EBB | null, com: Com) => {
  */
 export async function startServer (port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, maxPayloadSize = '200mb') {
   const app = express();
-  app.use('/', express.static(path.join(__dirname, '..', 'ui')));
+  app.use('/', express.static(path.join(path.resolve(), 'dist', 'ui')));
   app.use(express.json({ limit: maxPayloadSize }));
   if (enableCors) {
     app.use(cors());
   }
   // Web and Socket server
   const server = http.createServer(app);
-  const wss = new WebSocket.Server({ server });
+  const wss = new WebSocketServer({ server });
 
   let ebb: EBB | null;
   let clients: WebSocket[] = [];
@@ -105,10 +107,10 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
   /**
    * /plot POST endpoint. Receive a plan on the POST body, and execute it.
    */
-  app.post("/plot", async (req, res) => {
+  app.post("/plot", async (req: Request, res: Response) => {
     if (plotting) {
       console.log("Received plot request, but a plot is already in progress!");
-      res.status(400).end('Plot in progress');
+      res.status(400).send('Plot in progress');
       return;
     }
     plotting = true;
@@ -144,7 +146,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     }
   });
 
-  app.post("/cancel", (req, res) => {
+  app.post("/cancel", (_req: Request, res: Response) => {
     cancelRequested = true;
     if (unpaused) {
       signalUnpause();
@@ -153,7 +155,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     res.status(200).end();
   });
 
-  app.post("/pause", (req, res) => {
+  app.post("/pause", (_req: Request, res: Response) => {
     if (!unpaused) {
       unpaused = new Promise(resolve => {
         signalUnpause = resolve;
@@ -163,7 +165,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     res.status(200).end();
   });
 
-  app.post("/resume", (req, res) => {
+  app.post("/resume", (_req: Request, res: Response) => {
     if (signalUnpause) {
       signalUnpause();
       signalUnpause = unpaused = null;
@@ -268,7 +270,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
         }
       }
       connect();
-      const { family, address, port } = server.address() as any;
+      const { family, address, port } = server.address() as AddressInfo;
       const addr = `${family === "IPv6" ? `[${address}]` : address}:${port}`;
       console.log(`Server listening on http://${addr}`);
       resolve(server);
@@ -328,7 +330,7 @@ async function * ebbs (path?: string, hardware: Hardware = 'v3') {
   }
 }
 
-export async function connectEBB (hardware: Hardware = 'v3', device: string | undefined): Promise<EBB | null> {
+export async function connectEBB (hardware: Hardware, device: string | undefined): Promise<EBB | null> {
   if (!device) {
     const ebbs = await listEBBs();
     if (ebbs.length === 0) return null;

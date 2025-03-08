@@ -1,7 +1,7 @@
 // Cribbed from https://github.com/fogleman/axi/blob/master/axi/planner.py
-import type { Hardware } from './ebb';
-import { PaperSize } from './paper-size';
-import { vadd, vdot, type Vec2, vlen, vmul, vnorm, vsub } from './vec';
+import type { Hardware } from './ebb.js';
+import { PaperSize } from './paper-size.js';
+import { vadd, vdot, type Vec2, vlen, vmul, vnorm, vsub } from './vec.js';
 const epsilon = 1e-9;
 
 export interface PlanOptions {
@@ -171,20 +171,28 @@ export const AxidrawBrushlessFast: ToolingProfile = {
  * A Motion Block, where the pen moves with a constant acceleration, from
  * a start to an end point, and initial to final velocity.
  */
+interface BlockData {
+  accel: number;
+  duration: number;
+  vInitial: number;
+  p1: Vec2;
+  p2: Vec2;
+}
+
 export class Block {
-  public static deserialize(o: any): Block {
+  public static deserialize(o: BlockData): Block {
     return new Block(o.accel, o.duration, o.vInitial, o.p1, o.p2);
   }
 
-  public accel: number;
-  public duration: number;
-  public vInitial: number;
-  public p1: Vec2;
-  public p2: Vec2;
-
   public distance: number;
 
-  public constructor(accel: number, duration: number, vInitial: number, p1: Vec2, p2: Vec2) {
+  constructor(
+    public accel: number,
+    public duration: number,
+    public vInitial: number,
+    public p1: Vec2,
+    public p2: Vec2
+  ) {
     if (!(vInitial >= 0)) {
       throw new Error(`vInitial must be >= 0, but was ${vInitial}`);
     }
@@ -217,7 +225,7 @@ export class Block {
     return { t: t + dt, p, s: s + ds, v, a };
   }
 
-  public serialize(): any {
+  public serialize(): BlockData {
     return {
       accel: this.accel,
       duration: this.duration,
