@@ -534,19 +534,22 @@ function SvgIoOptions({ state }: { state: State }) {
   const generateImage = async () => {
     dispatch({ type: "SET_SVGIO_OPTION", value: { status: 'Generating ...' } });
     try {
-
-      const imgResp = await fetch("/generate", {
+      const resp = await fetch("/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: new Blob([JSON.stringify({ prompt, vecType })], { type: 'application/json' }),
       });
-      if (imgResp.ok) {
+      const data = await resp.json();
+      if (resp.ok) {
         dispatch({ type: "SET_SVGIO_OPTION", value: { status: 'Loading ...' } });
+        // retrieve image
+        const imgUrl = data['data'][0].svgUrl;
+        const imgResp = await fetch(imgUrl);
         const imgData = await imgResp.text();
+        // set image contents
         dispatch(setPaths(readSvg(imgData)));
       } else {
-        const msg = await imgResp.text();
-        alert(`Error generating image: ${msg ? msg : imgResp.statusText}`);  
+        alert(`Error generating image: ${data.message ? data.message : resp.statusText}`);  
       }
     } catch (error) {
       console.error(error);
