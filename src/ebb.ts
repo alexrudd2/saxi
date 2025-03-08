@@ -79,7 +79,7 @@ export class EBB {
   }
 
   private write(str: string): Promise<void> {
-    if (process.env.DEBUG_SAXI_COMMANDS) {
+    if (process.env.DEBUG_SAXI_COMMANDS != null) {
       console.log(`writing: ${str}`);
     }
     const encoder = new TextEncoder();
