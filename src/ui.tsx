@@ -271,19 +271,13 @@ class SaxiDriver implements Driver {
           // nothing
         } break;
         case "progress": {
-          if (this.onprogress != null) {
-            this.onprogress(msg.p.motionIdx);
-          }
+          this.onprogress?.(msg.p.motionIdx);
         } break;
         case "cancelled": {
-          if (this.oncancelled != null) {
-            this.oncancelled();
-          }
+          this.oncancelled?.();
         } break;
         case "finished": {
-          if (this.onfinished != null) {
-            this.onfinished();
-          }
+          this.onfinished?.();
         } break;
         case "dev": {
           if (this.ondevinfo != null) {
@@ -291,14 +285,10 @@ class SaxiDriver implements Driver {
           }
         } break;
         case "pause": {
-          if (this.onpause != null) {
-            this.onpause(msg.p.paused);
-          }
+          this.onpause?.(msg.p.paused);
         } break;
         case "plan": {
-          if (this.onplan != null) {
-            this.onplan(Plan.deserialize(msg.p.plan));
-          }
+          this.onplan?.(Plan.deserialize(msg.p.plan));
         } break;
         default: {
           console.log("Unknown message from server:", msg);
