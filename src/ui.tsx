@@ -276,7 +276,6 @@ class SaxiDriver implements Driver {
       }
 
       this.pingInterval = window.setInterval(() => this.ping(), 30000);
-      this.dev(); // request device info upon start
     });
     this.socket.addEventListener("message", (e: MessageEvent) => {
       const msg = JSON.parse(e.data);
@@ -366,7 +365,6 @@ class SaxiDriver implements Driver {
 
   public limp() { this.send({ c: "limp" }); }
   public ping() { this.send({ c: "ping" }); }
-  public dev() { this.send({ c: "dev" }); }
 }
 
 const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {

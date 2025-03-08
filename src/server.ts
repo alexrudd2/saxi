@@ -50,9 +50,6 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
         case "ping":
           ws.send(JSON.stringify({ c: "pong" }));
           break;
-        case "dev":
-          ws.send(JSON.stringify({ c: 'dev', p: getDeviceInfo(ebb, com, svgIoApiKey !== '') }));
-          break;
         case "limp":
           if (ebb) { ebb.disableMotors(); }
           break;
