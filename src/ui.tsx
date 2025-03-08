@@ -10,8 +10,6 @@ import { Device, Plan, type PlanOptions, defaultPlanOptions, XYMotion, PenMotion
 import { formatDuration } from "./util.js";
 import type { Vec2 } from "./vec.js";
 
-import PlanWorker from "./plan.worker.js";
-
 import "./style.css";
 
 import pathJoinRadiusIcon from "./icons/path-joining radius.svg";
@@ -399,7 +397,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
       }
     }
     lastPaths.current = paths;
-    const worker = new (PlanWorker as any)();
+    const worker = new Worker('background-planner.js');
     setIsPlanning(true);
     console.time("posting to worker");
     worker.postMessage({ paths, planOptions });
