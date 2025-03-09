@@ -13,6 +13,4 @@ self.addEventListener("message", (m) => {
   self.postMessage(serialized);
 });
 
-export default {} as typeof Worker & {
-  new(): Worker;
-};
+export {};

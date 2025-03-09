@@ -3,7 +3,7 @@ import inlineWorker from 'esbuild-plugin-inline-worker';
 import { htmlPlugin as html } from '@craftamap/esbuild-plugin-html';
 
 const buildOptions = {
-  entryPoints: ['src/ui.tsx'],
+  entryPoints: ['src/ui.tsx', 'src/background-planner.ts'],
   bundle: true,
   platform: 'browser',
   target: 'es2022',

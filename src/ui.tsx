@@ -13,8 +13,6 @@ import { Device, Plan, type PlanOptions, defaultPlanOptions, XYMotion, PenMotion
 import { formatDuration } from "./util.js";
 import type { Vec2 } from "./vec.js";
 
-import PlanWorker from "./plan.worker.js";
-
 import "./style.css";
 
 import pathJoinRadiusIcon from "./icons/path-joining radius.svg";
@@ -321,19 +319,13 @@ class SaxiDriver implements Driver {
           // nothing
         } break;
         case "progress": {
-          if (this.onprogress != null) {
-            this.onprogress(msg.p.motionIdx);
-          }
+          this.onprogress?.(msg.p.motionIdx);
         } break;
         case "cancelled": {
-          if (this.oncancelled != null) {
-            this.oncancelled();
-          }
+          this.oncancelled?.();
         } break;
         case "finished": {
-          if (this.onfinished != null) {
-            this.onfinished();
-          }
+          this.onfinished?.();
         } break;
         case "dev": {
           if (this.ondevinfo != null) {
@@ -341,14 +333,10 @@ class SaxiDriver implements Driver {
           }
         } break;
         case "pause": {
-          if (this.onpause != null) {
-            this.onpause(msg.p.paused);
-          }
+          this.onpause?.(msg.p.paused);
         } break;
         case "plan": {
-          if (this.onplan != null) {
-            this.onplan(Plan.deserialize(msg.p.plan));
-          }
+          this.onplan?.(Plan.deserialize(msg.p.plan));
         } break;
         default: {
           console.log("Unknown message from server:", msg);
@@ -447,7 +435,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
       }
     }
     lastPaths.current = paths;
-    const worker = new (PlanWorker as any)();
+    const worker = new Worker('background-planner.js');
     setIsPlanning(true);
     console.time("posting to worker");
     worker.postMessage({ paths, planOptions });
@@ -665,7 +653,7 @@ function MotorControl({ driver }: { driver: Driver }) {
 function PlanStatistics({ plan }: { plan: Plan }) {
   return <div className="duration">
     <div>Duration</div>
-    <div><strong>{plan && plan.duration ? formatDuration(plan.duration()) : "-"}</strong></div>
+    <div><strong>{plan?.duration ? formatDuration(plan.duration()) : "-"}</strong></div>
   </div>;
 }
 
@@ -687,7 +675,7 @@ function TimeLeft({ plan, progress, currentMotionStartedTime, paused }: {
     return () => {
       clearInterval(interval);
     };
-  }, [setTime]);
+  }, []);
 
   if (!plan || !plan.duration || progress === null || paused) {
     return null;
@@ -749,7 +737,7 @@ function PlanPreview(
 
   const [microprogress, setMicroprogress] = useState(0);
   useLayoutEffect(() => {
-    let rafHandle: number = null;
+    let rafHandle: number;
     let cancelled = false;
     if (state.progress != null) {
       const startingTime = Date.now();
@@ -758,7 +746,6 @@ function PlanPreview(
         setMicroprogress(Date.now() - startingTime);
         rafHandle = requestAnimationFrame(updateProgress);
       };
-      // rafHandle = requestAnimationFrame(updateProgress)
       updateProgress();
     }
     return () => {
@@ -784,6 +771,7 @@ function PlanPreview(
         height={height * 2}
         viewBox={`${-width} ${-height} ${width * 2} ${height * 2}`}
         style={{
+          // biome-ignore lint/style/useTemplate: multi-line
           transform: "translateZ(0.001px) " +
             `translate(${-width}px, ${-height}px) ` +
             `translate(${posXMm / ps.size.x * 50}%,${posYMm / ps.size.y * 50}%)`
@@ -1147,7 +1135,7 @@ function Root() {
   useEffect(() => {
     if (isDriverConnected) return;
     if (IS_WEB) {
-      setDriver(null as Driver);
+      setDriver(null);
     } else {
       setDriver(SaxiDriver.connect());
     }
