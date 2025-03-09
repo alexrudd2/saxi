@@ -4,6 +4,9 @@ function vround(v: Vec2, digits = 2): Vec2 {
   return { x: Number(v.x.toFixed(digits)), y: Number(v.y.toFixed(digits)) };
 }
 
+/**
+ * Canvas size where the SVG is drawn.
+ */
 export class PaperSize {
 
   public get landscape(): PaperSize {
@@ -24,6 +27,9 @@ export class PaperSize {
     return this.size.x === Math.max(this.size.x, this.size.y);
   }
 
+  /**
+   * Common-known paper sizes.
+   */
   public static standard: { [name: string]: PaperSize } = {
     "USLetter": new PaperSize(vround(vmul({ x: 8.5, y: 11 }, 25.4))),
     "USLegal": new PaperSize(vround(vmul({ x: 8.5, y: 14 }, 25.4))),

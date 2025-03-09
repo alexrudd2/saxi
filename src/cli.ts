@@ -1,3 +1,7 @@
+/**
+ * Starting point for the server app (Command Line Interface).
+ * Execute also one-off instructions on the device.
+ */
 import yargs from "yargs";
 import { hideBin } from 'yargs/helpers';
 import { connectEBB, startServer } from "./server.js";
@@ -17,6 +21,10 @@ function parseSvg(svg: string) {
   return window.document.documentElement;
 }
 
+/**
+ * Process command arguments.
+ * @param argv
+ */
 export function cli(argv: string[]): void {
   yargs(hideBin(process.argv))
     .strict()
@@ -257,7 +265,12 @@ export function cli(argv: string[]): void {
     )
     .parse(argv);
 }
-
+/**
+ * Convert a list of lines into a Vectors matrix to display on the
+ * plot canvas.
+ * @param lines 
+ * @returns 
+ */
 function linesToVecs(lines: Line[]): Vec2[][] {
   return lines.map((line) => {
     const a = line.points.map(([x, y]: [number, number]) => ({ x, y }));
