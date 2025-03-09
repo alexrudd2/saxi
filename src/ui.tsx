@@ -23,6 +23,7 @@ const defaultVisualizationOptions = {
 };
 
 const defaultSvgIoOptions = {
+  enabled: false,
   prompt: '',
   status: '',
   vecType: 'FLAT_VECTOR'
@@ -251,6 +252,7 @@ class SaxiDriver implements Driver {
   private socket: WebSocket;
   private connected: boolean;
   private pingInterval: number | undefined;
+  private svgioEnabled: ((enabled: boolean) => void);
 
   public name() {
     return 'Saxi Server';
@@ -294,6 +296,9 @@ class SaxiDriver implements Driver {
           if (this.ondevinfo != null) {
             this.ondevinfo(msg.p);
           }
+        } break;
+        case "svgio-enabled": {
+          this.svgioEnabled?.(msg.p);
         } break;
         case "pause": {
           this.onpause?.(msg.p.paused);
@@ -535,7 +540,7 @@ function SvgIoOptions({ state }: { state: State }) {
         // set image contents
         dispatch(setPaths(readSvg(imgData)));
       } else {
-        alert(`Error generating image: ${data.message ? data.message : resp.statusText}`);  
+        alert(`Error generating image: ${data.message ? data.message : resp.statusText}`);
       }
     } catch (error) {
       console.error(error);
@@ -1194,6 +1199,9 @@ function Root() {
     driver.onplan = (plan: Plan) => {
       setPlan(plan);
     };
+    driver.svgioEnabled = (enabled: boolean) => {
+      dispatch({ type: "SET_SVGIO_OPTION", value: { enabled } } );
+    };
   }, [driver]);
 
   useEffect(() => {
@@ -1275,7 +1283,7 @@ function Root() {
             <VisualizationOptions state={state} />
           </div>
         </details>
-        {state.deviceInfo?.svgIoEnabled
+        {state.svgIoOptions.enabled
           ? <details>
             <summary className="section-header">AI</summary>
             <div className="section-body">
