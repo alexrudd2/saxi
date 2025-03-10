@@ -157,7 +157,7 @@ export class EBB {
    * or off) depending on its value, in addition to setting the power-off
    * timeout duration.
    *
-   * NB. this command is only avaliable on firmware v2.6.0 and hardware of at
+   * NB. this command is only available on firmware v2.6.0 and hardware of at
    * least version 2.5.0.
    */
   public async setServoPowerTimeout(timeout: number, power?: boolean) {

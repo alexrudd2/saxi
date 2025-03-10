@@ -22,7 +22,7 @@ const getDeviceInfo = (ebb: EBB | null, com: Com) => {
   return { com: ebb ? com : null, hardware: ebb?.hardware };
 };
 
-export async function startServer(port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, maxPayloadSize = '200mb') {
+export async function startServer(port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, maxPayloadSize = '200mb', svgIoApiKey = '') {
   const app = express();
   app.use('/', express.static(path.join(path.resolve(), 'dist', 'ui')));
   app.use(express.json({ limit: maxPayloadSize }));
@@ -67,6 +67,8 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
     });
 
     ws.send(JSON.stringify({ c: 'dev', p: getDeviceInfo(ebb, com) }));
+
+    ws.send(JSON.stringify({ c: 'svgio-enabled', p: svgIoApiKey !== '' }));
 
     ws.send(JSON.stringify({ c: "pause", p: { paused: !!unpaused } }));
     if (motionIdx != null) {
@@ -145,6 +147,32 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
       signalUnpause = unpaused = null;
     }
     res.status(200).end();
+  });
+
+  app.post("/generate", async(req: Request, res: Response) => {
+    if (plotting) {
+      console.log("Received generate request, but a plot is already in progress!");
+      res.status(400).end('Plot in progress');
+      return;
+    }
+    const { prompt, vecType } = req.body;
+    try {
+      // call the api and return the svg
+      const apiResp = await fetch('https://api.svg.io/v1/generate-image', {
+        method: 'post',
+        headers: {
+          Authorization: `Bearer ${svgIoApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt, style: vecType, negativePrompt: '' })
+      });
+      // forward the api response
+      const data: any = await apiResp.json();
+      res.status(apiResp.status).send(data).end();
+    } catch (err) {
+      console.error(err);
+      res.status(500).end();
+    }
   });
 
   function broadcast(msg: any) {
@@ -273,7 +301,7 @@ async function listEBBs() {
 }
 
 export async function waitForEbb(): Promise<Com> {
-// eslint-disable-next-line no-constant-condition
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     const ebbs = await listEBBs();
     if (ebbs.length) {
@@ -283,7 +311,7 @@ export async function waitForEbb(): Promise<Com> {
   }
 }
 
-async function * ebbs(path?: string, hardware: Hardware = 'v3') {
+async function* ebbs(path?: string, hardware: Hardware = 'v3') {
   while (true) {
     try {
       const com: Com = path || (await _self.waitForEbb()); // use self-import for test mocking
