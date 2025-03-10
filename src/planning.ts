@@ -230,15 +230,11 @@ export class PenMotion implements Motion {
     return new PenMotion(o.initialPos, o.finalPos, o.duration);
   }
 
-  public initialPos: number;
-  public finalPos: number;
-  public pDuration: number;
-
-  public constructor(initialPos: number, finalPos: number, duration: number) {
-    this.initialPos = initialPos;
-    this.finalPos = finalPos;
-    this.pDuration = duration;
-  }
+  constructor(
+    public initialPos: number,
+    public finalPos: number,
+    public pDuration: number,
+  ) {}
 
   public duration(): number {
     return this.pDuration;
@@ -276,13 +272,12 @@ export class XYMotion implements Motion {
   public static deserialize(o: any): XYMotion {
     return new XYMotion(o.blocks.map(Block.deserialize));
   }
-  public blocks: Block[];
-
   private ts: number[];
   private ss: number[];
 
-  public constructor(blocks: Block[]) {
-    this.blocks = blocks;
+  constructor(
+    public blocks: Block[]
+  ) {
     this.ts = scanLeft(blocks.map((b) => b.duration), 0, (a, b) => a + b).slice(0, -1);
     this.ss = scanLeft(blocks.map((b) => b.distance), 0, (a, b) => a + b).slice(0, -1);
   }
@@ -324,10 +319,9 @@ export class Plan {
     }));
   }
 
-  public motions: Motion[];
-  public constructor(motions: Motion[]) {
-    this.motions = motions;
-  }
+  constructor(
+    public motions: Motion[]
+  ) {}
   public duration(start = 0): number {
     return this.motions.slice(start).map((m) => m.duration()).reduce((a, b) => a + b, 0);
   }
@@ -338,7 +332,7 @@ export class Plan {
     return new Plan(this.motions.map((motion, j) => {
       if (motion instanceof XYMotion) {
         return motion;
-      } 
+      }
       if (motion instanceof PenMotion) {
         // TODO: Remove this hack by storing the pen-up/pen-down heights
         // in a single place, and reference them from the PenMotions.
@@ -361,17 +355,14 @@ export class Plan {
 }
 
 class Segment {
-  public p1: Vec2;
-  public p2: Vec2;
   public maxEntryVelocity = 0;
   public entryVelocity = 0;
-  public blocks: Block[];
 
-  public constructor(p1: Vec2, p2: Vec2) {
-    this.p1 = p1;
-    this.p2 = p2;
-    this.blocks = [];
-  }
+  constructor(
+    public p1: Vec2,
+    public p2: Vec2,
+    public blocks: Block[] = [],
+  ) {}
   public length(): number { return vlen(vsub(this.p2, this.p1)); }
   public direction(): Vec2 { return vnorm(vsub(this.p2, this.p1)); }
 }
@@ -625,7 +616,7 @@ export function plan(
     const position = constantAccelerationPlan([curPos, motion.p1], profile.penUpProfile);
     motions.push(position, penMotions.down, motion, penMotions.up);
     curPos = motion.p2;
-  }  
+  }
 
   // Move to {x: 0, y: 0}
   motions.push(constantAccelerationPlan([curPos, { x: 0, y: 0 }], profile.penUpProfile));
