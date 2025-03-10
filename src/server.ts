@@ -149,7 +149,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
     res.status(200).end();
   });
 
-  app.post("/generate", async (req: Request, res: Response) => {
+  app.post("/generate", async(req: Request, res: Response) => {
     if (plotting) {
       console.log("Received generate request, but a plot is already in progress!");
       res.status(400).end('Plot in progress');

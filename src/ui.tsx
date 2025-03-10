@@ -522,7 +522,7 @@ function SvgIoOptions({ state }: { state: State }) {
   const { prompt, vecType, status } = state.svgIoOptions;
   const dispatch = useContext(DispatchContext);
   // call server
-  const generateImage = async () => {
+  const generateImage = async() => {
     dispatch({ type: "SET_SVGIO_OPTION", value: { status: 'Generating ...' } });
     try {
       const resp = await fetch("/generate", {
