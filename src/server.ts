@@ -98,6 +98,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
       res.status(200).end();
 
       const begin = Date.now();
+      // biome-ignore lint/suspicious/noExplicitAny: need a new strategy for wakeLock
       let wakeLock: any;
       // The wake-lock module is macOS-only.
       if (process.platform === 'darwin') {
@@ -167,7 +168,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
         body: JSON.stringify({ prompt, style: vecType, negativePrompt: '' })
       });
       // forward the api response
-      const data: any = await apiResp.json();
+      const data = await apiResp.json();
       res.status(apiResp.status).send(data).end();
     } catch (err) {
       console.error(err);
@@ -175,7 +176,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
     }
   });
 
-  function broadcast(msg: any) {
+  function broadcast(msg: Record<string, unknown>) {
     for (const client of clients) {
       try {
         client.send(JSON.stringify(msg));
@@ -333,12 +334,13 @@ async function* ebbs(path?: string, hardware: Hardware = 'v3') {
 }
 
 export async function connectEBB(hardware: Hardware, device: string | undefined): Promise<EBB | null> {
+  let dev = device;
   if (!device) {
     const ebbs = await listEBBs();
     if (ebbs.length === 0) return null;
-    device = ebbs[0];
+    dev = ebbs[0];
   }
 
-  const port = await tryOpen(device);
+  const port = await tryOpen(dev);
   return new EBB(port, hardware);
 }
