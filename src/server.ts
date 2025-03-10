@@ -55,7 +55,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
           break;
         case "setPenHeight":
           if (ebb) {
-            (async () => {
+            (async() => {
               if (await ebb.supportsSR()) {
                 await ebb.setServoPowerTimeout(10000, true);
               }
@@ -83,7 +83,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
     });
   });
 
-  app.post("/plot", async (req: Request, res: Response) => {
+  app.post("/plot", async(req: Request, res: Response) => {
     if (plotting) {
       console.log("Received plot request, but a plot is already in progress!");
       res.status(400).send('Plot in progress');
@@ -332,7 +332,7 @@ async function* ebbs(path?: string, hardware: Hardware = 'v3') {
   }
 }
 
-export async function connectEBB (hardware: Hardware, device: string | undefined): Promise<EBB | null> {
+export async function connectEBB(hardware: Hardware, device: string | undefined): Promise<EBB | null> {
   if (!device) {
     const ebbs = await listEBBs();
     if (ebbs.length === 0) return null;

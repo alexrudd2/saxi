@@ -1119,7 +1119,7 @@ type PortSelectorProps = {
 function PortSelector({ driver, setDriver, hardware }: PortSelectorProps) {
   const [initializing, setInitializing] = useState(false);
   useEffect(() => {
-    (async () => {
+    (async() => {
       try {
         const ports = await navigator.serial.getPorts();
         const port = ports[0];
@@ -1139,7 +1139,7 @@ function PortSelector({ driver, setDriver, hardware }: PortSelectorProps) {
       <button
         type="button"
         disabled={initializing}
-        onClick={async () => {
+        onClick={async() => {
           try {
             const port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x04D8, usbProductId: 0xFD92 }] });
             // TODO: describe why we close if we already checked that driver is null
