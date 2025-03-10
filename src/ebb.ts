@@ -25,7 +25,7 @@ export class EBB {
 
   private cachedFirmwareVersion: [number, number, number] | undefined = undefined;
 
-  public constructor (port: SerialPort, hardware: Hardware = 'v3') {
+  public constructor(port: SerialPort, hardware: Hardware = 'v3') {
     this.hardware = hardware;
     console.log(this.hardware);
     this.port = port;
@@ -165,7 +165,7 @@ export class EBB {
   }
 
   // https://evil-mad.github.io/EggBot/ebb.html#S2 General RC Servo Output
-  public async setPenHeight (height: number, rate: number, delay = 0): Promise<void> {
+  public async setPenHeight(height: number, rate: number, delay = 0): Promise<void> {
     const output_pin = this.hardware === 'v3' ? 4 : 5;
     return await this.command(`S2,${height},${output_pin},${rate},${delay}`);
   }

@@ -22,7 +22,7 @@ const getDeviceInfo = (ebb: EBB | null, com: Com) => {
   return { com: ebb ? com : null, hardware: ebb?.hardware };
 };
 
-export async function startServer (port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, maxPayloadSize = '200mb') {
+export async function startServer(port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, maxPayloadSize = '200mb') {
   const app = express();
   app.use('/', express.static(path.join(path.resolve(), 'dist', 'ui')));
   app.use(express.json({ limit: maxPayloadSize }));
@@ -55,7 +55,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
           break;
         case "setPenHeight":
           if (ebb) {
-            (async () => {
+            (async() => {
               if (await ebb.supportsSR()) {
                 await ebb.setServoPowerTimeout(10000, true);
               }
@@ -81,7 +81,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     });
   });
 
-  app.post("/plot", async (req: Request, res: Response) => {
+  app.post("/plot", async(req: Request, res: Response) => {
     if (plotting) {
       console.log("Received plot request, but a plot is already in progress!");
       res.status(400).send('Plot in progress');
@@ -236,7 +236,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
 
   return new Promise<http.Server>((resolve) => {
     server.listen(port, () => {
-      async function connect () {
+      async function connect() {
         const devices = ebbs(com, hardware);
         for await (const device of devices) {
           ebb = device;
@@ -252,7 +252,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
   });
 }
 
-async function tryOpen (com: Com) {
+async function tryOpen(com: Com) {
   const port = new SerialPortSerialPort(com);
   await port.open({ baudRate: 9600 });
   return port;
@@ -272,7 +272,7 @@ async function listEBBs() {
   return ports.filter(isEBB).map((p: { path: string }) => p.path);
 }
 
-export async function waitForEbb (): Promise<Com> {
+export async function waitForEbb(): Promise<Com> {
 // eslint-disable-next-line no-constant-condition
   while (true) {
     const ebbs = await listEBBs();
@@ -283,7 +283,7 @@ export async function waitForEbb (): Promise<Com> {
   }
 }
 
-async function * ebbs (path?: string, hardware: Hardware = 'v3') {
+async function * ebbs(path?: string, hardware: Hardware = 'v3') {
   while (true) {
     try {
       const com: Com = path || (await _self.waitForEbb()); // use self-import for test mocking
@@ -304,7 +304,7 @@ async function * ebbs (path?: string, hardware: Hardware = 'v3') {
   }
 }
 
-export async function connectEBB (hardware: Hardware, device: string | undefined): Promise<EBB | null> {
+export async function connectEBB(hardware: Hardware, device: string | undefined): Promise<EBB | null> {
   if (!device) {
     const ebbs = await listEBBs();
     if (ebbs.length === 0) return null;

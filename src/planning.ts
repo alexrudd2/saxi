@@ -110,7 +110,7 @@ const Axidraw: Device = {
   penServoMin: 7500, // pen down
   penServoMax: 28000, // pen up
 
-  penPctToPos (pct: number): number {
+  penPctToPos(pct: number): number {
     const t = pct / 100.0;
     return Math.round(this.penServoMin * t + this.penServoMax * (1 - t));
   }
@@ -123,7 +123,7 @@ const AxidrawBrushless: Device = {
   penServoMin: 5400, // pen down
   penServoMax: 12600, // pen up
 
-  penPctToPos (pct: number): number {
+  penPctToPos(pct: number): number {
     const t = pct / 100.0;
     return Math.round(this.penServoMin * t + this.penServoMax * (1 - t));
   }
