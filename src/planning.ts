@@ -222,11 +222,11 @@ export class Block {
 
 export interface Motion {
   duration(): number;
-  serialize(): any;
+  serialize(): MotionData;
 }
 
 export class PenMotion implements Motion {
-  public static deserialize(o: any): PenMotion {
+  public static deserialize(o: PenMotionData): PenMotion {
     return new PenMotion(o.initialPos, o.finalPos, o.duration);
   }
 
@@ -240,14 +240,19 @@ export class PenMotion implements Motion {
     return this.pDuration;
   }
 
-  public serialize(): any {
+  public serialize(): PenMotionData {
     return {
-      t: "PenMotion",
       initialPos: this.initialPos,
       finalPos: this.finalPos,
       duration: this.pDuration,
     };
   }
+}
+
+interface PenMotionData {
+  initialPos: number;
+  finalPos: number;
+  duration: number;
 }
 
 function scanLeft<A, B>(a: A[], z: B, op: (b: B, a: A) => B): B[] {
@@ -269,7 +274,7 @@ function sortedIndex<T>(array: T[], obj: T) {
 }
 
 export class XYMotion implements Motion {
-  public static deserialize(o: any): XYMotion {
+  public static deserialize(o: XYMotionData): XYMotion {
     return new XYMotion(o.blocks.map(Block.deserialize));
   }
   private ts: number[];
@@ -300,22 +305,24 @@ export class XYMotion implements Motion {
     return block.instant(t - this.ts[blockIdx], this.ts[blockIdx], this.ss[blockIdx]);
   }
 
-  public serialize(): any {
+  public serialize(): XYMotionData {
     return {
-      t: "XYMotion",
       blocks: this.blocks.map((b) => b.serialize())
     };
   }
 }
 
+interface XYMotionData {
+  blocks: BlockData[];
+}
+
+type MotionData = XYMotionData | PenMotionData;
 export class Plan {
-  public static deserialize(o: any): Plan {
-    return new Plan(o.motions.map((m: any) => {
-      switch (m.t) {
-        case "XYMotion": return XYMotion.deserialize(m);
-        case "PenMotion": return PenMotion.deserialize(m);
-        default: throw new Error(`Wrong parameter: ${m.t}`);
-      }
+  public static deserialize(o: (MotionData)[]): Plan {
+    return new Plan(o.map((m) => {
+      if ("blocks" in m) return XYMotion.deserialize(m);
+      if ("initialPos" in m) return PenMotion.deserialize(m);
+      throw new Error(`Wrong parameter: ${m}`);
     }));
   }
 
@@ -347,10 +354,8 @@ export class Plan {
     }));
   }
 
-  public serialize(): any {
-    return {
-      motions: this.motions.map((m) => m.serialize())
-    };
+  public serialize(): (MotionData)[] {
+    return this.motions.map((m) => m.serialize());
   }
 }
 
