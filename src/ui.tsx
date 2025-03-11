@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client';
 import interpolator from "color-interpolate";
 import colormap from "colormap";
 
-import { flattenSVG } from "flatten-svg";
+import { flattenSVG, type Line } from "flatten-svg";
 import { PaperSize } from "./paper-size";
 import { Device, Plan, type PlanOptions, defaultPlanOptions, XYMotion, PenMotion } from "./planning.js";
 import { formatDuration } from "./util.js";
@@ -1331,7 +1331,7 @@ function DragTarget() {
 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 createRoot(document.getElementById("app")!).render(<Root />);
 
-function withSVG<T>(svgString: string, fn: (svg: SVGSVGElement) => T): T {
+function withSVG(svgString: string, fn: (svg: SVGSVGElement) => Line): Line[] {
   const div = document.createElement("div");
   div.style.position = "absolute";
   div.style.left = "99999px";
