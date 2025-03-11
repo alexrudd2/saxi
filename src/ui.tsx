@@ -534,7 +534,7 @@ function SvgIoOptions({ state }: { state: State }) {
       if (resp.ok) {
         dispatch({ type: "SET_SVGIO_OPTION", value: { status: 'Loading ...' } });
         // retrieve image
-        const imgUrl = data['data'][0].svgUrl;
+        const imgUrl = data.data[0].svgUrl;
         const imgResp = await fetch(imgUrl);
         const imgData = await imgResp.text();
         // set image contents
