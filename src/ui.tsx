@@ -428,12 +428,12 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
   return { isPlanning, plan: latestPlan, setPlan };
 };
 
-const setPaths = (paths: Vec2[][]) => {
+const setPaths = (paths: (Vec2[] & { stroke?: string, groupId?: string })[]) => {
   const strokes = new Set();
   const groups = new Set();
   for (const path of paths) {
-    strokes.add((path as any).stroke);
-    groups.add((path as any).groupId);
+    strokes.add(path.stroke);
+    groups.add(path.groupId);
   }
   const layerMode = groups.size > 1 ? 'group' : 'stroke';
   const groupLayers = Array.from(groups).sort();
@@ -1345,11 +1345,11 @@ function withSVG<T>(svgString: string, fn: (svg: SVGSVGElement) => T): T {
   }
 }
 
-function readSvg(svgString: string): Vec2[][] {
-  return withSVG(svgString, flattenSVG).map((line) => {
-    const a = line.points.map(([x, y]: [number, number]) => ({ x, y }));
-    (a as any).stroke = line.stroke;
-    (a as any).groupId = line.groupId;
+function readSvg(svgString: string): (Vec2[] & { stroke: string, groupId: string })[] {
+  return withSVG(svgString, flattenSVG).map(({ points, stroke, groupId }) => {
+    const a = points.map(([x, y]) => ({ x, y }));
+    a.stroke = stroke;
+    a.groupId = groupId;
     return a;
   });
 }

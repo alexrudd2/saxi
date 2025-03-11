@@ -262,11 +262,11 @@ export function cli(argv: string[]): void {
     .parse(argv);
 }
 
-function linesToVecs(lines: Line[]): Vec2[][] {
-  return lines.map((line) => {
-    const a = line.points.map(([x, y]: [number, number]) => ({ x, y }));
-    (a as any).stroke = line.stroke;
-    (a as any).groupId = line.groupId;
+function linesToVecs(lines: Line[]): (Vec2[] & { stroke: string, groupId: string })[] {
+  return lines.map(({ points, stroke, groupId }) => {
+    const a = points.map(([x, y]) => ({ x, y })) as (Vec2[] & { stroke: string, groupId: string });
+    a.stroke = stroke;
+    a.groupId = groupId;
     return a;
   });
 }
