@@ -6,7 +6,7 @@ import { createRoot } from 'react-dom/client';
 
 import { type Line, flattenSVG } from "flatten-svg";
 import { PaperSize } from "./paper-size";
-import { Device, PenMotion, Plan, type PlanOptions, XYMotion, defaultPlanOptions } from "./planning.js";
+import { Device, type MotionData, PenMotion, Plan, type PlanOptions, XYMotion, defaultPlanOptions } from "./planning.js";
 import { formatDuration } from "./util.js";
 import type { Vec2 } from "./vec.js";
 
@@ -379,7 +379,7 @@ class SaxiDriver implements Driver {
 
 const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
   const [isPlanning, setIsPlanning] = useState(false);
-  const [latestPlan, setPlan] = useState(null);
+  const [latestPlan, setPlan] = useState<Plan | null>(null);
 
   function serialize(po: PlanOptions): string {
     return JSON.stringify(po, (k, v) => v instanceof Set ? [...v] : v);
@@ -402,9 +402,9 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
     return null;
   }
 
-  const lastPaths = useRef(null);
-  const lastPlan = useRef(null);
-  const lastPlanOptions = useRef(null);
+  const lastPaths = useRef<Vec2[][]>(null);
+  const lastPlan = useRef<Plan>(null);
+  const lastPlanOptions = useRef<PlanOptions>(null);
 
   useEffect(() => {
     if (!paths) {
@@ -425,7 +425,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
     console.time("posting to worker");
     worker.postMessage({ paths, planOptions });
     console.timeEnd("posting to worker");
-    const listener = (m: any) => {
+    const listener = (m: Record<'data', MotionData[]>) => {
       console.time("deserializing");
       const deserialized = Plan.deserialize(m.data);
       console.timeEnd("deserializing");

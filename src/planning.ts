@@ -316,7 +316,7 @@ interface XYMotionData {
   blocks: BlockData[];
 }
 
-type MotionData = XYMotionData | PenMotionData;
+export type MotionData = XYMotionData | PenMotionData;
 export class Plan {
   public static deserialize(o: (MotionData)[]): Plan {
     return new Plan(o.map((m) => {
