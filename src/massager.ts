@@ -1,6 +1,6 @@
-import { reorder as sortPaths, elideShorterThan, merge as joinNearbyPaths } from "optimize-paths";
+import { elideShorterThan, merge as joinNearbyPaths, reorder as sortPaths } from "optimize-paths";
 import { Device, type Plan, type PlanOptions, plan } from "./planning.js";
-import { dedupPoints, scaleToPaper, cropToMargins } from "./util.js";
+import { cropToMargins, dedupPoints, scaleToPaper } from "./util.js";
 import { type Vec2, vmul, vrot } from "./vec.js";
 
 // CSS, and thus SVG, defines 1px = 1/96th of 1in

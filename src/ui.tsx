@@ -1,21 +1,21 @@
 import useComponentSize from "@rehooks/component-size";
-import React, { type ChangeEvent, Fragment, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useReducer } from "react";
-import { createRoot } from 'react-dom/client';
 import interpolator from "color-interpolate";
 import colormap from "colormap";
+import React, { type ChangeEvent, Fragment, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useReducer } from "react";
+import { createRoot } from 'react-dom/client';
 
-import { flattenSVG, type Line } from "flatten-svg";
+import { type Line, flattenSVG } from "flatten-svg";
 import { PaperSize } from "./paper-size";
-import { Device, Plan, type PlanOptions, defaultPlanOptions, XYMotion, PenMotion } from "./planning.js";
+import { Device, PenMotion, Plan, type PlanOptions, XYMotion, defaultPlanOptions } from "./planning.js";
 import { formatDuration } from "./util.js";
 import type { Vec2 } from "./vec.js";
 
 import "./style.css";
 
+import { EBB, type Hardware } from "./ebb";
 import pathJoinRadiusIcon from "./icons/path-joining radius.svg";
 import pointJoinRadiusIcon from "./icons/point-joining radius.svg";
 import rotateDrawingIcon from "./icons/rotate-drawing.svg";
-import { EBB, type Hardware } from "./ebb";
 
 const defaultVisualizationOptions = {
   penStrokeWidth: 0.5,

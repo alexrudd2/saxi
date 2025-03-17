@@ -1,7 +1,7 @@
 // Cribbed from https://github.com/fogleman/axi/blob/master/axi/planner.py
 import type { Hardware } from './ebb.js';
 import { PaperSize } from './paper-size.js';
-import { vadd, vdot, type Vec2, vlen, vmul, vnorm, vsub } from './vec.js';
+import { type Vec2, vadd, vdot, vlen, vmul, vnorm, vsub } from './vec.js';
 const epsilon = 1e-9;
 
 export interface PlanOptions {

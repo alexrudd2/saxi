@@ -1,20 +1,20 @@
 import cors from "cors";
 import "web-streams-polyfill/polyfill";
-import type { Response, Request } from "express";
-import express from "express";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
+import path from 'node:path';
+import { autoDetect } from '@serialport/bindings-cpp';
 import type { PortInfo } from "@serialport/bindings-interface";
+import type { Request, Response } from "express";
+import express from "express";
 import { WakeLock } from "wake-lock";
 import type WebSocket from 'ws';
 import { WebSocketServer } from 'ws';
-import { SerialPortSerialPort } from "./serialport-serialport.js";
-import { PenMotion, type Motion, Plan } from "./planning.js";
-import { formatDuration } from "./util.js";
-import { autoDetect } from '@serialport/bindings-cpp';
-import * as _self from './server.js';  // use self-import for test mocking
 import { EBB, type Hardware } from './ebb.js';
-import path from 'node:path';
+import { type Motion, PenMotion, Plan } from "./planning.js";
+import { SerialPortSerialPort } from "./serialport-serialport.js";
+import * as _self from './server.js';  // use self-import for test mocking
+import { formatDuration } from "./util.js";
 
 type Com = string
 
