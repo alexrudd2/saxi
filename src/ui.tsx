@@ -77,10 +77,10 @@ function reducer(state: State, action: any): State {
       return { ...state, deviceInfo: action.value };
     case "SET_PAUSED":
       return { ...state, paused: action.value };
-    case "SET_PATHS":
-      // eslint-disable-next-line no-case-declarations
+    case "SET_PATHS": {
       const { paths, strokeLayers, selectedStrokeLayers, groupLayers, selectedGroupLayers, layerMode } = action;
       return { ...state, paths, groupLayers, strokeLayers, planOptions: { ...state.planOptions, selectedStrokeLayers, selectedGroupLayers, layerMode } };
+    }
     case "SET_PROGRESS":
       return { ...state, progress: action.motionIdx };
     case "SET_CONNECTED":
@@ -219,7 +219,7 @@ class WebSerialDriver implements Driver {
     const signal = this._signalUnpause;
     this._unpaused = null;
     this._signalUnpause = null;
-    signal();
+    signal?.();
   }
 
   public async setPenHeight(height: number, rate: number): Promise<void> {
@@ -320,7 +320,6 @@ class SaxiDriver implements Driver {
       this.pingInterval = undefined;
       this.connected = false;
       if (this.onconnectionchange) { this.onconnectionchange(false); }
-      this.socket = null;
       setTimeout(() => this.connect(), 5000);
     });
   }
@@ -569,7 +568,7 @@ function SvgIoOptions({ state }: { state: State }) {
     </div>
     {prompt !== ''
       ? <div>
-        {status ? <span>{status}</span> : <button onClick={generateImage}>Generate!</button>}
+        {status ? <span>{status}</span> : <button type="button" onClick={generateImage}>Generate!</button>}
       </div>
       : ''}
   </>;
@@ -755,7 +754,7 @@ function PlanPreview(
       </g>;
     }
     return [];
-  }, [plan, strokeWidth, colorPathsByStrokeOrder]);
+  }, [plan, strokeWidth, colorPathsByStrokeOrder, device.stepsPerMm]);
 
   // w/h of svg.
   // first try scaling so that h = area.h. if w < area.w, then ok.
@@ -925,7 +924,7 @@ function PlotButtons(
           type="button"
           className={`plot-button ${state.progress != null ? "plot-button--plotting" : ""}`}
           disabled={plan == null || state.progress != null}
-          onClick={() => plot(plan)}>
+          onClick={() => plan && plot(plan)}>
           {plan && state.progress != null ? "Plotting..." : "Plot"}
         </button>
     }
@@ -1132,7 +1131,7 @@ function PortSelector({ driver, setDriver, hardware }: PortSelectorProps) {
         setInitializing(false);
       }
     })();
-  }, []);
+  });
   return <>
     {driver ? `Connected: ${driver.name()}` : null}
     {!driver ?
@@ -1231,7 +1230,7 @@ function Root() {
       document.body.classList.remove("dragover");
     };
     const onpaste = (e: ClipboardEvent) => {
-      e.clipboardData.items[0].getAsString((s) => {
+      e.clipboardData?.items[0].getAsString((s) => {
         dispatch(setPaths(readSvg(s)));
       });
     };
@@ -1245,12 +1244,12 @@ function Root() {
       document.body.removeEventListener("dragleave", ondragleave);
       document.removeEventListener("paste", onpaste);
     };
-  }, []);
+  });
 
   // Each time new motion is started, save the start time
   const currentMotionStartedTime = useMemo(() => {
     return new Date();
-  }, [state.progress, plan, state.paused]);
+  }, []);
 
   const previewArea = useRef(null);
   const previewSize = useComponentSize(previewArea);
@@ -1259,7 +1258,7 @@ function Root() {
   return <DispatchContext.Provider value={dispatch}>
     <div className={`root ${state.connected ? "connected" : "disconnected"}`}>
       <div className="control-panel">
-        <div className={"saxi-title red"} title={state.deviceInfo ? state.deviceInfo.path : null}>
+        <div className={"saxi-title red"} title={state.deviceInfo ? state.deviceInfo.path : undefined}>
           <span className="red reg">s</span><span className="teal">axi</span>
         </div>
         {IS_WEB ? <PortSelector driver={driver} setDriver={setDriver} hardware={state.deviceInfo?.hardware ?? 'v3'} /> : null}
@@ -1329,6 +1328,7 @@ function DragTarget() {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+// biome-ignore lint/style/noNonNullAssertion: static element
 createRoot(document.getElementById("app")!).render(<Root />);
 
 function withSVG(svgString: string, fn: (svg: SVGSVGElement) => Line): Line[] {
