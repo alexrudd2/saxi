@@ -61,11 +61,29 @@ initialState.planOptions.paperSize = new PaperSize(initialState.planOptions.pape
 
 type State = typeof initialState;
 
-type Dispatcher = React.Dispatch<{ type: string; value: Record<string, any> }>;
+type Action =
+  | { type: "SET_PLAN_OPTION"; value: Partial<State["planOptions"]> }
+  | { type: "SET_VISUALIZATION_OPTION"; value: Partial<State["visualizationOptions"]> }
+  | { type: "SET_SVGIO_OPTION"; value: Partial<State["svgIoOptions"]> }
+  | { type: "SET_DEVICE_INFO"; value: State["deviceInfo"] }
+  | { type: "SET_PAUSED"; value: boolean }
+  | { type: "SET_PROGRESS"; motionIdx: number }
+  | { type: "SET_CONNECTED"; connected: boolean }
+  | {
+    type: "SET_PATHS";
+    paths: State["paths"];
+    strokeLayers: State["strokeLayers"];
+    selectedStrokeLayers: State["planOptions"]["selectedStrokeLayers"];
+    groupLayers: State["groupLayers"];
+    selectedGroupLayers: State["planOptions"]["selectedGroupLayers"];
+    layerMode: State["planOptions"]["layerMode"];
+  };
+
+type Dispatcher = React.Dispatch<Action>;
 const nullDispatch: Dispatcher = () => null;
 const DispatchContext = React.createContext<Dispatcher>(nullDispatch);
 
-function reducer(state: State, action: any): State {
+function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "SET_PLAN_OPTION":
       return { ...state, planOptions: { ...state.planOptions, ...action.value } };
@@ -427,9 +445,9 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
   return { isPlanning, plan: latestPlan, setPlan };
 };
 
-const setPaths = (paths: (Vec2[] & { stroke?: string, groupId?: string })[]) => {
-  const strokes = new Set();
-  const groups = new Set();
+const setPaths = (paths: (Vec2[] & { stroke?: string, groupId?: string })[]): Action => {
+  const strokes = new Set<string>();
+  const groups = new Set<string>();
   for (const path of paths) {
     strokes.add(path.stroke);
     groups.add(path.groupId);
@@ -655,7 +673,7 @@ function PaperConfig({ state }: { state: State }) {
               if (Number(value) < 0) { (e.target as HTMLInputElement).value = "270"; }
               if (Number(value) > 270) { (e.target as HTMLInputElement).value = "0"; }
             }}
-            onChange={(e) => dispatch({ type: "SET_PLAN_OPTION", value: { rotateDrawing: e.target.value } })} />
+            onChange={(e) => dispatch({ type: "SET_PLAN_OPTION", value: { rotateDrawing: Number(e.target.value) } })} />
         </div>
       </label>
     </div>
@@ -1206,6 +1224,7 @@ function Root() {
   useEffect(() => {
     const ondrop = (e: DragEvent) => {
       e.preventDefault();
+      if (e.dataTransfer === null) { return; }
       const item = e.dataTransfer.items[0];
       const file = item.getAsFile();
       const reader = new FileReader();
