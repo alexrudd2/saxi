@@ -151,6 +151,7 @@ class WebSerialDriver implements Driver {
 
   public static async connect(port?: SerialPort, hardware: Hardware = 'v3') {
     if (!port)
+      // biome-ignore lint/style/noParameterAssign: trivial
       port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x04D8, usbProductId: 0xFD92 }] });
     // baudRate ref: https://github.com/evil-mad/plotink/blob/a45739b7d41b74d35c1e933c18949ed44c72de0e/plotink/ebb_serial.py#L281
     // (doesn't specify baud rate)
@@ -765,7 +766,7 @@ function PlanPreview(
         {lines.map((line, i) =>
           <path
             key={i}
-            d={line.reduce((m, { x, y }, j) => m + `${j === 0 ? "M" : "L"}${x} ${y}`, "")}
+            d={line.reduce((m, { x, y }, j) => `${m}${j === 0 ? "M" : "L"}${x} ${y}`, "")}
             style={i % 2 === 0 ? { stroke: "rgba(0, 0, 0, 0.3)", strokeWidth: 0.5 } : { stroke: palette(1 - i / lines.length), strokeWidth }}
           />
         )}
