@@ -1,5 +1,5 @@
 /* eslint-env node */
-import { context } from 'esbuild';
+import { context, build } from 'esbuild';
 import inlineWorker from 'esbuild-plugin-inline-worker';
 import { htmlPlugin as html } from '@craftamap/esbuild-plugin-html';
 
@@ -41,13 +41,13 @@ const buildOptions = {
         banner: { js: "new EventSource('/esbuild').addEventListener('change', () => location.reload());" }
       });
       await ctx.watch();
+      await ctx.serve({ servedir: 'dist/ui', port: 9080 });
     } else {
-      ctx = await context(buildOptions);
+      await build(buildOptions);
     }
-    await ctx.serve({ servedir: 'dist/ui', port: 9080 });
+
   } catch (error) {
     console.error(error);
     process.exit(1);
   }
 })();
-

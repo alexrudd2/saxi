@@ -1,8 +1,10 @@
 import "web-streams-polyfill/polyfill";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
+import path from 'node:path';
 import { autoDetect } from '@serialport/bindings-cpp';
 import type { PortInfo } from "@serialport/bindings-interface";
+import serveStatic from 'serve-static';
 import { WakeLock } from "wake-lock";
 import type WebSocket from 'ws';
 import { WebSocketServer } from 'ws';
@@ -21,12 +23,15 @@ const getDeviceInfo = (ebb: EBB | null, com: Com) => {
 export async function startServer(port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, _maxPayloadSize = '200mb', svgIoApiKey = '') {
 
   const server = http.createServer(async(req, res) => {
+    const staticServe = serveStatic(path.join(path.resolve(), 'dist', 'ui'));
     if (enableCors) {
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
       res.setHeader("Access-Control-Allow-Headers", "*");
     }
-
+    if (req.method === 'GET') {
+      staticServe(req, res, () => {});
+    }
     if (req.method === 'POST' && req.url === '/pause') {
       if (!unpaused) {
         unpaused = new Promise(resolve => {
