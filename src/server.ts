@@ -1,12 +1,8 @@
-import cors from "cors";
 import "web-streams-polyfill/polyfill";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import path from 'node:path';
 import { autoDetect } from '@serialport/bindings-cpp';
 import type { PortInfo } from "@serialport/bindings-interface";
-import type { Request, Response } from "express";
-import express from "express";
 import { WakeLock } from "wake-lock";
 import type WebSocket from 'ws';
 import { WebSocketServer } from 'ws';
@@ -22,15 +18,138 @@ const getDeviceInfo = (ebb: EBB | null, com: Com) => {
   return { com: ebb ? com : null, hardware: ebb?.hardware };
 };
 
-export async function startServer(port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, maxPayloadSize = '200mb', svgIoApiKey = '') {
-  const app = express();
-  app.use('/', express.static(path.join(path.resolve(), 'dist', 'ui')));
-  app.use(express.json({ limit: maxPayloadSize }));
-  if (enableCors) {
-    app.use(cors());
-  }
+export async function startServer(port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, _maxPayloadSize = '200mb', svgIoApiKey = '') {
 
-  const server = http.createServer(app);
+  const server = http.createServer(async(req, res) => {
+    if (enableCors) {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
+      res.setHeader("Access-Control-Allow-Headers", "*");
+    }
+
+    if (req.method === 'POST' && req.url === '/pause') {
+      if (!unpaused) {
+        unpaused = new Promise(resolve => {
+          signalUnpause = resolve;
+        });
+      }
+      res.writeHead(200).end();
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/plot') {
+      if (plotting) {
+        console.log("Received plot request, but a plot is already in progress!");
+        res.writeHead(400).end('Plot in progress');
+        return;
+      }
+      plotting = true;
+      let body = '';
+      // biome-ignore lint/suspicious/noAssignInExpressions: concise
+      req.on('data', chunk => (body += chunk));
+      req.on('end', async() => {
+        try {
+          const plan = Plan.deserialize(JSON.parse(body));
+          currentPlan = JSON.parse(body);
+          console.log(`Received plan of estimated duration ${formatDuration(plan.duration())}`);
+          console.log(ebb != null ? "Beginning plot..." : "Simulating plot...");
+          res.writeHead(200);
+          res.end();
+    
+          const begin = Date.now();
+          // biome-ignore lint/suspicious/noExplicitAny: need a new strategy for wakeLock
+          let wakeLock: any;
+          // The wake-lock module is macOS-only.
+          if (process.platform === 'darwin') {
+            try {
+              wakeLock = new WakeLock("saxi plotting");
+            } catch {
+              console.warn("Couldn't acquire wake lock. Ensure your machine does not sleep during plotting");
+            }
+          }
+    
+          try {
+            await doPlot(ebb != null ? realPlotter : simPlotter, plan);
+            const end = Date.now();
+            console.log(`Plot took ${formatDuration((end - begin) / 1000)}`);
+          } finally {
+            if (wakeLock) {
+              wakeLock.release();
+            }
+          }
+        } finally {
+          plotting = false;
+        }
+      });
+    }
+    
+    if (req.method === 'POST' && req.url === '/cancel') {
+      cancelRequested = true;
+      if (unpaused) {
+        signalUnpause();
+      }
+      unpaused = signalUnpause = null;
+      res.writeHead(200).end();
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/pause') {
+      if (!unpaused) {
+        unpaused = new Promise(resolve => {
+          signalUnpause = resolve;
+        });
+        broadcast({ c: "pause", p: { paused: true } });
+      }
+      res.writeHead(200).end();
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/resume') {
+      if (signalUnpause) {
+        signalUnpause();
+        signalUnpause = unpaused = null;
+      }
+      res.writeHead(200).end();
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/generate') {
+      if (plotting) {
+        console.log("Received generate request, but a plot is already in progress!");
+        res.writeHead(400);
+        res.end('Plot in progress');
+        return;
+      }
+      let body = '';
+      // biome-ignore lint/suspicious/noAssignInExpressions: concise
+      req.on('data', chunk => (body += chunk));
+      req.on('end', async() => {
+        const { prompt, vecType } = JSON.parse(body);
+        try {
+          // call the api and return the svg
+          const apiResp = await fetch('https://api.svg.io/v1/generate-image', {
+            method: 'post',
+            headers: {
+              Authorization: `Bearer ${svgIoApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ prompt, style: vecType, negativePrompt: '' })
+          });
+          // forward the api response
+          const data = await apiResp.json();
+          res.writeHead(apiResp.status);
+          res.write(data);
+          res.end();
+        } catch (err) {
+          console.error(err);
+          res.writeHead(500);
+          res.end();
+        }
+      });
+    }
+
+
+  });
   const wss = new WebSocketServer({ server });
 
   let ebb: EBB | null;
@@ -81,99 +200,6 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
     ws.on("close", () => {
       clients = clients.filter((w) => w !== ws);
     });
-  });
-
-  app.post("/plot", async(req: Request, res: Response) => {
-    if (plotting) {
-      console.log("Received plot request, but a plot is already in progress!");
-      res.status(400).send('Plot in progress');
-      return;
-    }
-    plotting = true;
-    try {
-      const plan = Plan.deserialize(req.body);
-      currentPlan = req.body;
-      console.log(`Received plan of estimated duration ${formatDuration(plan.duration())}`);
-      console.log(ebb != null ? "Beginning plot..." : "Simulating plot...");
-      res.status(200).end();
-
-      const begin = Date.now();
-      // biome-ignore lint/suspicious/noExplicitAny: need a new strategy for wakeLock
-      let wakeLock: any;
-      // The wake-lock module is macOS-only.
-      if (process.platform === 'darwin') {
-        try {
-          wakeLock = new WakeLock("saxi plotting");
-        } catch {
-          console.warn("Couldn't acquire wake lock. Ensure your machine does not sleep during plotting");
-        }
-      }
-
-      try {
-        await doPlot(ebb != null ? realPlotter : simPlotter, plan);
-        const end = Date.now();
-        console.log(`Plot took ${formatDuration((end - begin) / 1000)}`);
-      } finally {
-        if (wakeLock) {
-          wakeLock.release();
-        }
-      }
-    } finally {
-      plotting = false;
-    }
-  });
-
-  app.post("/cancel", (_req: Request, res: Response) => {
-    cancelRequested = true;
-    if (unpaused) {
-      signalUnpause();
-    }
-    unpaused = signalUnpause = null;
-    res.status(200).end();
-  });
-
-  app.post("/pause", (_req: Request, res: Response) => {
-    if (!unpaused) {
-      unpaused = new Promise(resolve => {
-        signalUnpause = resolve;
-      });
-      broadcast({ c: "pause", p: { paused: true } });
-    }
-    res.status(200).end();
-  });
-
-  app.post("/resume", (_req: Request, res: Response) => {
-    if (signalUnpause) {
-      signalUnpause();
-      signalUnpause = unpaused = null;
-    }
-    res.status(200).end();
-  });
-
-  app.post("/generate", async(req: Request, res: Response) => {
-    if (plotting) {
-      console.log("Received generate request, but a plot is already in progress!");
-      res.status(400).end('Plot in progress');
-      return;
-    }
-    const { prompt, vecType } = req.body;
-    try {
-      // call the api and return the svg
-      const apiResp = await fetch('https://api.svg.io/v1/generate-image', {
-        method: 'post',
-        headers: {
-          Authorization: `Bearer ${svgIoApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ prompt, style: vecType, negativePrompt: '' })
-      });
-      // forward the api response
-      const data = await apiResp.json();
-      res.status(apiResp.status).send(data).end();
-    } catch (err) {
-      console.error(err);
-      res.status(500).end();
-    }
   });
 
   function broadcast(msg: Record<string, unknown>) {

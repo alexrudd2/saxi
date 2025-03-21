@@ -38,8 +38,6 @@
     "@rehooks/component-size": "^1.0.2",
     "@serialport/bindings-cpp": "^12.0.0 || ^13.0.0",
     "@stylistic/eslint-plugin": "^2.10.1 || ^3.0.0",
-    "@types/cors": "^2.8.4",
-    "@types/express": "^5.0.0",
     "@types/jest": "^29.0.0",
     "@types/node": "^18.0.0 || ^20.0.0 || ^22.0.0",
     "@types/react": "^19.0.0",
@@ -67,8 +65,6 @@
     "typescript": "^5.0"
   },
   "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^5.0.1",
     "flatten-svg": "^0.3.0",
     "optimize-paths": "^1.2.2",
     "serialport": "^12.0.0 || ^13.0.0",
