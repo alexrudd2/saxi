@@ -1,5 +1,4 @@
 import cors from "cors";
-import "web-streams-polyfill/polyfill";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from 'node:path';

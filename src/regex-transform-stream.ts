@@ -1,4 +1,3 @@
-import "web-streams-polyfill/polyfill";
 export class RegexParser extends TransformStream {
   public constructor(opts: { regex: RegExp }) {
     if (opts.regex === undefined) {
