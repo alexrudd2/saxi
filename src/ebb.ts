@@ -1,5 +1,4 @@
 import { type Block, type Motion, PenMotion, type Plan, XYMotion } from "./planning.js";
-import { RegexParser } from "./regex-transform-stream.js";
 import { type Vec2, vsub } from "./vec.js";
 
 /** Split d into its fractional and integral parts */
@@ -31,28 +30,36 @@ export class EBB {
     this.port = port;
     this.writer = this.port.writable.getWriter();
     this.commandQueue = [];
+    
+    let buffer = '';
+
     this.readableClosed = port.readable
-      .pipeThrough(new RegexParser({ regex: /[\r\n]+/ }))
+      .pipeThrough(new TextDecoderStream())
       .pipeTo(new WritableStream({
         write: (chunk) => {
-          if (/^[\r\n]*$/.test(chunk)) return;
-          if (this.commandQueue.length) {
-            if (chunk[0] === "!".charCodeAt(0)) {
-              (this.commandQueue.shift() as any).reject(new Error(chunk.toString("ascii")));
-              return;
-            }
-            try {
-              const d = this.commandQueue[0].next(chunk);
-              if (d.done) {
-                (this.commandQueue.shift() as any).resolve(d.value);
-                return;
+          buffer += chunk;
+          const parts = buffer.split(/[\r\n]+/);  // each command is on a different line
+          buffer = parts.pop() || '';
+
+          for (const part of parts) {
+            if (part.trim() === '') continue; // empty line
+            if (this.commandQueue.length) {
+              if (part[0] === '!') {  // error from EBB
+                (this.commandQueue.shift() as any).reject(new Error(part));
+                continue;
               }
-            } catch (e) {
-              (this.commandQueue.shift() as any).reject(e);
-              return;
+
+              try {
+                const d = this.commandQueue[0].next(Buffer.from(part, 'ascii'));
+                if (d.done) {
+                  (this.commandQueue.shift() as any).resolve(d.value);
+                }
+              } catch (e) {
+                (this.commandQueue.shift() as any).reject(e);
+              }
+            } else {
+              console.log(`unexpected data: ${part}`);
             }
-          } else {
-            console.log(`unexpected data: ${chunk}`);
           }
         }
       }));
