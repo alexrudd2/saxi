@@ -9,7 +9,7 @@ const svgUnitsPerInch = 96;
 const mmPerInch = 25.4;
 const mmPerSvgUnit = mmPerInch / svgUnitsPerInch;
 
-export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
+export function replan(inPaths: (Vec2[] & { stroke?: string, groupId?: string })[], planOptions: PlanOptions): Plan {
   let paths = inPaths;
   const device = Device(planOptions.hardware);
 
@@ -40,9 +40,9 @@ export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
   // filter based on the stroke. Rescaling doesn't change the number or order
   // of the paths.
   if (planOptions.layerMode === 'group') {
-    paths = paths.filter((path, i) => planOptions.selectedGroupLayers.has((inPaths[i] as any).groupId));
+    paths = paths.filter((_path, i) => planOptions.selectedGroupLayers.has(inPaths[i].groupId));
   } else if (planOptions.layerMode === 'stroke') {
-    paths = paths.filter((path, i) => planOptions.selectedStrokeLayers.has((inPaths[i] as any).stroke));
+    paths = paths.filter((_path, i) => planOptions.selectedStrokeLayers.has(inPaths[i].stroke));
   }
 
   if (planOptions.pointJoinRadius > 0) {
