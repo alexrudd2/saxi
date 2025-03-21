@@ -1,4 +1,3 @@
-import "web-streams-polyfill/polyfill";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from 'node:path';
@@ -60,7 +59,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
           console.log(ebb != null ? "Beginning plot..." : "Simulating plot...");
           res.writeHead(200);
           res.end();
-    
+
           const begin = Date.now();
           // biome-ignore lint/suspicious/noExplicitAny: need a new strategy for wakeLock
           let wakeLock: any;
@@ -72,7 +71,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
               console.warn("Couldn't acquire wake lock. Ensure your machine does not sleep during plotting");
             }
           }
-    
+
           try {
             await doPlot(ebb != null ? realPlotter : simPlotter, plan);
             const end = Date.now();
@@ -87,7 +86,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
         }
       });
     }
-    
+
     if (req.method === 'POST' && req.url === '/cancel') {
       cancelRequested = true;
       if (unpaused) {
