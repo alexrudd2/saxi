@@ -501,7 +501,7 @@ function PenHeight({ state, driver }: { state: State; driver: Driver }) {
 function HardwareOptions({ state }: { state: State }) {
   return <div>
     <div title="Motor type (affects pin and power settings)">
-      motor: {state.planOptions.hardware}
+      motor: {state.deviceInfo?.hardware}
     </div>
   </div>;
 }
