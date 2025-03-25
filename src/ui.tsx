@@ -1210,6 +1210,7 @@ function Root() {
     };
     driver.ondevinfo = (devInfo: DeviceInfo) => {
       dispatch({ type: "SET_DEVICE_INFO", value: devInfo });
+      dispatch({ type: "SET_PLAN_OPTION", value: { ... state.planOptions, hardware: devInfo.hardware } } );
     };
     driver.onpause = (paused: boolean) => {
       dispatch({ type: "SET_PAUSED", value: paused });
