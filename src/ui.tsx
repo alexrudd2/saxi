@@ -503,10 +503,8 @@ function HardwareOptions({ state }: { state: State }) {
     <label className="flex-checkbox" title="Motor type (affects pin and power settings)">
       <input
         type="checkbox"
-        checked={state.deviceInfo.hardware === 'brushless'}
-        onChange={(e) => {
-          // fixme combine if possible
-          setHardware(e.target.checked ? 'brushless' : 'v3');
+        checked={state.deviceInfo?.hardware === 'brushless'}
+        onChange={() => {
           fetch("/change-hardware", { method: "POST" });
         }}
       />
