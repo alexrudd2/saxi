@@ -1,6 +1,5 @@
-import {type Block, type Motion, PenMotion, type Plan, XYMotion} from "./planning";
-import { RegexParser } from "./regex-transform-stream";
-import {type Vec2, vsub} from "./vec";
+import { type Block, type Motion, PenMotion, type Plan, XYMotion } from "./planning.js";
+import { type Vec2, vsub } from "./vec.js";
 
 /** Split d into its fractional and integral parts */
 function modf(d: number): [number, number] {
@@ -15,47 +14,55 @@ export class EBB {
   public port: SerialPort;
   private commandQueue: Iterator<any, any, Buffer>[];
   private writer: WritableStreamDefaultWriter<Uint8Array>;
-  private readableClosed: Promise<void>
-  public hardware: Hardware
+  private readableClosed: Promise<void>;
+  public hardware: Hardware;
 
   private microsteppingMode = 0;
 
   /** Accumulated XY error, used to correct for movements with sub-step resolution */
-  private error: Vec2 = {x: 0, y: 0};
+  private error: Vec2 = { x: 0, y: 0 };
 
   private cachedFirmwareVersion: [number, number, number] | undefined = undefined;
 
-  public constructor (port: SerialPort, hardware: Hardware = 'v3') {
-    this.hardware = hardware
-    console.log(this.hardware)
+  public constructor(port: SerialPort, hardware: Hardware = 'v3') {
+    this.hardware = hardware;
+    console.log(this.hardware);
     this.port = port;
     this.writer = this.port.writable.getWriter();
     this.commandQueue = [];
+    
+    let buffer = '';
+
     this.readableClosed = port.readable
-      .pipeThrough(new RegexParser({ regex: /[\r\n]+/ }))
+      .pipeThrough(new TextDecoderStream())
       .pipeTo(new WritableStream({
         write: (chunk) => {
-          if (/^[\r\n]*$/.test(chunk)) return
-          if (this.commandQueue.length) {
-            if (chunk[0] === "!".charCodeAt(0)) {
-              (this.commandQueue.shift() as any).reject(new Error(chunk.toString("ascii")));
-              return;
-            }
-            try {
-              const d = this.commandQueue[0].next(chunk);
-              if (d.done) {
-                (this.commandQueue.shift() as any).resolve(d.value);
-                return;
+          buffer += chunk;
+          const parts = buffer.split(/[\r\n]+/);  // each command is on a different line
+          buffer = parts.pop() || '';
+
+          for (const part of parts) {
+            if (part.trim() === '') continue; // empty line
+            if (this.commandQueue.length) {
+              if (part[0] === '!') {  // error from EBB
+                (this.commandQueue.shift() as any).reject(new Error(part));
+                continue;
               }
-            } catch (e) {
-              (this.commandQueue.shift() as any).reject(e);
-              return;
+
+              try {
+                const d = this.commandQueue[0].next(Buffer.from(part, 'ascii'));
+                if (d.done) {
+                  (this.commandQueue.shift() as any).resolve(d.value);
+                }
+              } catch (e) {
+                (this.commandQueue.shift() as any).reject(e);
+              }
+            } else {
+              console.log(`unexpected data: ${part}`);
             }
-          } else {
-            console.log(`unexpected data: ${chunk}`);
           }
         }
-      }))
+      }));
   }
 
   private get stepMultiplier() {
@@ -71,7 +78,7 @@ export class EBB {
   }
 
   public async close(): Promise<void> {
-    return await this.port.close()
+    return await this.port.close();
   }
 
   public changeHardware(hardware: Hardware) {
@@ -80,10 +87,10 @@ export class EBB {
 
   private write(str: string): Promise<void> {
     if (process.env.DEBUG_SAXI_COMMANDS) {
-      console.log(`writing: ${str}`)
+      console.log(`writing: ${str}`);
     }
-    const encoder = new TextEncoder()
-    return this.writer.write(encoder.encode(str))
+    const encoder = new TextEncoder();
+    return this.writer.write(encoder.encode(str));
   }
 
   /** Send a raw command to the EBB and expect a single line in return, without an "OK" line to terminate. */
@@ -157,17 +164,17 @@ export class EBB {
    * or off) depending on its value, in addition to setting the power-off
    * timeout duration.
    *
-   * NB. this command is only avaliable on firmware v2.6.0 and hardware of at
+   * NB. this command is only available on firmware v2.6.0 and hardware of at
    * least version 2.5.0.
    */
   public async setServoPowerTimeout(timeout: number, power?: boolean) {
-    await this.command(`SR,${(timeout * 1000) | 0}${power != null ? `,${power ? 1 : 0}` : ''}`)
+    await this.command(`SR,${(timeout * 1000) | 0}${power != null ? `,${power ? 1 : 0}` : ''}`);
   }
 
   // https://evil-mad.github.io/EggBot/ebb.html#S2 General RC Servo Output
-  public async setPenHeight (height: number, rate: number, delay = 0): Promise<void> {
-    const output_pin = this.hardware === 'v3' ? 4 : 5
-    return await this.command(`S2,${height},${output_pin},${rate},${delay}`)
+  public async setPenHeight(height: number, rate: number, delay = 0): Promise<void> {
+    const output_pin = this.hardware === 'v3' ? 4 : 5;
+    return await this.command(`S2,${height},${output_pin},${rate},${delay}`);
   }
 
   public lowlevelMove(
@@ -205,7 +212,7 @@ export class EBB {
     }
     const stepsAxis1 = xSteps + ySteps;
     const stepsAxis2 = xSteps - ySteps;
-    const norm = Math.sqrt(Math.pow(xSteps, 2) + Math.pow(ySteps, 2));
+    const norm = Math.sqrt(xSteps ** 2 + ySteps ** 2);
     const normX = xSteps / norm;
     const normY = ySteps / norm;
     const initialRateX = initialRate * normX;
@@ -315,11 +322,10 @@ export class EBB {
   public executeMotion(m: Motion): Promise<void> {
     if (m instanceof XYMotion) {
       return this.executeXYMotion(m);
-    } else if (m instanceof PenMotion) {
+    } if (m instanceof PenMotion) {
       return this.executePenMotion(m);
-    } else {
-      throw new Error(`Unknown motion type: ${m.constructor.name}`);
     }
+    throw new Error(`Unknown motion type: ${m.constructor.name}`);
   }
 
   public async executePlan(plan: Plan, microsteppingMode = 2): Promise<void> {
@@ -420,7 +426,7 @@ export class EBB {
    * @return A tuple of (initialAxisRate, deltaR) that can be passed to the LM command
    */
   private axisRate(steps: number, initialStepsPerSec: number, finalStepsPerSec: number): [number, number] {
-    if (steps === 0) return [0, 0]
+    if (steps === 0) return [0, 0];
     const initialRate = Math.round(initialStepsPerSec * (0x80000000 / 25000));
     const finalRate = Math.round(finalStepsPerSec * (0x80000000 / 25000));
     const moveTime = 2 * Math.abs(steps) / (initialStepsPerSec + finalStepsPerSec);

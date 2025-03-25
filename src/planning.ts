@@ -1,8 +1,8 @@
 // Cribbed from https://github.com/fogleman/axi/blob/master/axi/planner.py
-import type { Hardware } from './ebb'
-import { PaperSize } from './paper-size'
-import { vadd, vdot, type Vec2, vlen, vmul, vnorm, vsub } from './vec'
-const epsilon = 1e-9
+import type { Hardware } from './ebb.js';
+import { PaperSize } from './paper-size.js';
+import { type Vec2, vadd, vdot, vlen, vmul, vnorm, vsub } from './vec.js';
+const epsilon = 1e-9;
 
 export interface PlanOptions {
   paperSize: PaperSize;
@@ -64,7 +64,7 @@ export const defaultPlanOptions: PlanOptions = {
   minimumPathLength: 0,
 
   hardware: 'v3'
-}
+};
 
 interface Instant {
   t: number;
@@ -90,9 +90,9 @@ interface ToolingProfile {
 }
 
 export const Device = (hardware = 'v3'): Device => {
-  if (hardware === 'brushless') return AxidrawBrushless
-  return Axidraw
-}
+  if (hardware === 'brushless') return AxidrawBrushless;
+  return Axidraw;
+};
 
 export interface Device {
   stepsPerMm: number
@@ -110,11 +110,11 @@ const Axidraw: Device = {
   penServoMin: 7500, // pen down
   penServoMax: 28000, // pen up
 
-  penPctToPos (pct: number): number {
-    const t = pct / 100.0
-    return Math.round(this.penServoMin * t + this.penServoMax * (1 - t))
+  penPctToPos(pct: number): number {
+    const t = pct / 100.0;
+    return Math.round(this.penServoMin * t + this.penServoMax * (1 - t));
   }
-}
+};
 
 // brushless servo (https://shop.evilmadscientist.com/productsmenu/else?id=56)
 const AxidrawBrushless: Device = {
@@ -123,11 +123,11 @@ const AxidrawBrushless: Device = {
   penServoMin: 5400, // pen down
   penServoMax: 12600, // pen up
 
-  penPctToPos (pct: number): number {
-    const t = pct / 100.0
-    return Math.round(this.penServoMin * t + this.penServoMax * (1 - t))
+  penPctToPos(pct: number): number {
+    const t = pct / 100.0;
+    return Math.round(this.penServoMin * t + this.penServoMax * (1 - t));
   }
-}
+};
 
 export const AxidrawFast: ToolingProfile = {
   penDownProfile: {
@@ -144,7 +144,7 @@ export const AxidrawFast: ToolingProfile = {
   penDownPos: Axidraw.penPctToPos(60),
   penDropDuration: 0.12,
   penLiftDuration: 0.12
-}
+};
 
 export const AxidrawBrushlessFast: ToolingProfile = {
   penDownProfile: {
@@ -161,22 +161,29 @@ export const AxidrawBrushlessFast: ToolingProfile = {
   penDownPos: AxidrawBrushless.penPctToPos(60),
   penDropDuration: 0.08,
   penLiftDuration: 0.08
-}
+};
 
+interface BlockData {
+  accel: number;
+  duration: number;
+  vInitial: number;
+  p1: Vec2;
+  p2: Vec2;
+}
 export class Block {
-  public static deserialize(o: any): Block {
+  public static deserialize(o: BlockData): Block {
     return new Block(o.accel, o.duration, o.vInitial, o.p1, o.p2);
   }
 
-  public accel: number;
-  public duration: number;
-  public vInitial: number;
-  public p1: Vec2;
-  public p2: Vec2;
-
   public distance: number;
 
-  public constructor(accel: number, duration: number, vInitial: number, p1: Vec2, p2: Vec2) {
+  constructor(
+    public accel: number,
+    public duration: number,
+    public vInitial: number,
+    public p1: Vec2,
+    public p2: Vec2
+  ) {
     if (!(vInitial >= 0)) {
       throw new Error(`vInitial must be >= 0, but was ${vInitial}`);
     }
@@ -193,16 +200,16 @@ export class Block {
 
   public get vFinal(): number { return Math.max(0, this.vInitial + this.accel * this.duration); }
 
-  public instant(tU: number, dt= 0, ds= 0): Instant {
+  public instant(tU: number, dt = 0, ds = 0): Instant {
     const t = Math.max(0, Math.min(this.duration, tU));
     const a = this.accel;
     const v = this.vInitial + this.accel * t;
     const s = Math.max(0, Math.min(this.distance, this.vInitial * t + a * t * t / 2));
     const p = vadd(this.p1, vmul(vnorm(vsub(this.p2, this.p1)), s));
-    return {t: t + dt, p, s: s + ds, v, a};
+    return { t: t + dt, p, s: s + ds, v, a };
   }
 
-  public serialize(): any {
+  public serialize(): BlockData {
     return {
       accel: this.accel,
       duration: this.duration,
@@ -215,36 +222,37 @@ export class Block {
 
 export interface Motion {
   duration(): number;
-  serialize(): any;
+  serialize(): MotionData;
 }
 
 export class PenMotion implements Motion {
-  public static deserialize(o: any): PenMotion {
+  public static deserialize(o: PenMotionData): PenMotion {
     return new PenMotion(o.initialPos, o.finalPos, o.duration);
   }
 
-  public initialPos: number;
-  public finalPos: number;
-  public pDuration: number;
-
-  public constructor(initialPos: number, finalPos: number, duration: number) {
-    this.initialPos = initialPos;
-    this.finalPos = finalPos;
-    this.pDuration = duration;
-  }
+  constructor(
+    public initialPos: number,
+    public finalPos: number,
+    public pDuration: number,
+  ) {}
 
   public duration(): number {
     return this.pDuration;
   }
 
-  public serialize(): any {
+  public serialize(): PenMotionData {
     return {
-      t: "PenMotion",
       initialPos: this.initialPos,
       finalPos: this.finalPos,
       duration: this.pDuration,
     };
   }
+}
+
+interface PenMotionData {
+  initialPos: number;
+  finalPos: number;
+  duration: number;
 }
 
 function scanLeft<A, B>(a: A[], z: B, op: (b: B, a: A) => B): B[] {
@@ -266,16 +274,15 @@ function sortedIndex<T>(array: T[], obj: T) {
 }
 
 export class XYMotion implements Motion {
-  public static deserialize(o: any): XYMotion {
+  public static deserialize(o: XYMotionData): XYMotion {
     return new XYMotion(o.blocks.map(Block.deserialize));
   }
-  public blocks: Block[];
-
   private ts: number[];
   private ss: number[];
 
-  public constructor(blocks: Block[]) {
-    this.blocks = blocks;
+  constructor(
+    public blocks: Block[]
+  ) {
     this.ts = scanLeft(blocks.map((b) => b.duration), 0, (a, b) => a + b).slice(0, -1);
     this.ss = scanLeft(blocks.map((b) => b.distance), 0, (a, b) => a + b).slice(0, -1);
   }
@@ -298,28 +305,30 @@ export class XYMotion implements Motion {
     return block.instant(t - this.ts[blockIdx], this.ts[blockIdx], this.ss[blockIdx]);
   }
 
-  public serialize(): any {
+  public serialize(): XYMotionData {
     return {
-      t: "XYMotion",
       blocks: this.blocks.map((b) => b.serialize())
     };
   }
 }
 
+interface XYMotionData {
+  blocks: BlockData[];
+}
+
+export type MotionData = XYMotionData | PenMotionData;
 export class Plan {
-  public static deserialize(o: any): Plan {
-    return new Plan(o.motions.map((m: any) => {
-      switch (m.t) {
-        case "XYMotion": return XYMotion.deserialize(m);
-        case "PenMotion": return PenMotion.deserialize(m);
-      }
-    }))
+  public static deserialize(o: (MotionData)[]): Plan {
+    return new Plan(o.map((m) => {
+      if ("blocks" in m) return XYMotion.deserialize(m);
+      if ("initialPos" in m) return PenMotion.deserialize(m);
+      throw new Error(`Wrong parameter: ${m}`);
+    }));
   }
 
-  public motions: Motion[];
-  public constructor(motions: Motion[]) {
-    this.motions = motions;
-  }
+  constructor(
+    public motions: Motion[]
+  ) {}
   public duration(start = 0): number {
     return this.motions.slice(start).map((m) => m.duration()).reduce((a, b) => a + b, 0);
   }
@@ -330,38 +339,35 @@ export class Plan {
     return new Plan(this.motions.map((motion, j) => {
       if (motion instanceof XYMotion) {
         return motion;
-      } else if (motion instanceof PenMotion) {
+      }
+      if (motion instanceof PenMotion) {
         // TODO: Remove this hack by storing the pen-up/pen-down heights
         // in a single place, and reference them from the PenMotions.
         if (j === this.motions.length - 1) {
-          return new PenMotion(penDownHeight, penUpHeight, motion.duration())
+          return new PenMotion(penDownHeight, penUpHeight, motion.duration());
         }
         return (penMotionIndex++ % 2 === 0
           ? new PenMotion(penUpHeight, penDownHeight, motion.duration())
           : new PenMotion(penDownHeight, penUpHeight, motion.duration()));
       }
-    }))
+      throw new Error(`Wrong motion ${motion}`);
+    }));
   }
 
-  public serialize(): any {
-    return {
-      motions: this.motions.map((m) => m.serialize())
-    }
+  public serialize(): (MotionData)[] {
+    return this.motions.map((m) => m.serialize());
   }
 }
 
 class Segment {
-  public p1: Vec2;
-  public p2: Vec2;
   public maxEntryVelocity = 0;
   public entryVelocity = 0;
-  public blocks: Block[];
 
-  public constructor(p1: Vec2, p2: Vec2) {
-    this.p1 = p1;
-    this.p2 = p2;
-    this.blocks = [];
-  }
+  constructor(
+    public p1: Vec2,
+    public p2: Vec2,
+    public blocks: Block[] = [],
+  ) {}
   public length(): number { return vlen(vsub(this.p2, this.p1)); }
   public direction(): Vec2 { return vnorm(vsub(this.p2, this.p1)); }
 }
@@ -439,7 +445,7 @@ function computeTriangle(
   const t1 = (vMax - initialVel) / accel;
   const t2 = (finalVel - vMax) / -accel;
   const p2 = vadd(p1, vmul(vnorm(vsub(p3, p1)), acceleratingDistance));
-  return {s1: acceleratingDistance, s2: deceleratingDistance, t1, t2, vMax, p1, p2, p3};
+  return { s1: acceleratingDistance, s2: deceleratingDistance, t1, t2, vMax, p1, p2, p3 };
 }
 
 /** Represents a trapezoidal velocity profile for moving in a straight line.
@@ -492,7 +498,7 @@ function computeTrapezoid(
   const dir = vnorm(vsub(p4, p1));
   const p2 = vadd(p1, vmul(dir, s1));
   const p3 = vadd(p1, vmul(dir, (distance - s3)));
-  return {s1, s2, s3, t1, t2, t3, p1, p2, p3, p4};
+  return { s1, s2, s3, t1, t2, t3, p1, p2, p3, p4 };
 }
 
 function dedupPoints(points: Vec2[], epsilon: number): Vec2[] {
@@ -587,13 +593,13 @@ function constantAccelerationPlan(points: Vec2[], profile: AccelerationProfile):
     }
   }
   const blocks: Block[] = [];
-  segments.forEach((s) => {
-    s.blocks.forEach((b) => {
-      if (b.duration > epsilon) {
-        blocks.push(b);
+  for (const segment of segments) {
+    for (const block of segment.blocks) {
+      if (block.duration > epsilon) {
+        blocks.push(block);
       }
-    });
-  });
+    }
+  }
   return new XYMotion(blocks);
 }
 
@@ -601,24 +607,23 @@ export function plan(
   paths: Vec2[][],
   profile: ToolingProfile
 ): Plan {
-  const motions: Motion[] = []
-  let curPos = { x: 0, y: 0 }
+  const motions: Motion[] = [];
+  let curPos = { x: 0, y: 0 };
 
   const penMotions = {
     up: new PenMotion(profile.penDownPos, profile.penUpPos, profile.penLiftDuration),
     down: new PenMotion(profile.penUpPos, profile.penDownPos, profile.penDropDuration)
-  }
+  };
 
   // For each path - move to the initial position, put the pen down, draw the path, bring pen up
-  paths.forEach(path => {
-    const motion = constantAccelerationPlan(path, profile.penDownProfile)
-    const position = constantAccelerationPlan([curPos, motion.p1], profile.penUpProfile)
-
-    motions.push(position, penMotions.down, motion, penMotions.up)
-    curPos = motion.p2
-  })
+  for (const path of paths) {
+    const motion = constantAccelerationPlan(path, profile.penDownProfile);
+    const position = constantAccelerationPlan([curPos, motion.p1], profile.penUpProfile);
+    motions.push(position, penMotions.down, motion, penMotions.up);
+    curPos = motion.p2;
+  }
 
   // Move to {x: 0, y: 0}
-  motions.push(constantAccelerationPlan([curPos, { x: 0, y: 0 }], profile.penUpProfile))
-  return new Plan(motions)
+  motions.push(constantAccelerationPlan([curPos, { x: 0, y: 0 }], profile.penUpProfile));
+  return new Plan(motions);
 }

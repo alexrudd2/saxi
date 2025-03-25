@@ -1,17 +1,17 @@
-import * as Optimization from "optimize-paths";
-import {Device, type Plan, type PlanOptions, plan} from "./planning";
-import {dedupPoints, scaleToPaper, cropToMargins} from "./util";
-import {type Vec2, vmul, vrot} from "./vec";
+import { elideShorterThan, merge as joinNearbyPaths, reorder as sortPaths } from "optimize-paths";
+import { Device, type Plan, type PlanOptions, plan } from "./planning.js";
+import { cropToMargins, dedupPoints, scaleToPaper } from "./util.js";
+import { type Vec2, vmul, vrot } from "./vec.js";
 
 // CSS, and thus SVG, defines 1px = 1/96th of 1in
 // https://www.w3.org/TR/css-values-4/#absolute-lengths
-const svgUnitsPerInch = 96
-const mmPerInch = 25.4
-const mmPerSvgUnit = mmPerInch / svgUnitsPerInch
+const svgUnitsPerInch = 96;
+const mmPerInch = 25.4;
+const mmPerSvgUnit = mmPerInch / svgUnitsPerInch;
 
-export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
+export function replan(inPaths: (Vec2[] & { stroke?: string, groupId?: string })[], planOptions: PlanOptions): Plan {
   let paths = inPaths;
-  const device = Device(planOptions.hardware)
+  const device = Device(planOptions.hardware);
 
   // Rotate drawing around center of paper to handle plotting portrait drawings
   // along y-axis of plotter
@@ -19,7 +19,7 @@ export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
   if (planOptions.rotateDrawing !== 0) {
     console.time("rotating paths");
     paths = paths.map((pl) => pl.map((p) => vrot(p,
-      vmul({x:planOptions.paperSize.size.x/2, y: planOptions.paperSize.size.y/2}, 1/mmPerSvgUnit),
+      vmul({ x:planOptions.paperSize.size.x / 2, y: planOptions.paperSize.size.y / 2 }, 1 / mmPerSvgUnit),
       planOptions.rotateDrawing)
     ));
     console.timeEnd("rotating paths");
@@ -30,9 +30,9 @@ export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
   if (planOptions.fitPage) {
     paths = scaleToPaper(paths, planOptions.paperSize, planOptions.marginMm);
   } else {
-    paths = paths.map(ps => ps.map(p => vmul(p, mmPerSvgUnit)))
+    paths = paths.map(ps => ps.map(p => vmul(p, mmPerSvgUnit)));
     if (planOptions.cropToMargins) {
-      paths = cropToMargins(paths, planOptions.paperSize, planOptions.marginMm)
+      paths = cropToMargins(paths, planOptions.paperSize, planOptions.marginMm);
     }
   }
 
@@ -40,9 +40,9 @@ export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
   // filter based on the stroke. Rescaling doesn't change the number or order
   // of the paths.
   if (planOptions.layerMode === 'group') {
-    paths = paths.filter((path, i) => planOptions.selectedGroupLayers.has((inPaths[i] as any).groupId));
+    paths = paths.filter((_path, i) => planOptions.selectedGroupLayers.has(inPaths[i].groupId));
   } else if (planOptions.layerMode === 'stroke') {
-    paths = paths.filter((path, i) => planOptions.selectedStrokeLayers.has((inPaths[i] as any).stroke));
+    paths = paths.filter((_path, i) => planOptions.selectedStrokeLayers.has(inPaths[i].stroke));
   }
 
   if (planOptions.pointJoinRadius > 0) {
@@ -51,19 +51,19 @@ export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
 
   if (planOptions.sortPaths) {
     console.time("sorting paths");
-    paths = Optimization.reorder(paths);
+    paths = sortPaths(paths);
     console.timeEnd("sorting paths");
   }
 
   if (planOptions.minimumPathLength > 0) {
     console.time("eliding short paths");
-    paths = Optimization.elideShorterThan(paths, planOptions.minimumPathLength);
+    paths = elideShorterThan(paths, planOptions.minimumPathLength);
     console.timeEnd("eliding short paths");
   }
 
   if (planOptions.pathJoinRadius > 0) {
     console.time("joining nearby paths");
-    paths = Optimization.merge(
+    paths = joinNearbyPaths(
       paths,
       planOptions.pathJoinRadius
     );
@@ -71,10 +71,10 @@ export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
   }
 
   // Convert the paths to units of "steps".
-  paths = paths.map((ps) => ps.map((p) => vmul(p, device.stepsPerMm)))
+  paths = paths.map((ps) => ps.map((p) => vmul(p, device.stepsPerMm)));
 
   // And finally, motion planning.
-  console.time('planning pen motions')
+  console.time('planning pen motions');
   const theplan = plan(paths, {
     penUpPos: device.penPctToPos(planOptions.penUpHeight),
     penDownPos: device.penPctToPos(planOptions.penDownHeight),
@@ -93,5 +93,5 @@ export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
   });
   console.timeEnd("planning pen motions");
 
-  return theplan
+  return theplan;
 }

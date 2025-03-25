@@ -122,3 +122,13 @@ These images were plotted by folks using saxi. If you'd like to add something yo
     </tr>
   </tbody>
 </table>
+
+## SVG-IO For AI-Generated Images
+
+Use the [SVG IO](https://svg.io/) integration to generate images with AI using a text prompt. Enable it by passing the `--svgio-api-key`
+paremeter when running on the server:
+
+```sh
+npm run build
+node cli.mjs --svgio-api-key <THE API KEY>
+```

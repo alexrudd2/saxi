@@ -1,6 +1,6 @@
-import { cropToMargins } from '../util'
 import { PaperSize } from '../paper-size'
-import { Vec2 } from '../vec'
+import { cropToMargins } from '../util'
+import type { Vec2 } from '../vec'
 
 describe("crop to margins", () => {
   const paper = new PaperSize({x: 100, y: 100})

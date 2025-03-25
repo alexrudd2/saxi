@@ -1,13 +1,14 @@
+/* eslint-env node */
 module.exports = {
   parser: '@typescript-eslint/parser',
-  plugins: ['@typescript-eslint'],
+  plugins: ['@typescript-eslint', '@stylistic/eslint-plugin'],
   extends: [
     'eslint:recommended',
     'plugin:react/recommended',
     'plugin:@typescript-eslint/recommended',
   ],
   parserOptions: {
-    ecmaVersion: 2018,
+    ecmaVersion: 2022,
     sourceType: 'module',
   },
   root: true,
@@ -15,7 +16,6 @@ module.exports = {
     // Place to specify ESLint rules. Can be used to overwrite rules specified from the extended configs
     // e.g. "@typescript-eslint/explicit-function-return-type": "off",
     indent: "off",
-    "@typescript-eslint/indent": ["error", 2],
     "@typescript-eslint/no-use-before-define": "off",
     "@typescript-eslint/no-explicit-any": "off",
     "@typescript-eslint/explicit-function-return-type": "off",
@@ -23,6 +23,12 @@ module.exports = {
       argsIgnorePattern: "^_",
       varsIgnorePattern: "^_",
     }],
+    '@stylistic/indent': ['error', 2],
+    "@stylistic/space-infix-ops": 1,
+    '@stylistic/object-curly-spacing': ['error', 'always'],
+    "@stylistic/space-before-function-paren": ["error", "never"],
+    "semi": [1, "always"],
+    "consistent-return": 2,
   },
   settings: {
     react: {
