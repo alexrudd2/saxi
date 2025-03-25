@@ -325,6 +325,8 @@ export class XYMotion implements Motion {
   private ts: number[];
   private ss: number[];
   public duration: number;
+  public p1: Vec2;
+  public p2: Vec2;
 
   constructor(
     public blocks: Block[]
@@ -334,13 +336,8 @@ export class XYMotion implements Motion {
     // distance progression
     this.ss = scanLeft(blocks.map((b) => b.distance), 0, (a, b) => a + b).slice(0, -1);
     this.duration = this.blocks.map((b) => b.duration).reduce((a, b) => a + b, 0);
-  }
-
-  public get p1(): Vec2 {
-    return this.blocks[0].p1;
-  }
-  public get p2(): Vec2 {
-    return this.blocks[this.blocks.length - 1].p2;
+    this.p1 = this.blocks[0].p1;
+    this.p2 = this.blocks[this.blocks.length - 1].p2;
   }
 
   public instant(t: number): Instant {
