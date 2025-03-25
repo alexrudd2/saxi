@@ -501,7 +501,7 @@ function PenHeight({ state, driver }: { state: State; driver: Driver }) {
 function HardwareOptions({ state }: { state: State }) {
   return <div>
     <div title="Motor type (affects pin and power settings)">
-      motor: {state.planOptions.hardware}
+      motor: {state.deviceInfo?.hardware}
     </div>
   </div>;
 }
@@ -1210,6 +1210,7 @@ function Root() {
     };
     driver.ondevinfo = (devInfo: DeviceInfo) => {
       dispatch({ type: "SET_DEVICE_INFO", value: devInfo });
+      dispatch({ type: "SET_PLAN_OPTION", value: { ... state.planOptions, hardware: devInfo.hardware } } );
     };
     driver.onpause = (paused: boolean) => {
       dispatch({ type: "SET_PAUSED", value: paused });
