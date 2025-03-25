@@ -269,41 +269,20 @@ export class Block {
 }
 
 export interface Motion {
-  duration(): number;
-  serialize(): MotionData;
+  duration: number;
 }
 
 /**
  * Pen Motion accross a single axis, represented as an initial positon, final position and duration.
  */
 export class PenMotion implements Motion {
-  public static deserialize(o: PenMotionData): PenMotion {
-    return new PenMotion(o.initialPos, o.finalPos, o.duration);
-  }
 
   constructor(
     public initialPos: number,
     public finalPos: number,
-    public pDuration: number,
+    public duration: number,
   ) {}
-
-  public duration(): number {
-    return this.pDuration;
-  }
-
-  public serialize(): PenMotionData {
-    return {
-      initialPos: this.initialPos,
-      finalPos: this.finalPos,
-      duration: this.pDuration,
-    };
-  }
-}
-
-interface PenMotionData {
-  initialPos: number;
-  finalPos: number;
-  duration: number;
+  
 }
 
 /**
@@ -342,11 +321,10 @@ function sortedIndex<T>(array: T[], obj: T): number {
  * XY Motion - across a 2 dimensioanl plane, represented as a list of blocks.
  */
 export class XYMotion implements Motion {
-  public static deserialize(o: XYMotionData): XYMotion {
-    return new XYMotion(o.blocks.map(Block.deserialize));
-  }
+
   private ts: number[];
   private ss: number[];
+  public duration: number;
 
   constructor(
     public blocks: Block[]
@@ -355,6 +333,7 @@ export class XYMotion implements Motion {
     this.ts = scanLeft(blocks.map((b) => b.duration), 0, (a, b) => a + b).slice(0, -1);
     // distance progression
     this.ss = scanLeft(blocks.map((b) => b.distance), 0, (a, b) => a + b).slice(0, -1);
+    this.duration = this.blocks.map((b) => b.duration).reduce((a, b) => a + b, 0);
   }
 
   public get p1(): Vec2 {
@@ -364,10 +343,6 @@ export class XYMotion implements Motion {
     return this.blocks[this.blocks.length - 1].p2;
   }
 
-  public duration(): number {
-    return this.blocks.map((b) => b.duration).reduce((a, b) => a + b, 0);
-  }
-
   public instant(t: number): Instant {
     const idx = sortedIndex(this.ts, t);
     const blockIdx = this.ts[idx] === t ? idx : idx - 1;
@@ -375,28 +350,22 @@ export class XYMotion implements Motion {
     return block.instant(t - this.ts[blockIdx], this.ts[blockIdx], this.ss[blockIdx]);
   }
 
-  public serialize(): XYMotionData {
-    return {
-      blocks: this.blocks.map((b) => b.serialize())
-    };
-  }
 }
-
-interface XYMotionData {
-  blocks: BlockData[];
-}
-
-export type MotionData = XYMotionData | PenMotionData;
 /**
  * Plotting Plan.
  * Contains a list of pen motions.
  */
 export class Plan {
-  public static deserialize(o: (MotionData)[]): Plan {
-    return new Plan(o.map((m) => {
-      if ("blocks" in m) return XYMotion.deserialize(m);
-      if ("initialPos" in m) return PenMotion.deserialize(m);
-      throw new Error(`Wrong parameter: ${m}`);
+  public static deserialize(m: Motion[]): Plan {
+    return new Plan(m.map((motion) => {
+      if ("blocks" in motion) return new XYMotion(motion.blocks as Block[]);
+      if ("initialPos" in motion && "finalPos" in motion) {
+        return new PenMotion(
+          motion.initialPos as number,
+          motion.finalPos as number,
+          motion.duration as number);
+      }
+      throw new Error(`Wrong parameter: ${motion}`);
     }));
   }
 
@@ -410,7 +379,7 @@ export class Plan {
    * @returns duration of the plan (sec)
    */
   public duration(start = 0): number {
-    return this.motions.slice(start).map((m) => m.duration()).reduce((a, b) => a + b, 0);
+    return this.motions.slice(start).map((m) => m.duration).reduce((a, b) => a + b, 0);
   }
   public motion(i: number) { return this.motions[i]; }
 
@@ -424,18 +393,18 @@ export class Plan {
         // TODO: Remove this hack by storing the pen-up/pen-down heights
         // in a single place, and reference them from the PenMotions.
         if (j === this.motions.length - 1) {
-          return new PenMotion(penDownHeight, penUpHeight, motion.duration());
+          return new PenMotion(penDownHeight, penUpHeight, motion.duration);
         }
         return (penMotionIndex++ % 2 === 0
-          ? new PenMotion(penUpHeight, penDownHeight, motion.duration())
-          : new PenMotion(penDownHeight, penUpHeight, motion.duration()));
+          ? new PenMotion(penUpHeight, penDownHeight, motion.duration)
+          : new PenMotion(penDownHeight, penUpHeight, motion.duration));
       }
       throw new Error(`Wrong motion ${motion}`);
     }));
   }
 
-  public serialize(): (MotionData)[] {
-    return this.motions.map((m) => m.serialize());
+  public serialize(): Motion[] {
+    return this.motions;
   }
 }
 
