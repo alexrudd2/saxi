@@ -500,9 +500,16 @@ function PenHeight({ state, driver }: { state: State; driver: Driver }) {
 
 function HardwareOptions({ state }: { state: State }) {
   return <div>
-    <div title="Motor type (affects pin and power settings)">
-      motor: {state.deviceInfo?.hardware}
-    </div>
+    <label className="flex-checkbox" title="Motor type (affects pin and power settings)">
+      <input
+        type="checkbox"
+        checked={state.deviceInfo?.hardware === 'brushless'}
+        onChange={() => {
+          fetch("/change-hardware", { method: "POST" });
+        }}
+      />
+      brushless
+    </label>
   </div>;
 }
 

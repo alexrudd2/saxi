@@ -26,7 +26,6 @@ export class EBB {
 
   public constructor(port: SerialPort, hardware: Hardware = 'v3') {
     this.hardware = hardware;
-    console.log(this.hardware);
     this.port = port;
     this.writer = this.port.writable.getWriter();
     this.commandQueue = [];
