@@ -991,7 +991,7 @@ function ResetToDefaultsButton() {
 
 }
 
-function PlanOptions({ state }: { state: State }) {
+function PlanConfig({ state }: { state: State }) {
   const dispatch = useContext(DispatchContext);
   return <div>
     <form>
@@ -1319,7 +1319,7 @@ function Root() {
         <details>
           <summary className="section-header">more</summary>
           <div className="section-body">
-            <PlanOptions state={state} />
+            <PlanConfig state={state} />
             <VisualizationOptions state={state} />
           </div>
         </details>
