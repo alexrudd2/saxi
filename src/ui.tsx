@@ -1202,6 +1202,7 @@ function Root() {
     window.localStorage.setItem("planOptions", JSON.stringify(state.planOptions));
   }, [state.planOptions]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies(setPlan): React setters are stable
   useEffect(() => {
     if (driver == null) return;
     driver.onprogress = (motionIdx: number) => {
@@ -1228,6 +1229,7 @@ function Root() {
     };
   }, [driver]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies(setPlan): React setters are stable
   useEffect(() => {
     const ondrop = (e: DragEvent) => {
       e.preventDefault();
@@ -1270,7 +1272,7 @@ function Root() {
       document.body.removeEventListener("dragleave", ondragleave);
       document.removeEventListener("paste", onpaste);
     };
-  });
+  }, []);
 
   // Each time new motion is started, save the start time
   const currentMotionStartedTime = useMemo(() => {
