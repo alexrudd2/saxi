@@ -67,7 +67,7 @@ type Action =
   | { type: "SET_SVGIO_OPTION"; value: Partial<State["svgIoOptions"]> }
   | { type: "SET_DEVICE_INFO"; value: State["deviceInfo"] }
   | { type: "SET_PAUSED"; value: boolean }
-  | { type: "SET_PROGRESS"; motionIdx: number }
+  | { type: "SET_PROGRESS"; motionIdx: number | null }
   | { type: "SET_CONNECTED"; connected: boolean }
   | {
     type: "SET_PATHS";
@@ -405,6 +405,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
   const lastPlan = useRef<Plan>(null);
   const lastPlanOptions = useRef<PlanOptions>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies(attemptRejigger): handled by planOptions
   useEffect(() => {
     if (!paths) {
       return () => {};
@@ -439,12 +440,12 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
       worker.terminate();
       setIsPlanning(false);
     };
-  }, [paths, serialize(planOptions)]);
+  }, [paths, planOptions]);
 
   return { isPlanning, plan: latestPlan, setPlan };
 };
 
-const setPaths = (paths: (Vec2[] & { stroke?: string, groupId?: string })[]): Action => {
+const setPaths = (paths: (Vec2[] & { stroke: string, groupId: string })[]): Action => {
   const strokes = new Set<string>();
   const groups = new Set<string>();
   for (const path of paths) {
@@ -721,7 +722,7 @@ function PlanStatistics({ plan }: { plan: Plan }) {
 function TimeLeft({ plan, progress, currentMotionStartedTime, paused }: {
   plan: Plan;
   progress: number | null;
-  currentMotionStartedTime: Date | null;
+  currentMotionStartedTime: Date;
   paused: boolean;
 }) {
   const [_, setTime] = useState(new Date());
@@ -779,6 +780,7 @@ function PlanPreview(
         >ꚛ</text>
         {lines.map((line, i) =>
           <path
+            // biome-ignore lint/suspicious/noArrayIndexKey: the paths are not changed elsewhere
             key={i}
             d={line.reduce((m, { x, y }, j) => `${m}${j === 0 ? "M" : "L"}${x} ${y}`, "")}
             style={i % 2 === 0 ? { stroke: "rgba(0, 0, 0, 0.3)", strokeWidth: 0.5 } : { stroke: palette(1 - i / lines.length), strokeWidth }}
@@ -1212,6 +1214,7 @@ function Root() {
   }, [state.planOptions]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies(setPlan): React setters are stable
+  // biome-ignore lint/correctness/useExhaustiveDependencies(state.planOptions): planOptions is managed elsewhere
   useEffect(() => {
     if (driver == null) return;
     driver.onprogress = (motionIdx: number) => {
@@ -1225,7 +1228,7 @@ function Root() {
     };
     driver.ondevinfo = (devInfo: DeviceInfo) => {
       dispatch({ type: "SET_DEVICE_INFO", value: devInfo });
-      dispatch({ type: "SET_PLAN_OPTION", value: { ... state.planOptions, hardware: devInfo.hardware } } );
+      dispatch({ type: "SET_PLAN_OPTION", value: { ...state.planOptions, hardware: devInfo.hardware } } );
     };
     driver.onpause = (paused: boolean) => {
       dispatch({ type: "SET_PAUSED", value: paused });
