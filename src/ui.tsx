@@ -312,9 +312,7 @@ class SaxiDriver implements Driver {
           this.onfinished?.();
         } break;
         case "dev": {
-          if (this.ondevinfo != null) {
-            this.ondevinfo(msg.p);
-          }
+          this.ondevinfo?.(msg.p);
         } break;
         case "svgio-enabled": {
           this.svgioEnabled?.(msg.p);
