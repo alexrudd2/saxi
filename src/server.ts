@@ -1,9 +1,9 @@
-import cors from "cors";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from 'node:path';
 import { autoDetect } from '@serialport/bindings-cpp';
 import type { PortInfo } from "@serialport/bindings-interface";
+import cors from "cors";
 import type { Request, Response } from "express";
 import express from "express";
 import { WakeLock } from "wake-lock";
