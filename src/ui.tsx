@@ -1233,15 +1233,16 @@ function Root() {
   useEffect(() => {
     const ondrop = (e: DragEvent) => {
       e.preventDefault();
+      document.body.classList.remove("dragover");
       if (e.dataTransfer === null) { return; }
       const item = e.dataTransfer.items[0];
       const file = item.getAsFile();
+      if (file === null ) { return; }
       const reader = new FileReader();
       setIsLoadingFile(true);
       setPlan(null);
       reader.onload = () => {
         dispatch(setPaths(readSvg(reader.result as string)));
-        document.body.classList.remove("dragover");
         setIsLoadingFile(false);
       };
       reader.onerror = () => {
