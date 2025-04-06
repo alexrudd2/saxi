@@ -599,12 +599,21 @@ function SvgIoOptions({ state }: { state: State }) {
 }
 
 function SwapPaperSizesButton({ onClick }: { onClick: () => void }) {
+  const handleKeyDown = (event: React.KeyboardEvent<SVGSVGElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault(); // Prevent scrolling with spacebar
+      onClick();
+    }
+  };
   return <svg
     className="paper-sizes__swap"
     xmlns="http://www.w3.org/2000/svg"
     width="14.05"
     height="11.46"
     viewBox="0 0 14.05 11.46"
+    onKeyDown={handleKeyDown}
+    // biome-ignore lint/a11y/noNoninteractiveTabindex: no need for a div wrapper
+    tabIndex={0}
     onClick={onClick}
   >
     <title>swap width and height</title>
