@@ -104,7 +104,7 @@ function reducer(state: State, action: Action): State {
     case "SET_CONNECTED":
       return { ...state, connected: action.connected };
     default:
-      console.warn(`Unrecognized action type '${action.type}'`);
+      console.warn(`Unrecognized action '${{ action }}'`);
       return state;
   }
 }
