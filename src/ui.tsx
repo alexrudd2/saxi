@@ -115,36 +115,41 @@ interface DeviceInfo {
   svgIoEnabled: boolean;
 }
 
-interface Driver {
-  onprogress: ((motionIdx: number) => void) | null;
-  oncancelled: (() => void) | null;
-  onfinished: (() => void) | null;
-  ondevinfo: ((devInfo: DeviceInfo) => void) | null;
-  onpause: ((paused: boolean) => void) | null;
-  onconnectionchange: ((connected: boolean) => void) | null;
-  onplan: ((plan: Plan) => void) | null;
+abstract class BaseDriver {
+  public onprogress: (motionIdx: number) => void = () => {};
+  public oncancelled: () => void = () => {};
+  public onfinished: () => void = () => {};
+  public ondevinfo: (devInfo: DeviceInfo) => void = () => {};
+  public onpause: (paused: boolean) => void = () => {};
+  public onconnectionchange: (connected: boolean) => void = () => {};
+  public onplan: (plan: Plan) => void = () => {};  
 
-  plot(plan: Plan): void;
-
-  cancel(): void;
-  pause(): void;
-  resume(): void;
-  setPenHeight(height: number, rate: number): void;
-  limp(): void;
-
-  name(): string;
-  close(): Promise<void>;
+  abstract plot(plan: Plan): void;
+  abstract cancel(): void;
+  abstract pause(): void;
+  abstract resume(): void;
+  abstract setPenHeight(height: number, rate: number): void;
+  abstract limp(): void;
+  abstract name(): string;
+  abstract close(): Promise<void>;
 }
 
-class WebSerialDriver implements Driver {
-  public onprogress: (motionIdx: number) => void;
-  public oncancelled: () => void;
-  public onfinished: () => void;
-  public ondevinfo: (devInfo: DeviceInfo) => void;
-  public onpause: (paused: boolean) => void;
-  public onconnectionchange: (connected: boolean) => void;
-  public onplan: (plan: Plan) => void;
+class NullDriver extends BaseDriver {
+  plot(): void {}
+  cancel(): void {}
+  pause(): void {}
+  resume(): void {}
+  setPenHeight(): void {}
+  limp(): void {}
+  name(): string {
+    return "NullDriver";
+  }
+  close(): Promise<void> {
+    return Promise.resolve();
+  }
+}
 
+class WebSerialDriver extends BaseDriver {
   private _unpaused: Promise<void> | null = null;
   private _signalUnpause: (() => void) | null = null;
   private _cancelRequested = false;
@@ -175,6 +180,7 @@ class WebSerialDriver implements Driver {
 
   private ebb: EBB;
   private constructor(ebb: EBB, name: string) {
+    super();
     this.ebb = ebb;
     this._name = name;
   }
@@ -192,14 +198,14 @@ class WebSerialDriver implements Driver {
     let motionIdx = 0;
     let penIsUp = true;
     for (const motion of plan.motions) {
-      if (this.onprogress) this.onprogress(motionIdx);
+      this.onprogress(motionIdx);
       await this.ebb.executeMotion(motion);
       if (motion instanceof PenMotion) {
         penIsUp = motion.initialPos < motion.finalPos;
       }
       if (this._unpaused && penIsUp) {
         await this._unpaused;
-        if (this.onpause) this.onpause(false);
+        this.onpause(false);
       }
       if (this._cancelRequested) { break; }
       motionIdx += 1;
@@ -214,9 +220,9 @@ class WebSerialDriver implements Driver {
         await this.ebb.setPenHeight(penUpPosition, 1000);
         await this.ebb.query('HM,4000'); // HM returns carriage home without 3rd and 4th arguments
       }
-      if (this.oncancelled) this.oncancelled();
+      this.oncancelled();
     } else {
-      if (this.onfinished) this.onfinished();
+      this.onfinished();
     }
 
     await this.ebb.waitUntilMotorsIdle();
@@ -231,7 +237,7 @@ class WebSerialDriver implements Driver {
     this._unpaused = new Promise(resolve => {
       this._signalUnpause = resolve;
     });
-    if (this.onpause) this.onpause(true);
+    this.onpause(true);
   }
 
   public resume(): void {
@@ -253,21 +259,12 @@ class WebSerialDriver implements Driver {
   }
 }
 
-class SaxiDriver implements Driver {
-  public static connect(): Driver {
+class SaxiDriver extends BaseDriver {
+  public static connect(): SaxiDriver {
     const d = new SaxiDriver();
     d.connect();
     return d;
   }
-
-  public onprogress: ((motionIdx: number) => void) | null = null;
-  public oncancelled: (() => void) | null = null;
-  public onfinished: (() => void) | null = null;
-  public ondevinfo: ((devInfo: DeviceInfo) => void) | null = null;
-  public onpause: ((paused: boolean) => void) | null = null;
-  public onconnectionchange: ((connected: boolean) => void) | null = null;
-  public onplan: ((plan: Plan) => void) | null = null;
-
   private socket: WebSocket;
   private connected: boolean;
   private pingInterval: number | undefined;
@@ -290,9 +287,7 @@ class SaxiDriver implements Driver {
     this.socket.addEventListener("open", () => {
       console.log("Connected to EBB server.");
       this.connected = true;
-      if (this.onconnectionchange) {
-        this.onconnectionchange(true);
-      }
+      this.onconnectionchange(true);
 
       this.pingInterval = window.setInterval(() => this.ping(), 30000);
     });
@@ -303,25 +298,25 @@ class SaxiDriver implements Driver {
           // nothing
         } break;
         case "progress": {
-          this.onprogress?.(msg.p.motionIdx);
+          this.onprogress(msg.p.motionIdx);
         } break;
         case "cancelled": {
-          this.oncancelled?.();
+          this.oncancelled();
         } break;
         case "finished": {
-          this.onfinished?.();
+          this.onfinished();
         } break;
         case "dev": {
-          this.ondevinfo?.(msg.p);
+          this.ondevinfo(msg.p);
         } break;
         case "svgio-enabled": {
-          this.svgioEnabled?.(msg.p);
+          this.svgioEnabled(msg.p);
         } break;
         case "pause": {
-          this.onpause?.(msg.p.paused);
+          this.onpause(msg.p.paused);
         } break;
         case "plan": {
-          this.onplan?.(Plan.deserialize(msg.p.plan));
+          this.onplan(Plan.deserialize(msg.p.plan));
         } break;
         default: {
           console.log("Unknown message from server:", msg);
@@ -336,7 +331,7 @@ class SaxiDriver implements Driver {
       window.clearInterval(this.pingInterval);
       this.pingInterval = undefined;
       this.connected = false;
-      if (this.onconnectionchange) { this.onconnectionchange(false); }
+      this.onconnectionchange(false);
       setTimeout(() => this.connect(), 5000);
     });
   }
@@ -458,7 +453,7 @@ const setPaths = (paths: (Vec2[] & { stroke: string, groupId: string })[]): Acti
   return { type: "SET_PATHS", paths, groupLayers, strokeLayers, selectedGroupLayers: new Set(groupLayers), selectedStrokeLayers: new Set(strokeLayers), layerMode };
 };
 
-function PenHeight({ state, driver }: { state: State; driver: Driver }) {
+function PenHeight({ state, driver }: { state: State; driver: BaseDriver }) {
   const { penUpHeight, penDownHeight, hardware } = state.planOptions;
   const dispatch = useContext(DispatchContext);
   const setPenUpHeight = (x: number) => dispatch({ type: "SET_PLAN_OPTION", value: { penUpHeight: x } });
@@ -706,7 +701,7 @@ function PaperConfig({ state }: { state: State }) {
   </div>;
 }
 
-function MotorControl({ driver }: { driver: Driver }) {
+function MotorControl({ driver }: { driver: BaseDriver }) {
   return <div>
     <button type="button" onClick={() => driver.limp()}>disengage motors</button>
   </div>;
@@ -930,7 +925,7 @@ function PlotButtons(
     state: State;
     plan: Plan | null;
     isPlanning: boolean;
-    driver: Driver;
+    driver: BaseDriver;
   }
 ) {
   function cancel() {
@@ -1145,8 +1140,8 @@ function PlanConfig({ state }: { state: State }) {
 }
 
 type PortSelectorProps = {
-  driver: Driver | null;
-  setDriver: (driver: Driver) => void;
+  driver: BaseDriver;
+  setDriver: (driver: BaseDriver) => void;
   hardware: Hardware;
 }
 
@@ -1168,8 +1163,7 @@ function PortSelector({ driver, setDriver, hardware }: PortSelectorProps) {
     })();
   });
   return <>
-    {driver ? `Connected: ${driver.name()}` : null}
-    {!driver ?
+    {!(driver instanceof NullDriver) ? `Connected: ${driver.name()}` :
       <button
         type="button"
         disabled={initializing}
@@ -1188,21 +1182,21 @@ function PortSelector({ driver, setDriver, hardware }: PortSelectorProps) {
         {/* TODO: allow changing port */}
         {initializing ? "Connecting..." : (driver ? "Change Port" : "Connect")}
       </button>
-      : null}
+    }
   </>;
 }
 
 function Root() {
-  const [driver, setDriver] = useState<Driver | null>(null);
+  const [driver, setDriver] = useState<BaseDriver>(new NullDriver);
   const [isDriverConnected, setIsDriverConnected] = useState(false);
   useEffect(() => {
     if (isDriverConnected) return;
     if (IS_WEB) {
-      setDriver(null);
+      setDriver(new NullDriver());
     } else {
       setDriver(SaxiDriver.connect());
+      setIsDriverConnected(true);
     }
-    setIsDriverConnected(true);
   }, [isDriverConnected]);
 
   const [state, dispatch] = useReducer(reducer, initialState);
