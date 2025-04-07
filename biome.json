@@ -1,29 +1,43 @@
 {
-    "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-    "formatter": {
-      "enabled": false
+	"$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+	"formatter": { 
+		"enabled": false,
+		"indentStyle": "space",
+		"lineWidth": 120
+
     },
-    "linter": {
-      "enabled": true,
-      "rules": {
-        "style": {
-            "useNumberNamespace": "off"
-        }
-      }
-    },
-    "overrides": [
-      {
-        "include": ["__tests__/**"],
-        "linter": {
-          "rules": {
-            "suspicious": {
-              "noExplicitAny": "off"
-            }
-          }
-        }
-      }
-    ],
-    "organizeImports": {
-      "enabled": true
-    }
-  }
+	"css": { "formatter": { "enabled": false } },
+	"organizeImports": { "enabled": true },
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true,
+			"a11y": { "noBlankTarget": "error" },
+			"correctness": {
+				"noInvalidUseBeforeDeclaration": "off",
+				"noUndeclaredVariables": "off"
+			},
+			"style": {
+				"noNamespace": "error",
+				"useNumberNamespace": "off"
+			}
+		}
+	},
+	"overrides": [
+		{
+			"include": ["__tests__/**"],
+			"linter": { 
+				"rules": { 
+					"suspicious": { 
+						"noExplicitAny": "off"
+					}
+				}
+			}
+		}
+	],
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	  }
+}
