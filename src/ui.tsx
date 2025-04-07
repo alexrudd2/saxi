@@ -376,7 +376,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
   const [latestPlan, setPlan] = useState<Plan | null>(null);
 
   function serialize(po: PlanOptions): string {
-    return JSON.stringify(po, (k, v) => v instanceof Set ? [...v] : v);
+    return JSON.stringify(po, (_k, v) => v instanceof Set ? [...v] : v);
   }
 
   function attemptRejigger(previousOptions: PlanOptions, newOptions: PlanOptions, previousPlan: Plan): Plan | null {

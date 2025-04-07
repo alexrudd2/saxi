@@ -2,7 +2,6 @@ import { AxidrawFast, Device, PenMotion, Plan, XYMotion, defaultPlanOptions, pla
 import type { Vec2 } from '../vec';
 
 describe("plan", () => {
-  const device = Device()
   const positions = {
     up: AxidrawFast.penUpPos,
     down: AxidrawFast.penDownPos
