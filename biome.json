@@ -11,6 +11,18 @@
         }
       }
     },
+    "overrides": [
+      {
+        "include": ["__tests__/**"],
+        "linter": {
+          "rules": {
+            "suspicious": {
+              "noExplicitAny": "off"
+            }
+          }
+        }
+      }
+    ],
     "organizeImports": {
       "enabled": true
     }
