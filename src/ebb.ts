@@ -10,9 +10,14 @@ function modf(d: number): [number, number] {
 
 export type Hardware = 'v3' | 'brushless'
 
+type CommandGenerator<TReturn = unknown> = Iterator<unknown, TReturn, Buffer> & {
+  resolve: (value: TReturn) => void;
+  reject: (reason: Error) => void;
+};
+
 export class EBB {
   public port: SerialPort;
-  private commandQueue: Iterator<any, any, Buffer>[];
+  private commandQueue: CommandGenerator[];
   private writer: WritableStreamDefaultWriter<Uint8Array>;
   private readableClosed: Promise<void>;
   public hardware: Hardware;
@@ -44,17 +49,17 @@ export class EBB {
             if (part.trim() === '') continue; // empty line
             if (this.commandQueue.length) {
               if (part[0] === '!') {  // error from EBB
-                (this.commandQueue.shift() as any).reject(new Error(part));
+                this.commandQueue.shift().reject(new Error(part));
                 continue;
               }
 
               try {
                 const d = this.commandQueue[0].next(Buffer.from(part, 'ascii'));
                 if (d.done) {
-                  (this.commandQueue.shift() as any).resolve(d.value);
+                  this.commandQueue.shift().resolve(d.value);
                 }
               } catch (e) {
-                (this.commandQueue.shift() as any).reject(e);
+                this.commandQueue.shift().reject(e);
               }
             } else {
               console.log(`unexpected data: ${part}`);
