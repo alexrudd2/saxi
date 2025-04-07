@@ -20,7 +20,7 @@
   },
   "scripts": {
     "prebuild": "npm run lint",
-    "lint": "eslint --cache --ext .ts,.tsx src && eslint --format stylish --fix src",
+    "lint": "eslint --cache --ext .ts,.tsx src && eslint --format stylish --fix src && npx @biomejs/biome lint src",
     "build": "npm run build:server && npm run build:ui",
     "build:server": "tsc",
     "build:ui": "node --experimental-modules build.mjs",
@@ -34,6 +34,7 @@
   "author": "Jeremy Rose <nornagon@nornagon.net>",
   "license": "AGPL-3.0-only",
   "devDependencies": {
+    "@biomejs/biome": "1.9.4",
     "@craftamap/esbuild-plugin-html": "^0.9.0",
     "@rehooks/component-size": "^1.0.2",
     "@serialport/bindings-cpp": "^12.0.0 || ^13.0.0",
