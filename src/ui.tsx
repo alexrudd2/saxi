@@ -268,7 +268,7 @@ class SaxiDriver extends BaseDriver {
   private socket: WebSocket;
   private connected: boolean;
   private pingInterval: number | undefined;
-  private svgioEnabled: ((enabled: boolean) => void);
+  svgioEnabled: ((enabled: boolean) => void);
 
   public name() {
     return 'Saxi Server';
@@ -1230,9 +1230,11 @@ function Root() {
     driver.onplan = (plan: Plan) => {
       setPlan(plan);
     };
-    driver.svgioEnabled = (enabled: boolean) => {
-      dispatch({ type: "SET_SVGIO_OPTION", value: { enabled } } );
-    };
+    if (driver instanceof SaxiDriver) {
+      driver.svgioEnabled = (enabled: boolean) => {
+        dispatch({ type: "SET_SVGIO_OPTION", value: { enabled } } );
+      };
+    }
   }, [driver]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies(setPlan): React setters are stable
