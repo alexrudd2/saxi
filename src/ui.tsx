@@ -707,7 +707,7 @@ function MotorControl({ driver }: { driver: BaseDriver }) {
   </div>;
 }
 
-function PlanStatistics({ plan }: { plan: Plan }) {
+function PlanStatistics({ plan }: { plan: Plan | null }) {
   return <div className="duration">
     <div>Duration</div>
     <div><strong>{plan?.duration ? formatDuration(plan.duration()) : "-"}</strong></div>
@@ -715,7 +715,7 @@ function PlanStatistics({ plan }: { plan: Plan }) {
 }
 
 function TimeLeft({ plan, progress, currentMotionStartedTime, paused }: {
-  plan: Plan;
+  plan: Plan | null;
   progress: number | null;
   currentMotionStartedTime: Date;
   paused: boolean;
