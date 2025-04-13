@@ -165,8 +165,8 @@ class NullDriver extends BaseDriver {
 }
 
 /**
- * Web Serial driver for the EBB. Implement interface by connecting directly to the Axi 
- * machine. Used on serverless configuration (IS_WEB=true), where the control is handled
+ * WebSerial driver for the EBB. Implement interface by connecting directly to the Axi 
+ * machine. Used on serverless configuration (IS_WEB is set), where the control is handled
  * directly on the browser.
  */
 class WebSerialDriver extends BaseDriver {
@@ -282,7 +282,7 @@ class WebSerialDriver extends BaseDriver {
 /**
  * Saxi Serial driver for the EBB. Implement interface by connecting to the Axi 
  * through the saxi web server, which handles the control. Used in the default
- * configuration (IS_WEB=true).
+ * configuration (IS_WEB is unset).
  */
 class SaxiDriver extends BaseDriver {
   public static connect(): SaxiDriver {
