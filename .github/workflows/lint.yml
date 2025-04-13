@@ -27,3 +27,7 @@ jobs:
         cache: 'npm'
     - run: npm ci
     - run: npm test
+
+permissions:
+  contents: read
+  pull-requests: read

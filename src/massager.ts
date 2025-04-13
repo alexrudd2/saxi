@@ -1,7 +1,7 @@
-import { reorder as sortPaths, elideShorterThan, merge as joinNearbyPaths } from "optimize-paths";
-import { Device, type Plan, type PlanOptions, plan } from "./planning";
-import { dedupPoints, scaleToPaper, cropToMargins } from "./util";
-import { type Vec2, vmul, vrot } from "./vec";
+import { elideShorterThan, merge as joinNearbyPaths, reorder as sortPaths } from "optimize-paths";
+import { Device, type Plan, type PlanOptions, plan } from "./planning.js";
+import { cropToMargins, dedupPoints, scaleToPaper } from "./util.js";
+import { type Vec2, vmul, vrot } from "./vec.js";
 
 // CSS, and thus SVG, defines 1px = 1/96th of 1in
 // https://www.w3.org/TR/css-values-4/#absolute-lengths
@@ -9,7 +9,13 @@ const svgUnitsPerInch = 96;
 const mmPerInch = 25.4;
 const mmPerSvgUnit = mmPerInch / svgUnitsPerInch;
 
-export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
+/**
+ * Create a plan based on new vectors and plan options
+ * @param inPaths 
+ * @param planOptions 
+ * @returns 
+ */
+export function replan(inPaths: (Vec2[] & { stroke?: string, groupId?: string })[], planOptions: PlanOptions): Plan {
   let paths = inPaths;
   const device = Device(planOptions.hardware);
 
@@ -40,9 +46,9 @@ export function replan(inPaths: Vec2[][], planOptions: PlanOptions): Plan {
   // filter based on the stroke. Rescaling doesn't change the number or order
   // of the paths.
   if (planOptions.layerMode === 'group') {
-    paths = paths.filter((path, i) => planOptions.selectedGroupLayers.has((inPaths[i] as any).groupId));
+    paths = paths.filter((_path, i) => planOptions.selectedGroupLayers.has(inPaths[i].groupId));
   } else if (planOptions.layerMode === 'stroke') {
-    paths = paths.filter((path, i) => planOptions.selectedStrokeLayers.has((inPaths[i] as any).stroke));
+    paths = paths.filter((_path, i) => planOptions.selectedStrokeLayers.has(inPaths[i].stroke));
   }
 
   if (planOptions.pointJoinRadius > 0) {

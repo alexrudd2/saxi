@@ -1,14 +1,19 @@
-import yargs from "yargs";
-import { connectEBB, startServer } from "./server";
-import { replan } from "./massager";
-import { Window } from "svgdom";
+/**
+ * Starting point for the server app (Command Line Interface).
+ * Execute also one-off instructions on the device.
+ */
 import { readFileSync } from "node:fs";
-import { flattenSVG, type Line } from "flatten-svg";
-import type { Vec2 } from "./vec";
-import { formatDuration } from "./util";
-import { Device, type PlanOptions, defaultPlanOptions } from "./planning";
-import { PaperSize } from "./paper-size";
-import type { Hardware } from "./ebb";
+import { type Line, flattenSVG } from "flatten-svg";
+import { Window } from "svgdom";
+import yargs from "yargs";
+import { hideBin } from 'yargs/helpers';
+import type { Hardware } from "./ebb.js";
+import { replan } from "./massager.js";
+import { PaperSize } from "./paper-size.js";
+import { Device, type PlanOptions, defaultPlanOptions } from "./planning.js";
+import { connectEBB, startServer } from "./server.js";
+import { formatDuration } from "./util.js";
+import type { Vec2 } from "./vec.js";
 
 function parseSvg(svg: string) {
   const window = new Window;
@@ -16,8 +21,12 @@ function parseSvg(svg: string) {
   return window.document.documentElement;
 }
 
+/**
+ * Process command arguments.
+ * @param argv
+ */
 export function cli(argv: string[]): void {
-  yargs
+  yargs(hideBin(process.argv))
     .strict()
     .option('hardware', {
       describe: 'select hardware type',
@@ -249,19 +258,28 @@ export function cli(argv: string[]): void {
         .option('max-payload-size', {
           describe: 'maximum payload size to accept',
           default: '200mb',
+        })
+        .option('svgio-api-key', {
+          describe: 'API Key - to enable AI image generation with SVG IO',
+          default: '',
         }),
       args => {
-        startServer(args.port, args.hardware, args.device, args['enable-cors'], args['max-payload-size']);
+        startServer(args.port, args.hardware, args.device, args['enable-cors'], args['max-payload-size'], args['svgio-api-key']);
       }
     )
     .parse(argv);
 }
-
-function linesToVecs(lines: Line[]): Vec2[][] {
-  return lines.map((line) => {
-    const a = line.points.map(([x, y]: [number, number]) => ({ x, y }));
-    (a as any).stroke = line.stroke;
-    (a as any).groupId = line.groupId;
+/**
+ * Convert a list of lines into a Vectors matrix to display on the
+ * plot canvas.
+ * @param lines 
+ * @returns 
+ */
+function linesToVecs(lines: Line[]): (Vec2[] & { stroke: string, groupId: string })[] {
+  return lines.map(({ points, stroke, groupId }) => {
+    const a = points.map(([x, y]) => ({ x, y })) as (Vec2[] & { stroke: string, groupId: string });
+    a.stroke = stroke;
+    a.groupId = groupId;
     return a;
   });
 }

@@ -1,3 +1,7 @@
+/**
+ * Worker for serializing a plan.
+ * Meant to be invoked through the Worker interface.
+ */
 import { replan } from './massager';
 
 self.addEventListener("message", (m) => {
@@ -8,7 +12,3 @@ self.addEventListener("message", (m) => {
   console.timeEnd("serializing");
   self.postMessage(serialized);
 });
-
-export default {} as typeof Worker & {
-  new(): Worker;
-};

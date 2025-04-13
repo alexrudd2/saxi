@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
-import { SerialPort as NodeSerialPort } from "serialport";
 import type { OpenOptions } from "@serialport/bindings-interface";
+import { SerialPort as NodeSerialPort } from "serialport";
 
 function readableStreamFromAsyncIterable<T>(iterable: AsyncIterable<T>) {
   const it = iterable[Symbol.asyncIterator]();
@@ -35,6 +35,7 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
   public ondisconnect: (this: this, ev: Event) => void;
   public readable: ReadableStream<Uint8Array>;
   public writable: WritableStream<Uint8Array>;
+  public connected: boolean;
 
   public forget(): Promise<void> {
     return Promise.resolve();
@@ -64,6 +65,7 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
         else {
           this._port.drain();
           resolve();
+          this.connected = true;
         }
       });
       this.readable = readableStreamFromAsyncIterable(this._port);
@@ -103,6 +105,7 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
       this._port.close((err: Error) => {
         if (err) reject(err);
         else resolve();
+        this.connected = false;
       });
     });
   }
