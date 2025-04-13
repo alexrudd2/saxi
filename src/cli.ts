@@ -1,3 +1,7 @@
+/**
+ * Starting point for the server app (Command Line Interface).
+ * Execute also one-off instructions on the device.
+ */
 import { readFileSync } from "node:fs";
 import { type Line, flattenSVG } from "flatten-svg";
 import { Window } from "svgdom";
@@ -17,6 +21,10 @@ function parseSvg(svg: string) {
   return window.document.documentElement;
 }
 
+/**
+ * Process command arguments.
+ * @param argv
+ */
 export function cli(argv: string[]): void {
   yargs(hideBin(process.argv))
     .strict()
@@ -261,7 +269,12 @@ export function cli(argv: string[]): void {
     )
     .parse(argv);
 }
-
+/**
+ * Convert a list of lines into a Vectors matrix to display on the
+ * plot canvas.
+ * @param lines 
+ * @returns 
+ */
 function linesToVecs(lines: Line[]): (Vec2[] & { stroke: string, groupId: string })[] {
   return lines.map(({ points, stroke, groupId }) => {
     const a = points.map(([x, y]) => ({ x, y })) as (Vec2[] & { stroke: string, groupId: string });

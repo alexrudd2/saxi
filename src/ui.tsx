@@ -1,3 +1,6 @@
+/**
+ * Front-end for plotter app.
+ */
 import useComponentSize from "@rehooks/component-size";
 import interpolator from "color-interpolate";
 import colormap from "colormap";
@@ -83,6 +86,12 @@ type Dispatcher = React.Dispatch<Action>;
 const nullDispatch: Dispatcher = () => null;
 const DispatchContext = React.createContext<Dispatcher>(nullDispatch);
 
+/**
+ * State machine reducer. Handle actions that update the state.
+ * @param state Previous state
+ * @param action Message
+ * @returns New state
+ */
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "SET_PLAN_OPTION":
@@ -115,6 +124,9 @@ interface DeviceInfo {
   svgIoEnabled: boolean;
 }
 
+/**
+ * Driver interface for the Axi machine.
+ */
 abstract class BaseDriver {
   public onprogress: (motionIdx: number) => void = () => {};
   public oncancelled: () => void = () => {};
@@ -122,6 +134,9 @@ abstract class BaseDriver {
   public ondevinfo: (devInfo: DeviceInfo) => void = () => {};
   public onpause: (paused: boolean) => void = () => {};
   public onconnectionchange: (connected: boolean) => void = () => {};
+  /**
+   * Called when plan loaded
+   */
   public onplan: (plan: Plan) => void = () => {};  
 
   abstract plot(plan: Plan): void;
@@ -149,6 +164,11 @@ class NullDriver extends BaseDriver {
   }
 }
 
+/**
+ * WebSerial driver for the EBB. Implement interface by connecting directly to the Axi 
+ * machine. Used on serverless configuration (IS_WEB is set), where the control is handled
+ * directly on the browser.
+ */
 class WebSerialDriver extends BaseDriver {
   private _unpaused: Promise<void> | null = null;
   private _signalUnpause: (() => void) | null = null;
@@ -259,6 +279,11 @@ class WebSerialDriver extends BaseDriver {
   }
 }
 
+/**
+ * Saxi Serial driver for the EBB. Implement interface by connecting to the Axi 
+ * through the saxi web server, which handles the control. Used in the default
+ * configuration (IS_WEB is unset).
+ */
 class SaxiDriver extends BaseDriver {
   public static connect(): SaxiDriver {
     const d = new SaxiDriver();

@@ -1,3 +1,10 @@
+/**
+ * Backend web server for controlling the EBB.
+ * Serve both the front end UI as static files - made with React, and backend
+ * API for controlling the EBB.
+ * Keep open web sockets to the front end for real-time updates.
+ */
+
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from 'node:path';
@@ -17,10 +24,25 @@ import { formatDuration } from "./util.js";
 
 type Com = string
 
+/**
+ * Shorthand for getting the device info, either EBB or com port.
+ * @param ebb 
+ * @param com 
+ * @returns 
+ */
 const getDeviceInfo = (ebb: EBB | null, com: Com) => {
   return { com: ebb ? com : null, hardware: ebb?.hardware };
-};
+}
 
+/**
+ * Start the express server.
+ * @param port 
+ * @param hardware 
+ * @param com 
+ * @param enableCors 
+ * @param maxPayloadSize 
+ * @returns 
+ */
 export async function startServer(port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, maxPayloadSize = '200mb', svgIoApiKey = '') {
   const app = express();
   app.use('/', express.static(path.join(path.resolve(), 'dist', 'ui')));
@@ -28,7 +50,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
   if (enableCors) {
     app.use(cors());
   }
-
+  // Web and Socket server
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server });
 
@@ -65,6 +87,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
       }
     });
 
+    // send starting params to clients
     ws.send(JSON.stringify({ c: 'dev', p: getDeviceInfo(ebb, com) }));
 
     ws.send(JSON.stringify({ c: 'svgio-enabled', p: svgIoApiKey !== '' }));
@@ -82,6 +105,9 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
     });
   });
 
+  /**
+   * /plot POST endpoint. Receive a plan on the POST body, and execute it.
+   */
   app.post("/plot", async(req: Request, res: Response) => {
     if (plotting) {
       console.log("Received plot request, but a plot is already in progress!");

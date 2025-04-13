@@ -9,6 +9,12 @@ const svgUnitsPerInch = 96;
 const mmPerInch = 25.4;
 const mmPerSvgUnit = mmPerInch / svgUnitsPerInch;
 
+/**
+ * Create a plan based on new vectors and plan options
+ * @param inPaths 
+ * @param planOptions 
+ * @returns 
+ */
 export function replan(inPaths: (Vec2[] & { stroke?: string, groupId?: string })[], planOptions: PlanOptions): Plan {
   let paths = inPaths;
   const device = Device(planOptions.hardware);
