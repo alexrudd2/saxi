@@ -1,5 +1,5 @@
-import { cropToMargins } from '../util'
 import { PaperSize } from '../paper-size'
+import { cropToMargins } from '../util'
 import type { Vec2 } from '../vec'
 
 describe("crop to margins", () => {

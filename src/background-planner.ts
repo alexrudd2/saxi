@@ -12,5 +12,3 @@ self.addEventListener("message", (m) => {
   console.timeEnd("serializing");
   self.postMessage(serialized);
 });
-
-export {};

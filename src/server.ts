@@ -5,23 +5,22 @@
  * Keep open web sockets to the front end for real-time updates.
  */
 
-import cors from "cors";
-import "web-streams-polyfill/polyfill";
-import type { Response, Request } from "express";
-import express from "express";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
+import path from 'node:path';
+import { autoDetect } from '@serialport/bindings-cpp';
 import type { PortInfo } from "@serialport/bindings-interface";
+import cors from "cors";
+import type { Request, Response } from "express";
+import express from "express";
 import { WakeLock } from "wake-lock";
 import type WebSocket from 'ws';
 import { WebSocketServer } from 'ws';
-import { SerialPortSerialPort } from "./serialport-serialport.js";
-import { PenMotion, type Motion, Plan } from "./planning.js";
-import { formatDuration } from "./util.js";
-import { autoDetect } from '@serialport/bindings-cpp';
-import * as _self from './server.js';  // use self-import for test mocking
 import { EBB, type Hardware } from './ebb.js';
-import path from 'node:path';
+import { type Motion, PenMotion, Plan } from "./planning.js";
+import { SerialPortSerialPort } from "./serialport-serialport.js";
+import * as _self from './server.js';  // use self-import for test mocking
+import { formatDuration } from "./util.js";
 
 type Com = string
 
@@ -44,7 +43,7 @@ const getDeviceInfo = (ebb: EBB | null, com: Com) => {
  * @param maxPayloadSize 
  * @returns 
  */
-export async function startServer (port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, maxPayloadSize = '200mb') {
+export async function startServer(port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, maxPayloadSize = '200mb', svgIoApiKey = '') {
   const app = express();
   app.use('/', express.static(path.join(path.resolve(), 'dist', 'ui')));
   app.use(express.json({ limit: maxPayloadSize }));
@@ -77,7 +76,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
           break;
         case "setPenHeight":
           if (ebb) {
-            (async () => {
+            (async() => {
               if (await ebb.supportsSR()) {
                 await ebb.setServoPowerTimeout(10000, true);
               }
@@ -90,6 +89,8 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
 
     // send starting params to clients
     ws.send(JSON.stringify({ c: 'dev', p: getDeviceInfo(ebb, com) }));
+
+    ws.send(JSON.stringify({ c: 'svgio-enabled', p: svgIoApiKey !== '' }));
 
     ws.send(JSON.stringify({ c: "pause", p: { paused: !!unpaused } }));
     if (motionIdx != null) {
@@ -107,7 +108,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
   /**
    * /plot POST endpoint. Receive a plan on the POST body, and execute it.
    */
-  app.post("/plot", async (req: Request, res: Response) => {
+  app.post("/plot", async(req: Request, res: Response) => {
     if (plotting) {
       console.log("Received plot request, but a plot is already in progress!");
       res.status(400).send('Plot in progress');
@@ -122,6 +123,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
       res.status(200).end();
 
       const begin = Date.now();
+      // biome-ignore lint/suspicious/noExplicitAny: need a new strategy for wakeLock
       let wakeLock: any;
       // The wake-lock module is macOS-only.
       if (process.platform === 'darwin') {
@@ -173,7 +175,44 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
     res.status(200).end();
   });
 
-  function broadcast(msg: any) {
+  app.post("/generate", async(req: Request, res: Response) => {
+    if (plotting) {
+      console.log("Received generate request, but a plot is already in progress!");
+      res.status(400).end('Plot in progress');
+      return;
+    }
+    const { prompt, vecType } = req.body;
+    try {
+      // call the api and return the svg
+      const apiResp = await fetch('https://api.svg.io/v1/generate-image', {
+        method: 'post',
+        headers: {
+          Authorization: `Bearer ${svgIoApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt, style: vecType, negativePrompt: '' })
+      });
+      // forward the api response
+      const data = await apiResp.json();
+      res.status(apiResp.status).send(data).end();
+    } catch (err) {
+      console.error(err);
+      res.status(500).end();
+    }
+  });
+
+  app.post("/change-hardware", (_req, res) => {
+    if (ebb?.hardware === 'brushless') {
+      ebb.hardware = 'v3';
+    } else if (ebb?.hardware === 'v3') {
+      ebb.hardware = 'brushless';
+    }
+    broadcast({ c: 'dev', p: getDeviceInfo(ebb, com) });
+    // fixme: change planning.ts : Device
+    res.status(200).end();
+  });
+
+  function broadcast(msg: Record<string, unknown>) {
     for (const client of clients) {
       try {
         client.send(JSON.stringify(msg));
@@ -262,7 +301,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
 
   return new Promise<http.Server>((resolve) => {
     server.listen(port, () => {
-      async function connect () {
+      async function connect() {
         const devices = ebbs(com, hardware);
         for await (const device of devices) {
           ebb = device;
@@ -278,7 +317,7 @@ export async function startServer (port: number, hardware: Hardware = 'v3', com:
   });
 }
 
-async function tryOpen (com: Com) {
+async function tryOpen(com: Com) {
   const port = new SerialPortSerialPort(com);
   await port.open({ baudRate: 9600 });
   return port;
@@ -298,8 +337,8 @@ async function listEBBs() {
   return ports.filter(isEBB).map((p: { path: string }) => p.path);
 }
 
-export async function waitForEbb (): Promise<Com> {
-// eslint-disable-next-line no-constant-condition
+export async function waitForEbb(): Promise<Com> {
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     const ebbs = await listEBBs();
     if (ebbs.length) {
@@ -309,7 +348,7 @@ export async function waitForEbb (): Promise<Com> {
   }
 }
 
-async function * ebbs (path?: string, hardware: Hardware = 'v3') {
+async function* ebbs(path?: string, hardware: Hardware = 'v3') {
   while (true) {
     try {
       const com: Com = path || (await _self.waitForEbb()); // use self-import for test mocking
@@ -330,13 +369,14 @@ async function * ebbs (path?: string, hardware: Hardware = 'v3') {
   }
 }
 
-export async function connectEBB (hardware: Hardware, device: string | undefined): Promise<EBB | null> {
+export async function connectEBB(hardware: Hardware, device: string | undefined): Promise<EBB | null> {
+  let dev = device;
   if (!device) {
     const ebbs = await listEBBs();
     if (ebbs.length === 0) return null;
-    device = ebbs[0];
+    dev = ebbs[0];
   }
 
-  const port = await tryOpen(device);
+  const port = await tryOpen(dev);
   return new EBB(port, hardware);
 }

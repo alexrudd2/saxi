@@ -1,5 +1,4 @@
 import { type Block, type Motion, PenMotion, type Plan, XYMotion } from "./planning.js";
-import { RegexParser } from "./regex-transform-stream.js";
 import { type Vec2, vsub } from "./vec.js";
 
 /** Split d into its fractional and integral parts */
@@ -11,9 +10,14 @@ function modf(d: number): [number, number] {
 
 export type Hardware = 'v3' | 'brushless'
 
+type CommandGenerator<TReturn = unknown> = Iterator<unknown, TReturn, Buffer> & {
+  resolve: (value: TReturn) => void;
+  reject: (reason: Error) => void;
+};
+
 export class EBB {
   public port: SerialPort;
-  private commandQueue: Iterator<any, any, Buffer>[];
+  private commandQueue: CommandGenerator[];
   private writer: WritableStreamDefaultWriter<Uint8Array>;
   private readableClosed: Promise<void>;
   public hardware: Hardware;
@@ -25,34 +29,41 @@ export class EBB {
 
   private cachedFirmwareVersion: [number, number, number] | undefined = undefined;
 
-  public constructor (port: SerialPort, hardware: Hardware = 'v3') {
+  public constructor(port: SerialPort, hardware: Hardware = 'v3') {
     this.hardware = hardware;
-    console.log(this.hardware);
     this.port = port;
     this.writer = this.port.writable.getWriter();
     this.commandQueue = [];
+    
+    let buffer = '';
+
     this.readableClosed = port.readable
-      .pipeThrough(new RegexParser({ regex: /[\r\n]+/ }))
+      .pipeThrough(new TextDecoderStream())
       .pipeTo(new WritableStream({
         write: (chunk) => {
-          if (/^[\r\n]*$/.test(chunk)) return;
-          if (this.commandQueue.length) {
-            if (chunk[0] === "!".charCodeAt(0)) {
-              (this.commandQueue.shift() as any).reject(new Error(chunk.toString("ascii")));
-              return;
-            }
-            try {
-              const d = this.commandQueue[0].next(chunk);
-              if (d.done) {
-                (this.commandQueue.shift() as any).resolve(d.value);
-                return;
+          buffer += chunk;
+          const parts = buffer.split(/[\r\n]+/);  // each command is on a different line
+          buffer = parts.pop() || '';
+
+          for (const part of parts) {
+            if (part.trim() === '') continue; // empty line
+            if (this.commandQueue.length) {
+              if (part[0] === '!') {  // error from EBB
+                this.commandQueue.shift().reject(new Error(part));
+                continue;
               }
-            } catch (e) {
-              (this.commandQueue.shift() as any).reject(e);
-              return;
+
+              try {
+                const d = this.commandQueue[0].next(Buffer.from(part, 'ascii'));
+                if (d.done) {
+                  this.commandQueue.shift().resolve(d.value);
+                }
+              } catch (e) {
+                this.commandQueue.shift().reject(e);
+              }
+            } else {
+              console.log(`unexpected data: ${part}`);
             }
-          } else {
-            console.log(`unexpected data: ${chunk}`);
           }
         }
       }));
@@ -157,7 +168,7 @@ export class EBB {
    * or off) depending on its value, in addition to setting the power-off
    * timeout duration.
    *
-   * NB. this command is only avaliable on firmware v2.6.0 and hardware of at
+   * NB. this command is only available on firmware v2.6.0 and hardware of at
    * least version 2.5.0.
    */
   public async setServoPowerTimeout(timeout: number, power?: boolean) {
@@ -165,7 +176,7 @@ export class EBB {
   }
 
   // https://evil-mad.github.io/EggBot/ebb.html#S2 General RC Servo Output
-  public async setPenHeight (height: number, rate: number, delay = 0): Promise<void> {
+  public async setPenHeight(height: number, rate: number, delay = 0): Promise<void> {
     const output_pin = this.hardware === 'v3' ? 4 : 5;
     return await this.command(`S2,${height},${output_pin},${rate},${delay}`);
   }

@@ -2,27 +2,34 @@
  * Front-end for plotter app.
  */
 import useComponentSize from "@rehooks/component-size";
-import React, { type ChangeEvent, Fragment, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useReducer } from "react";
-import { createRoot } from 'react-dom/client';
 import interpolator from "color-interpolate";
 import colormap from "colormap";
+import React, { type ChangeEvent, Fragment, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useReducer } from "react";
+import { createRoot } from 'react-dom/client';
 
-import { flattenSVG } from "flatten-svg";
+import { type Line, flattenSVG } from "flatten-svg";
 import { PaperSize } from "./paper-size";
-import { Device, Plan, type PlanOptions, defaultPlanOptions, XYMotion, PenMotion } from "./planning.js";
+import { Device, type MotionData, PenMotion, Plan, type PlanOptions, XYMotion, defaultPlanOptions } from "./planning.js";
 import { formatDuration } from "./util.js";
 import type { Vec2 } from "./vec.js";
 
 import "./style.css";
 
+import { EBB, type Hardware } from "./ebb";
 import pathJoinRadiusIcon from "./icons/path-joining radius.svg";
 import pointJoinRadiusIcon from "./icons/point-joining radius.svg";
 import rotateDrawingIcon from "./icons/rotate-drawing.svg";
-import { EBB, type Hardware } from "./ebb";
 
 const defaultVisualizationOptions = {
   penStrokeWidth: 0.5,
   colorPathsByStrokeOrder: false,
+};
+
+const defaultSvgIoOptions = {
+  enabled: false,
+  prompt: '',
+  status: '',
+  vecType: 'FLAT_VECTOR'
 };
 
 const initialState = {
@@ -35,6 +42,7 @@ const initialState = {
   // UI state
   planOptions: defaultPlanOptions,
   visualizationOptions: defaultVisualizationOptions,
+  svgIoOptions: defaultSvgIoOptions,
 
   // Options used to produce the current value of |plan|.
   plannedOptions: null as PlanOptions | null,
@@ -56,7 +64,25 @@ initialState.planOptions.paperSize = new PaperSize(initialState.planOptions.pape
 
 type State = typeof initialState;
 
-type Dispatcher = React.Dispatch<{ type: string; value: Record<string, any> }>;
+type Action =
+  | { type: "SET_PLAN_OPTION"; value: Partial<State["planOptions"]> }
+  | { type: "SET_VISUALIZATION_OPTION"; value: Partial<State["visualizationOptions"]> }
+  | { type: "SET_SVGIO_OPTION"; value: Partial<State["svgIoOptions"]> }
+  | { type: "SET_DEVICE_INFO"; value: State["deviceInfo"] }
+  | { type: "SET_PAUSED"; value: boolean }
+  | { type: "SET_PROGRESS"; motionIdx: number | null }
+  | { type: "SET_CONNECTED"; connected: boolean }
+  | {
+    type: "SET_PATHS";
+    paths: State["paths"];
+    strokeLayers: State["strokeLayers"];
+    selectedStrokeLayers: State["planOptions"]["selectedStrokeLayers"];
+    groupLayers: State["groupLayers"];
+    selectedGroupLayers: State["planOptions"]["selectedGroupLayers"];
+    layerMode: State["planOptions"]["layerMode"];
+  };
+
+type Dispatcher = React.Dispatch<Action>;
 const nullDispatch: Dispatcher = () => null;
 const DispatchContext = React.createContext<Dispatcher>(nullDispatch);
 
@@ -66,26 +92,28 @@ const DispatchContext = React.createContext<Dispatcher>(nullDispatch);
  * @param action Message
  * @returns New state
  */
-function reducer(state: State, action: any): State {
+function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "SET_PLAN_OPTION":
       return { ...state, planOptions: { ...state.planOptions, ...action.value } };
     case "SET_VISUALIZATION_OPTION":
       return { ...state, visualizationOptions: { ...state.visualizationOptions, ...action.value } };
+    case "SET_SVGIO_OPTION":
+      return { ...state, svgIoOptions: { ...state.svgIoOptions, ...action.value } };
     case "SET_DEVICE_INFO":
       return { ...state, deviceInfo: action.value };
     case "SET_PAUSED":
       return { ...state, paused: action.value };
-    case "SET_PATHS":
-      // eslint-disable-next-line no-case-declarations
+    case "SET_PATHS": {
       const { paths, strokeLayers, selectedStrokeLayers, groupLayers, selectedGroupLayers, layerMode } = action;
       return { ...state, paths, groupLayers, strokeLayers, planOptions: { ...state.planOptions, selectedStrokeLayers, selectedGroupLayers, layerMode } };
+    }
     case "SET_PROGRESS":
       return { ...state, progress: action.motionIdx };
     case "SET_CONNECTED":
       return { ...state, connected: action.connected };
     default:
-      console.warn(`Unrecognized action type '${action.type}'`);
+      console.warn(`Unrecognized action '${{ action }}'`);
       return state;
   }
 }
@@ -93,56 +121,47 @@ function reducer(state: State, action: any): State {
 interface DeviceInfo {
   path: string;
   hardware: Hardware;
+  svgIoEnabled: boolean;
 }
 
 /**
  * Driver interface for the Axi machine.
  */
-interface Driver {
-  onprogress: ((motionIdx: number) => void) | null;
-  oncancelled: (() => void) | null;
-  onfinished: (() => void) | null;
-  ondevinfo: ((devInfo: DeviceInfo) => void) | null;
-  onpause: ((paused: boolean) => void) | null;
-  onconnectionchange: ((connected: boolean) => void) | null;
+abstract class BaseDriver {
+  public onprogress: (motionIdx: number) => void = () => {};
+  public oncancelled: () => void = () => {};
+  public onfinished: () => void = () => {};
+  public ondevinfo: (devInfo: DeviceInfo) => void = () => {};
+  public onpause: (paused: boolean) => void = () => {};
+  public onconnectionchange: (connected: boolean) => void = () => {};
   /**
    * Called when plan loaded
    */
-  onplan: ((plan: Plan) => void) | null;
+  public onplan: (plan: Plan) => void = () => {};  
 
-  /**
-   * Send the pen to the top left corner of the page.
-   */
-  reset(): void;
+  abstract plot(plan: Plan): void;
+  abstract cancel(): void;
+  abstract pause(): void;
+  abstract resume(): void;
+  abstract setPenHeight(height: number, rate: number): void;
+  abstract limp(): void;
+  abstract name(): string;
+  abstract close(): Promise<void>;
+}
 
-  /**
-   * Plot the given plan.
-   */
-  plot(plan: Plan): void;
-
-  /**
-   * Cancel the current plot.
-   */
-  cancel(): void;
-
-  /**
-   * Pause the current plot.
-   */
-  pause(): void;
-
-  /**
-   * Resume the current plot.
-   */
-  resume(): void;
-
-  /**
-   * Set the pen height.
-   */
-  setPenHeight(height: number, rate: number): void;
-  limp(): void;
-
-  name(): string;
-  close(): Promise<void>;
+class NullDriver extends BaseDriver {
+  plot(): void {}
+  cancel(): void {}
+  pause(): void {}
+  resume(): void {}
+  setPenHeight(): void {}
+  limp(): void {}
+  name(): string {
+    return "NullDriver";
+  }
+  close(): Promise<void> {
+    return Promise.resolve();
+  }
 }
 
 /**
@@ -150,21 +169,14 @@ interface Driver {
  * machine. Used on serverless configuration (IS_WEB=true), where the control is handled
  * directly on the browser.
  */
-class WebSerialDriver implements Driver {
-  public onprogress: (motionIdx: number) => void;
-  public oncancelled: () => void;
-  public onfinished: () => void;
-  public ondevinfo: (devInfo: DeviceInfo) => void;
-  public onpause: (paused: boolean) => void;
-  public onconnectionchange: (connected: boolean) => void;
-  public onplan: (plan: Plan) => void;
-
+class WebSerialDriver extends BaseDriver {
   private _unpaused: Promise<void> | null = null;
   private _signalUnpause: (() => void) | null = null;
   private _cancelRequested = false;
 
   public static async connect(port?: SerialPort, hardware: Hardware = 'v3') {
     if (!port)
+      // biome-ignore lint/style/noParameterAssign: trivial
       port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x04D8, usbProductId: 0xFD92 }] });
     // baudRate ref: https://github.com/evil-mad/plotink/blob/a45739b7d41b74d35c1e933c18949ed44c72de0e/plotink/ebb_serial.py#L281
     // (doesn't specify baud rate)
@@ -188,6 +200,7 @@ class WebSerialDriver implements Driver {
 
   private ebb: EBB;
   private constructor(ebb: EBB, name: string) {
+    super();
     this.ebb = ebb;
     this._name = name;
   }
@@ -205,14 +218,14 @@ class WebSerialDriver implements Driver {
     let motionIdx = 0;
     let penIsUp = true;
     for (const motion of plan.motions) {
-      if (this.onprogress) this.onprogress(motionIdx);
+      this.onprogress(motionIdx);
       await this.ebb.executeMotion(motion);
       if (motion instanceof PenMotion) {
         penIsUp = motion.initialPos < motion.finalPos;
       }
       if (this._unpaused && penIsUp) {
         await this._unpaused;
-        if (this.onpause) this.onpause(false);
+        this.onpause(false);
       }
       if (this._cancelRequested) { break; }
       motionIdx += 1;
@@ -223,13 +236,13 @@ class WebSerialDriver implements Driver {
       if (!penIsUp) {
         // Move to the pen up position, or 50% if no position was found
         const penMotion = plan.motions.find((motion): motion is PenMotion => motion instanceof PenMotion);
-        const penUpPosition = penMotion ? Math.max(penMotion.initialPos, penMotion.finalPos) :  device.penPctToPos(50);
+        const penUpPosition = penMotion ? Math.max(penMotion.initialPos, penMotion.finalPos) : device.penPctToPos(50);
         await this.ebb.setPenHeight(penUpPosition, 1000);
         await this.ebb.query('HM,4000'); // HM returns carriage home without 3rd and 4th arguments
       }
-      if (this.oncancelled) this.oncancelled();
+      this.oncancelled();
     } else {
-      if (this.onfinished) this.onfinished();
+      this.onfinished();
     }
 
     await this.ebb.waitUntilMotorsIdle();
@@ -244,14 +257,14 @@ class WebSerialDriver implements Driver {
     this._unpaused = new Promise(resolve => {
       this._signalUnpause = resolve;
     });
-    if (this.onpause) this.onpause(true);
+    this.onpause(true);
   }
 
   public resume(): void {
     const signal = this._signalUnpause;
     this._unpaused = null;
     this._signalUnpause = null;
-    signal();
+    signal?.();
   }
 
   public async setPenHeight(height: number, rate: number): Promise<void> {
@@ -271,24 +284,16 @@ class WebSerialDriver implements Driver {
  * through the saxi web server, which handles the control. Used in the default
  * configuration (IS_WEB=true).
  */
-class SaxiDriver implements Driver {
-  public static connect(): Driver {
+class SaxiDriver extends BaseDriver {
+  public static connect(): SaxiDriver {
     const d = new SaxiDriver();
     d.connect();
     return d;
   }
-
-  public onprogress: ((motionIdx: number) => void) | null = null;
-  public oncancelled: (() => void) | null = null;
-  public onfinished: (() => void) | null = null;
-  public ondevinfo: ((devInfo: DeviceInfo) => void) | null = null;
-  public onpause: ((paused: boolean) => void) | null = null;
-  public onconnectionchange: ((connected: boolean) => void) | null = null;
-  public onplan: ((plan: Plan) => void) | null = null;
-
   private socket: WebSocket;
   private connected: boolean;
   private pingInterval: number | undefined;
+  svgioEnabled: ((enabled: boolean) => void);
 
   public name() {
     return 'Saxi Server';
@@ -307,9 +312,8 @@ class SaxiDriver implements Driver {
     this.socket.addEventListener("open", () => {
       console.log("Connected to EBB server.");
       this.connected = true;
-      if (this.onconnectionchange) {
-        this.onconnectionchange(true);
-      }
+      this.onconnectionchange(true);
+
       this.pingInterval = window.setInterval(() => this.ping(), 30000);
     });
     this.socket.addEventListener("message", (e: MessageEvent) => {
@@ -319,24 +323,25 @@ class SaxiDriver implements Driver {
           // nothing
         } break;
         case "progress": {
-          this.onprogress?.(msg.p.motionIdx);
+          this.onprogress(msg.p.motionIdx);
         } break;
         case "cancelled": {
-          this.oncancelled?.();
+          this.oncancelled();
         } break;
         case "finished": {
-          this.onfinished?.();
+          this.onfinished();
         } break;
         case "dev": {
-          if (this.ondevinfo != null) {
-            this.ondevinfo(msg.p);
-          }
+          this.ondevinfo(msg.p);
+        } break;
+        case "svgio-enabled": {
+          this.svgioEnabled(msg.p);
         } break;
         case "pause": {
-          this.onpause?.(msg.p.paused);
+          this.onpause(msg.p.paused);
         } break;
         case "plan": {
-          this.onplan?.(Plan.deserialize(msg.p.plan));
+          this.onplan(Plan.deserialize(msg.p.plan));
         } break;
         default: {
           console.log("Unknown message from server:", msg);
@@ -351,8 +356,7 @@ class SaxiDriver implements Driver {
       window.clearInterval(this.pingInterval);
       this.pingInterval = undefined;
       this.connected = false;
-      if (this.onconnectionchange) { this.onconnectionchange(false); }
-      this.socket = null;
+      this.onconnectionchange(false);
       setTimeout(() => this.connect(), 5000);
     });
   }
@@ -361,7 +365,7 @@ class SaxiDriver implements Driver {
     fetch("/plot", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: new Blob([ JSON.stringify(plan.serialize()) ], { type: 'application/json' })
+      body: new Blob([JSON.stringify(plan.serialize())], { type: 'application/json' })
     });
   }
 
@@ -394,10 +398,10 @@ class SaxiDriver implements Driver {
 
 const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
   const [isPlanning, setIsPlanning] = useState(false);
-  const [latestPlan, setPlan] = useState(null);
+  const [latestPlan, setPlan] = useState<Plan | null>(null);
 
   function serialize(po: PlanOptions): string {
-    return JSON.stringify(po, (k, v) => v instanceof Set ? [...v] : v);
+    return JSON.stringify(po, (_k, v) => v instanceof Set ? [...v] : v);
   }
 
   function attemptRejigger(previousOptions: PlanOptions, newOptions: PlanOptions, previousPlan: Plan): Plan | null {
@@ -417,10 +421,11 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
     return null;
   }
 
-  const lastPaths = useRef(null);
-  const lastPlan = useRef(null);
-  const lastPlanOptions = useRef(null);
+  const lastPaths = useRef<Vec2[][]>(null);
+  const lastPlan = useRef<Plan>(null);
+  const lastPlanOptions = useRef<PlanOptions>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies(attemptRejigger): handled by planOptions
   useEffect(() => {
     if (!paths) {
       return () => {};
@@ -440,7 +445,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
     console.time("posting to worker");
     worker.postMessage({ paths, planOptions });
     console.timeEnd("posting to worker");
-    const listener = (m: any) => {
+    const listener = (m: Record<'data', MotionData[]>) => {
       console.time("deserializing");
       const deserialized = Plan.deserialize(m.data);
       console.timeEnd("deserializing");
@@ -455,17 +460,17 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
       worker.terminate();
       setIsPlanning(false);
     };
-  }, [paths, serialize(planOptions)]);
+  }, [paths, planOptions]);
 
   return { isPlanning, plan: latestPlan, setPlan };
 };
 
-const setPaths = (paths: Vec2[][]) => {
-  const strokes = new Set();
-  const groups = new Set();
+const setPaths = (paths: (Vec2[] & { stroke: string, groupId: string })[]): Action => {
+  const strokes = new Set<string>();
+  const groups = new Set<string>();
   for (const path of paths) {
-    strokes.add((path as any).stroke);
-    groups.add((path as any).groupId);
+    strokes.add(path.stroke);
+    groups.add(path.groupId);
   }
   const layerMode = groups.size > 1 ? 'group' : 'stroke';
   const groupLayers = Array.from(groups).sort();
@@ -473,7 +478,7 @@ const setPaths = (paths: Vec2[][]) => {
   return { type: "SET_PATHS", paths, groupLayers, strokeLayers, selectedGroupLayers: new Set(groupLayers), selectedStrokeLayers: new Set(strokeLayers), layerMode };
 };
 
-function PenHeight({ state, driver }: { state: State; driver: Driver }) {
+function PenHeight({ state, driver }: { state: State; driver: BaseDriver }) {
   const { penUpHeight, penDownHeight, hardware } = state.planOptions;
   const dispatch = useContext(DispatchContext);
   const setPenUpHeight = (x: number) => dispatch({ type: "SET_PLAN_OPTION", value: { penUpHeight: x } });
@@ -514,9 +519,16 @@ function PenHeight({ state, driver }: { state: State; driver: Driver }) {
 
 function HardwareOptions({ state }: { state: State }) {
   return <div>
-    <div title="Motor type (affects pin and power settings)">
-      motor: {state.planOptions.hardware}
-    </div>
+    <label className="flex-checkbox" title="Motor type (affects pin and power settings)">
+      <input
+        type="checkbox"
+        checked={state.deviceInfo?.hardware === 'brushless'}
+        onChange={() => {
+          fetch("/change-hardware", { method: "POST" });
+        }}
+      />
+      brushless
+    </label>
   </div>;
 }
 
@@ -546,13 +558,83 @@ function VisualizationOptions({ state }: { state: State }) {
   </>;
 }
 
+/**
+ * Options to get an AI-Generated SVG image.
+ * Use svg.io API: https://api.svg.io/v1/docs
+ */
+function SvgIoOptions({ state }: { state: State }) {
+  const { prompt, vecType, status } = state.svgIoOptions;
+  const dispatch = useContext(DispatchContext);
+  // call server
+  const generateImage = async() => {
+    dispatch({ type: "SET_SVGIO_OPTION", value: { status: 'Generating ...' } });
+    try {
+      const resp = await fetch("/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: new Blob([JSON.stringify({ prompt, vecType })], { type: 'application/json' }),
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        dispatch({ type: "SET_SVGIO_OPTION", value: { status: 'Loading ...' } });
+        // retrieve image
+        const imgUrl = data.data[0].svgUrl;
+        const imgResp = await fetch(imgUrl);
+        const imgData = await imgResp.text();
+        // set image contents
+        dispatch(setPaths(readSvg(imgData)));
+      } else {
+        alert(`Error generating image: ${data.message ? data.message : resp.statusText}`);
+      }
+    } catch (error) {
+      console.error(error);
+      alert(`Error generating image ${error}`);
+    } finally {
+      dispatch({ type: "SET_SVGIO_OPTION", value: { status: '' } });
+    }
+  };
+  return <>
+    <div>
+      <label>Type
+        <select value={vecType}
+          onChange={(e) => dispatch({ type: "SET_SVGIO_OPTION", value: { vecType: e.target.value } })}>
+          <option value={"FLAT_VECTOR"}>Flat</option>
+          <option value={"FLAT_VECTOR_OUTLINE"}>Outline</option>
+          <option value={"FLAT_VECTOR_SILHOUETTE"}>Silhouette</option>
+          <option value={"FLAT_VECTOR_ONE_LINE_ART"}>One Line Art</option>
+          <option value={"FLAT_VECTOR_LINE_ART"}>Line Art</option>
+        </select>
+      </label>
+      <label title="prompt">Prompt
+        <textarea value={prompt}
+          onChange={(e) => dispatch({ type: "SET_SVGIO_OPTION", value: { prompt: e.target.value } })}>
+        </textarea>
+      </label>
+    </div>
+    {prompt !== ''
+      ? <div>
+        {status ? <span>{status}</span> : <button type="button" onClick={generateImage}>Generate!</button>}
+      </div>
+      : ''}
+  </>;
+}
+
 function SwapPaperSizesButton({ onClick }: { onClick: () => void }) {
+  const handleKeyDown = (event: React.KeyboardEvent<SVGSVGElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault(); // Prevent scrolling with spacebar
+      onClick();
+    }
+  };
   return <svg
     className="paper-sizes__swap"
     xmlns="http://www.w3.org/2000/svg"
     width="14.05"
     height="11.46"
     viewBox="0 0 14.05 11.46"
+    onKeyDown={handleKeyDown}
+    // biome-ignore lint/a11y/noNoninteractiveTabindex: no need for a div wrapper
+    tabIndex={0}
     onClick={onClick}
   >
     <title>swap width and height</title>
@@ -620,14 +702,14 @@ function PaperConfig({ state }: { state: State }) {
       <label>
         rotate drawing (degrees)
         <div className="horizontal-labels">
-          <img src={rotateDrawingIcon} alt="rotate drawing (degrees)"/>
+          <img src={rotateDrawingIcon} alt="rotate drawing (degrees)" />
           <input type="number" min="-90" step="90" max="360" placeholder="0" value={state.planOptions.rotateDrawing}
             onInput={(e) => {
               const value = (e.target as HTMLInputElement).value;
               if (Number(value) < 0) { (e.target as HTMLInputElement).value = "270"; }
               if (Number(value) > 270) { (e.target as HTMLInputElement).value = "0"; }
             }}
-            onChange={(e) => dispatch({ type: "SET_PLAN_OPTION", value: { rotateDrawing: e.target.value } })}/>
+            onChange={(e) => dispatch({ type: "SET_PLAN_OPTION", value: { rotateDrawing: Number(e.target.value) } })} />
         </div>
       </label>
     </div>
@@ -644,13 +726,13 @@ function PaperConfig({ state }: { state: State }) {
   </div>;
 }
 
-function MotorControl({ driver }: { driver: Driver }) {
+function MotorControl({ driver }: { driver: BaseDriver }) {
   return <div>
     <button type="button" onClick={() => driver.limp()}>disengage motors</button>
   </div>;
 }
 
-function PlanStatistics({ plan }: { plan: Plan }) {
+function PlanStatistics({ plan }: { plan: Plan | null }) {
   return <div className="duration">
     <div>Duration</div>
     <div><strong>{plan?.duration ? formatDuration(plan.duration()) : "-"}</strong></div>
@@ -658,9 +740,9 @@ function PlanStatistics({ plan }: { plan: Plan }) {
 }
 
 function TimeLeft({ plan, progress, currentMotionStartedTime, paused }: {
-  plan: Plan;
+  plan: Plan | null;
   progress: number | null;
-  currentMotionStartedTime: Date | null;
+  currentMotionStartedTime: Date;
   paused: boolean;
 }) {
   const [_, setTime] = useState(new Date());
@@ -718,15 +800,16 @@ function PlanPreview(
         >ꚛ</text>
         {lines.map((line, i) =>
           <path
+            // biome-ignore lint/suspicious/noArrayIndexKey: the paths are not changed elsewhere
             key={i}
-            d={line.reduce((m, { x, y }, j) => m + `${j === 0 ? "M" : "L"}${x} ${y}`, "")}
+            d={line.reduce((m, { x, y }, j) => `${m}${j === 0 ? "M" : "L"}${x} ${y}`, "")}
             style={i % 2 === 0 ? { stroke: "rgba(0, 0, 0, 0.3)", strokeWidth: 0.5 } : { stroke: palette(1 - i / lines.length), strokeWidth }}
           />
         )}
       </g>;
     }
     return [];
-  }, [plan, strokeWidth, colorPathsByStrokeOrder]);
+  }, [plan, strokeWidth, colorPathsByStrokeOrder, device.stepsPerMm]);
 
   // w/h of svg.
   // first try scaling so that h = area.h. if w < area.w, then ok.
@@ -867,7 +950,7 @@ function PlotButtons(
     state: State;
     plan: Plan | null;
     isPlanning: boolean;
-    driver: Driver;
+    driver: BaseDriver;
   }
 ) {
   function cancel() {
@@ -896,7 +979,7 @@ function PlotButtons(
           type="button"
           className={`plot-button ${state.progress != null ? "plot-button--plotting" : ""}`}
           disabled={plan == null || state.progress != null}
-          onClick={() => plot(plan)}>
+          onClick={() => plan && plot(plan)}>
           {plan && state.progress != null ? "Plotting..." : "Plot"}
         </button>
     }
@@ -928,7 +1011,7 @@ function ResetToDefaultsButton() {
 
 }
 
-function PlanOptions({ state }: { state: State }) {
+function PlanConfig({ state }: { state: State }) {
   const dispatch = useContext(DispatchContext);
   return <div>
     <form>
@@ -970,7 +1053,7 @@ function PlanOptions({ state }: { state: State }) {
     <div className="horizontal-labels">
 
       <label title="point-joining radius (mm)" >
-        <img src={pointJoinRadiusIcon} alt="point-joining radius (mm)"/>
+        <img src={pointJoinRadiusIcon} alt="point-joining radius (mm)" />
         <input
           type="number"
           value={state.planOptions.pointJoinRadius}
@@ -1082,15 +1165,15 @@ function PlanOptions({ state }: { state: State }) {
 }
 
 type PortSelectorProps = {
-  driver: Driver | null;
-  setDriver: (driver: Driver) => void;
+  driver: BaseDriver;
+  setDriver: (driver: BaseDriver) => void;
   hardware: Hardware;
 }
 
 function PortSelector({ driver, setDriver, hardware }: PortSelectorProps) {
   const [initializing, setInitializing] = useState(false);
   useEffect(() => {
-    (async () => {
+    (async() => {
       try {
         const ports = await navigator.serial.getPorts();
         const port = ports[0];
@@ -1103,14 +1186,13 @@ function PortSelector({ driver, setDriver, hardware }: PortSelectorProps) {
         setInitializing(false);
       }
     })();
-  }, []);
+  });
   return <>
-    {driver ? `Connected: ${driver.name()}` : null}
-    {!driver ?
+    {!(driver instanceof NullDriver) ? `Connected: ${driver.name()}` :
       <button
         type="button"
         disabled={initializing}
-        onClick={async () => {
+        onClick={async() => {
           try {
             const port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x04D8, usbProductId: 0xFD92 }] });
             // TODO: describe why we close if we already checked that driver is null
@@ -1125,21 +1207,21 @@ function PortSelector({ driver, setDriver, hardware }: PortSelectorProps) {
         {/* TODO: allow changing port */}
         {initializing ? "Connecting..." : (driver ? "Change Port" : "Connect")}
       </button>
-      : null}
+    }
   </>;
 }
 
 function Root() {
-  const [driver, setDriver] = useState<Driver | null>(null);
+  const [driver, setDriver] = useState<BaseDriver>(new NullDriver);
   const [isDriverConnected, setIsDriverConnected] = useState(false);
   useEffect(() => {
     if (isDriverConnected) return;
     if (IS_WEB) {
-      setDriver(null);
+      setDriver(new NullDriver());
     } else {
       setDriver(SaxiDriver.connect());
+      setIsDriverConnected(true);
     }
-    setIsDriverConnected(true);
   }, [isDriverConnected]);
 
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -1150,6 +1232,8 @@ function Root() {
     window.localStorage.setItem("planOptions", JSON.stringify(state.planOptions));
   }, [state.planOptions]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies(setPlan): React setters are stable
+  // biome-ignore lint/correctness/useExhaustiveDependencies(state.planOptions): planOptions is managed elsewhere
   useEffect(() => {
     if (driver == null) return;
     driver.onprogress = (motionIdx: number) => {
@@ -1163,6 +1247,7 @@ function Root() {
     };
     driver.ondevinfo = (devInfo: DeviceInfo) => {
       dispatch({ type: "SET_DEVICE_INFO", value: devInfo });
+      dispatch({ type: "SET_PLAN_OPTION", value: { ...state.planOptions, hardware: devInfo.hardware } } );
     };
     driver.onpause = (paused: boolean) => {
       dispatch({ type: "SET_PAUSED", value: paused });
@@ -1170,19 +1255,27 @@ function Root() {
     driver.onplan = (plan: Plan) => {
       setPlan(plan);
     };
+    if (driver instanceof SaxiDriver) {
+      driver.svgioEnabled = (enabled: boolean) => {
+        dispatch({ type: "SET_SVGIO_OPTION", value: { enabled } } );
+      };
+    }
   }, [driver]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies(setPlan): React setters are stable
   useEffect(() => {
     const ondrop = (e: DragEvent) => {
       e.preventDefault();
+      document.body.classList.remove("dragover");
+      if (e.dataTransfer === null) { return; }
       const item = e.dataTransfer.items[0];
       const file = item.getAsFile();
+      if (file === null ) { return; }
       const reader = new FileReader();
       setIsLoadingFile(true);
       setPlan(null);
       reader.onload = () => {
         dispatch(setPaths(readSvg(reader.result as string)));
-        document.body.classList.remove("dragover");
         setIsLoadingFile(false);
       };
       reader.onerror = () => {
@@ -1199,7 +1292,7 @@ function Root() {
       document.body.classList.remove("dragover");
     };
     const onpaste = (e: ClipboardEvent) => {
-      e.clipboardData.items[0].getAsString((s) => {
+      e.clipboardData?.items[0].getAsString((s) => {
         dispatch(setPaths(readSvg(s)));
       });
     };
@@ -1218,7 +1311,7 @@ function Root() {
   // Each time new motion is started, save the start time
   const currentMotionStartedTime = useMemo(() => {
     return new Date();
-  }, [state.progress, plan, state.paused]);
+  }, []);
 
   const previewArea = useRef(null);
   const previewSize = useComponentSize(previewArea);
@@ -1227,7 +1320,7 @@ function Root() {
   return <DispatchContext.Provider value={dispatch}>
     <div className={`root ${state.connected ? "connected" : "disconnected"}`}>
       <div className="control-panel">
-        <div className={"saxi-title red"} title={state.deviceInfo ? state.deviceInfo.path : null}>
+        <div className={"saxi-title red"} title={state.deviceInfo ? state.deviceInfo.path : undefined}>
           <span className="red reg">s</span><span className="teal">axi</span>
         </div>
         {IS_WEB ? <PortSelector driver={driver} setDriver={setDriver} hardware={state.deviceInfo?.hardware ?? 'v3'} /> : null}
@@ -1247,10 +1340,19 @@ function Root() {
         <details>
           <summary className="section-header">more</summary>
           <div className="section-body">
-            <PlanOptions state={state} />
+            <PlanConfig state={state} />
             <VisualizationOptions state={state} />
           </div>
         </details>
+        {state.svgIoOptions.enabled
+          ? <details>
+            <summary className="section-header">AI</summary>
+            <div className="section-body">
+              <SvgIoOptions state={state} />
+            </div>
+          </details>
+          : <></>
+        }
         <div className="spacer" />
         <div className="control-panel-bottom">
           <div className="section-header">plot</div>
@@ -1273,7 +1375,7 @@ function Root() {
           plan={plan}
         />
         <PlanLoader isPlanning={isPlanning} isLoadingFile={isLoadingFile} />
-        {showDragTarget ? <DragTarget/> : null}
+        {showDragTarget ? <DragTarget /> : null}
       </div>
     </div>
   </DispatchContext.Provider>;
@@ -1288,9 +1390,10 @@ function DragTarget() {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+// biome-ignore lint/style/noNonNullAssertion: static element
 createRoot(document.getElementById("app")!).render(<Root />);
 
-function withSVG<T>(svgString: string, fn: (svg: SVGSVGElement) => T): T {
+function withSVG(svgString: string, fn: (svg: SVGSVGElement) => Line): Line[] {
   const div = document.createElement("div");
   div.style.position = "absolute";
   div.style.left = "99999px";
@@ -1304,11 +1407,11 @@ function withSVG<T>(svgString: string, fn: (svg: SVGSVGElement) => T): T {
   }
 }
 
-function readSvg(svgString: string): Vec2[][] {
-  return withSVG(svgString, flattenSVG).map((line) => {
-    const a = line.points.map(([x, y]: [number, number]) => ({ x, y }));
-    (a as any).stroke = line.stroke;
-    (a as any).groupId = line.groupId;
+function readSvg(svgString: string): (Vec2[] & { stroke: string, groupId: string })[] {
+  return withSVG(svgString, flattenSVG).map(({ points, stroke, groupId }) => {
+    const a = points.map(([x, y]) => ({ x, y }));
+    a.stroke = stroke;
+    a.groupId = groupId;
     return a;
   });
 }

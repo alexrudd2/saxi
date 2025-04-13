@@ -1,3 +1,4 @@
+/* eslint-env node */
 import { context, build } from 'esbuild';
 import inlineWorker from 'esbuild-plugin-inline-worker';
 import { htmlPlugin as html } from '@craftamap/esbuild-plugin-html';
@@ -27,20 +28,20 @@ const buildOptions = {
       }]
     })
   ],
-  resolveExtensions: ['.mjs', '.js', '.ts', '.tsx', '.svg', '.worker.js'],
+  resolveExtensions: ['.mjs', '.js', '.ts', '.tsx', '.svg'],
 };
 
-(async () => {
+(async() => {
   try {
     if (process.env.BUILD_MODE === 'development') {
       // enables live-reloading
       const ctx = await context({
         ...buildOptions,
         banner: { js: "new EventSource('/esbuild').addEventListener('change', () => location.reload());" }
-      })
+      });
       await ctx.watch();
-      const { host, port } = await ctx.serve({servedir: 'dist/ui', port: 9080 });
-      console.log(`http://${host}:${port}`)
+      const { host, port } = await ctx.serve({ servedir: 'dist/ui', port: 9080 });
+      console.log(`http://${host}:${port}`);
     } else {
       await build(buildOptions);
     }

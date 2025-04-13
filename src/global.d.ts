@@ -1,7 +1,3 @@
-declare module '*.svg' {
-  const content: string;
-  export default content;
-}
 declare module 'svgdom';
 declare module 'wake-lock';
 declare module 'color-interpolate';

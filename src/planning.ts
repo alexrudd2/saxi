@@ -1,7 +1,7 @@
 // Cribbed from https://github.com/fogleman/axi/blob/master/axi/planner.py
 import type { Hardware } from './ebb.js';
 import { PaperSize } from './paper-size.js';
-import { vadd, vdot, type Vec2, vlen, vmul, vnorm, vsub } from './vec.js';
+import { type Vec2, vadd, vdot, vlen, vmul, vnorm, vsub } from './vec.js';
 const epsilon = 1e-9;
 
 export interface PlanOptions {
@@ -114,7 +114,7 @@ const Axidraw: Device = {
   penServoMin: 7500, // pen down
   penServoMax: 28000, // pen up
 
-  penPctToPos (pct: number): number {
+  penPctToPos(pct: number): number {
     const t = pct / 100.0;
     return Math.round(this.penServoMin * t + this.penServoMax * (1 - t));
   }
@@ -127,7 +127,7 @@ const AxidrawBrushless: Device = {
   penServoMin: 5400, // pen down
   penServoMax: 12600, // pen up
 
-  penPctToPos (pct: number): number {
+  penPctToPos(pct: number): number {
     const t = pct / 100.0;
     return Math.round(this.penServoMin * t + this.penServoMax * (1 - t));
   }
@@ -238,39 +238,40 @@ export class Block {
 
 export interface Motion {
   duration(): number;
-  serialize(): any;
+  serialize(): MotionData;
 }
 
 /**
  * Pen Motion accross a single axis, represented as an initial positon, final position and duration.
  */
 export class PenMotion implements Motion {
-  public static deserialize(o: any): PenMotion {
+  public static deserialize(o: PenMotionData): PenMotion {
     return new PenMotion(o.initialPos, o.finalPos, o.duration);
   }
 
-  public initialPos: number;
-  public finalPos: number;
-  public pDuration: number;
-
-  public constructor(initialPos: number, finalPos: number, duration: number) {
-    this.initialPos = initialPos;
-    this.finalPos = finalPos;
-    this.pDuration = duration;
-  }
+  constructor(
+    public initialPos: number,
+    public finalPos: number,
+    public pDuration: number,
+  ) {}
 
   public duration(): number {
     return this.pDuration;
   }
 
-  public serialize(): any {
+  public serialize(): PenMotionData {
     return {
-      t: "PenMotion",
       initialPos: this.initialPos,
       finalPos: this.finalPos,
       duration: this.pDuration,
     };
   }
+}
+
+interface PenMotionData {
+  initialPos: number;
+  finalPos: number;
+  duration: number;
 }
 
 /**
@@ -309,16 +310,15 @@ function sortedIndex<T>(array: T[], obj: T): number {
  * XY Motion - across a 2 dimensioanl plane, represented as a list of blocks.
  */
 export class XYMotion implements Motion {
-  public static deserialize(o: any): XYMotion {
+  public static deserialize(o: XYMotionData): XYMotion {
     return new XYMotion(o.blocks.map(Block.deserialize));
   }
-  public blocks: Block[];
-
   private ts: number[];
   private ss: number[];
 
-  public constructor(blocks: Block[]) {
-    this.blocks = blocks;
+  constructor(
+    public blocks: Block[]
+  ) {
     // time progression
     this.ts = scanLeft(blocks.map((b) => b.duration), 0, (a, b) => a + b).slice(0, -1);
     // distance progression
@@ -343,33 +343,34 @@ export class XYMotion implements Motion {
     return block.instant(t - this.ts[blockIdx], this.ts[blockIdx], this.ss[blockIdx]);
   }
 
-  public serialize(): any {
+  public serialize(): XYMotionData {
     return {
-      t: "XYMotion",
       blocks: this.blocks.map((b) => b.serialize())
     };
   }
 }
 
+interface XYMotionData {
+  blocks: BlockData[];
+}
+
+export type MotionData = XYMotionData | PenMotionData;
 /**
  * Plotting Plan.
  * Contains a list of pen motions.
  */
 export class Plan {
-  public static deserialize(o: any): Plan {
-    return new Plan(o.motions.map((m: any) => {
-      switch (m.t) {
-        case "XYMotion": return XYMotion.deserialize(m);
-        case "PenMotion": return PenMotion.deserialize(m);
-        default: throw new Error(`Wrong parameter: ${m.t}`);
-      }
+  public static deserialize(o: (MotionData)[]): Plan {
+    return new Plan(o.map((m) => {
+      if ("blocks" in m) return XYMotion.deserialize(m);
+      if ("initialPos" in m) return PenMotion.deserialize(m);
+      throw new Error(`Wrong parameter: ${m}`);
     }));
   }
 
-  public motions: Motion[];
-  public constructor(motions: Motion[]) {
-    this.motions = motions;
-  }
+  constructor(
+    public motions: Motion[]
+  ) {}
   public duration(start = 0): number {
     return this.motions.slice(start).map((m) => m.duration()).reduce((a, b) => a + b, 0);
   }
@@ -380,7 +381,7 @@ export class Plan {
     return new Plan(this.motions.map((motion, j) => {
       if (motion instanceof XYMotion) {
         return motion;
-      } 
+      }
       if (motion instanceof PenMotion) {
         // TODO: Remove this hack by storing the pen-up/pen-down heights
         // in a single place, and reference them from the PenMotions.
@@ -395,25 +396,20 @@ export class Plan {
     }));
   }
 
-  public serialize(): any {
-    return {
-      motions: this.motions.map((m) => m.serialize())
-    };
+  public serialize(): (MotionData)[] {
+    return this.motions.map((m) => m.serialize());
   }
 }
 
 class Segment {
-  public p1: Vec2;
-  public p2: Vec2;
   public maxEntryVelocity = 0;
   public entryVelocity = 0;
-  public blocks: Block[];
 
-  public constructor(p1: Vec2, p2: Vec2) {
-    this.p1 = p1;
-    this.p2 = p2;
-    this.blocks = [];
-  }
+  constructor(
+    public p1: Vec2,
+    public p2: Vec2,
+    public blocks: Block[] = [],
+  ) {}
   public length(): number { return vlen(vsub(this.p2, this.p1)); }
   public direction(): Vec2 { return vnorm(vsub(this.p2, this.p1)); }
 }
@@ -667,7 +663,7 @@ export function plan(
     const position = constantAccelerationPlan([curPos, motion.p1], profile.penUpProfile);
     motions.push(position, penMotions.down, motion, penMotions.up);
     curPos = motion.p2;
-  }  
+  }
 
   // Move to {x: 0, y: 0}
   motions.push(constantAccelerationPlan([curPos, { x: 0, y: 0 }], profile.penUpProfile));

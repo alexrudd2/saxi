@@ -2,18 +2,18 @@
  * Starting point for the server app (Command Line Interface).
  * Execute also one-off instructions on the device.
  */
+import { readFileSync } from "node:fs";
+import { type Line, flattenSVG } from "flatten-svg";
+import { Window } from "svgdom";
 import yargs from "yargs";
 import { hideBin } from 'yargs/helpers';
-import { connectEBB, startServer } from "./server.js";
-import { replan } from "./massager.js";
-import { Window } from "svgdom";
-import { readFileSync } from "node:fs";
-import { flattenSVG, type Line } from "flatten-svg";
-import type { Vec2 } from "./vec.js";
-import { formatDuration } from "./util.js";
-import { Device, type PlanOptions, defaultPlanOptions } from "./planning.js";
-import { PaperSize } from "./paper-size.js";
 import type { Hardware } from "./ebb.js";
+import { replan } from "./massager.js";
+import { PaperSize } from "./paper-size.js";
+import { Device, type PlanOptions, defaultPlanOptions } from "./planning.js";
+import { connectEBB, startServer } from "./server.js";
+import { formatDuration } from "./util.js";
+import type { Vec2 } from "./vec.js";
 
 function parseSvg(svg: string) {
   const window = new Window;
@@ -258,9 +258,13 @@ export function cli(argv: string[]): void {
         .option('max-payload-size', {
           describe: 'maximum payload size to accept',
           default: '200mb',
+        })
+        .option('svgio-api-key', {
+          describe: 'API Key - to enable AI image generation with SVG IO',
+          default: '',
         }),
       args => {
-        startServer(args.port, args.hardware, args.device, args['enable-cors'], args['max-payload-size']);
+        startServer(args.port, args.hardware, args.device, args['enable-cors'], args['max-payload-size'], args['svgio-api-key']);
       }
     )
     .parse(argv);
@@ -271,11 +275,11 @@ export function cli(argv: string[]): void {
  * @param lines 
  * @returns 
  */
-function linesToVecs(lines: Line[]): Vec2[][] {
-  return lines.map((line) => {
-    const a = line.points.map(([x, y]: [number, number]) => ({ x, y }));
-    (a as any).stroke = line.stroke;
-    (a as any).groupId = line.groupId;
+function linesToVecs(lines: Line[]): (Vec2[] & { stroke: string, groupId: string })[] {
+  return lines.map(({ points, stroke, groupId }) => {
+    const a = points.map(([x, y]) => ({ x, y })) as (Vec2[] & { stroke: string, groupId: string });
+    a.stroke = stroke;
+    a.groupId = groupId;
     return a;
   });
 }
