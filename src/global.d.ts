@@ -2,6 +2,7 @@ declare module 'svgdom';
 declare module 'wake-lock';
 declare module 'color-interpolate';
 declare module 'colormap';
+declare module '*.svg';
 
 // https://github.com/nornagon/flatten-svg/issues/27
 declare module 'flatten-svg' {
