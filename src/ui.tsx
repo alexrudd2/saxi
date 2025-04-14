@@ -808,7 +808,7 @@ function PlanPreview(
         )}
       </g>;
     }
-    return [];
+    return <></>;
   }, [plan, strokeWidth, colorPathsByStrokeOrder, device.stepsPerMm]);
 
   // w/h of svg.
@@ -1393,7 +1393,7 @@ function DragTarget() {
 // biome-ignore lint/style/noNonNullAssertion: static element
 createRoot(document.getElementById("app")!).render(<Root />);
 
-function withSVG(svgString: string, fn: (svg: SVGSVGElement) => Line): Line[] {
+function withSVG(svgString: string, fn: (svg: SVGSVGElement) => Line[]): Line[] {
   const div = document.createElement("div");
   div.style.position = "absolute";
   div.style.left = "99999px";
@@ -1409,9 +1409,8 @@ function withSVG(svgString: string, fn: (svg: SVGSVGElement) => Line): Line[] {
 
 function readSvg(svgString: string): (Vec2[] & { stroke: string, groupId: string })[] {
   return withSVG(svgString, flattenSVG).map(({ points, stroke, groupId }) => {
-    const a = points.map(([x, y]) => ({ x, y }));
-    a.stroke = stroke;
-    a.groupId = groupId;
-    return a;
+    return Object.assign(points.map(([x, y]) => ({ x, y })), 
+      { stroke, groupId }
+    );
   });
 }
