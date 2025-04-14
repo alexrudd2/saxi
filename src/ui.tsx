@@ -808,7 +808,7 @@ function PlanPreview(
         )}
       </g>;
     }
-    return [];
+    return <></>;
   }, [plan, strokeWidth, colorPathsByStrokeOrder, device.stepsPerMm]);
 
   // w/h of svg.
