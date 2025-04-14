@@ -13,7 +13,7 @@ const buildOptions = {
   metafile: true,
   logLevel: 'debug',
   outdir: 'dist/ui',
-  tsconfig: 'tsconfig.web.json',
+  tsconfig: 'tsconfig.ui.json',
   loader: { '.svg': 'file' },
   define: {
     IS_WEB: process.env.IS_WEB ?? '0',

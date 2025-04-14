@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "sourceMap": true,
+    "outDir": "dist/server",
+    "baseUrl": ".",
+    "paths": {
+      "@serialport/bindings-interface": [
+        "node_modules/@serialport/bindings-interface"
+      ],
+      "@serialport/binding-mock": [
+        "node_modules/@serialport/binding-mock"
+      ]
+    }
+  },
+  "files": [
+    "src/cli.ts",
+    "src/global.d.ts"
+  ]
+}

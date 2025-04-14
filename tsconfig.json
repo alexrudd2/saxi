@@ -1,26 +1,12 @@
 {
-  "$schema": "https://json.schemastore.org/tsconfig",
-  "compilerOptions": {
-    "module": "ES2022",
-    "esModuleInterop": true,
-    "target": "ES2022",
-    "noImplicitAny": true,
-    "moduleResolution": "node",
-    "sourceMap": true,
-    "outDir": "dist/server",
-    "baseUrl": ".",
-    "jsx": "react",
-    "paths": {
-      "@serialport/bindings-interface": [
-        "node_modules/@serialport/bindings-interface"
-      ],
-      "@serialport/binding-mock": [
-        "node_modules/@serialport/binding-mock"
-      ]
-    }
-  },
-  "files": [
-    "src/cli.ts",
-    "src/global.d.ts"
-  ]
-}
+    "$schema": "https://json.schemastore.org/tsconfig",
+    "compilerOptions": {
+      "target": "es2022",
+      "module": "es2022",
+      "moduleResolution": "node",
+      "esModuleInterop": true,
+      "noImplicitAny": true,
+      "jsx": "react",
+    },
+  }
+  
