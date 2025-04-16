@@ -29,7 +29,7 @@ If you encounter an `EACCES` error when installing the package globally, see [Re
 To install saxi on a Raspberry Pi 2/3/4, first install node.js if you haven't already:
 
 ```
-$ curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
+$ curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 $ sudo apt-get install -y nodejs
 ```
 
