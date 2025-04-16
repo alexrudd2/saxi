@@ -14,34 +14,109 @@ easy-to-use interface, and is exactingly precise.
 
 ![a screenshot of the saxi user interface](docs/saxi.png)
 
-### Usage
+### Installation
 
-```
-$ npm i -g saxi
-$ saxi
-Server listening on http://0.0.0.0:9080
-Connecting to EBB on /dev/tty.usbmodem1461
-```
-If you encounter an `EACCES` error when installing the package globally, see [Resolving EACCES permissions errors when installing packages globally](https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally).
+#### For Raspberry Pi 2 / 3 / 4 / 5
 
-#### Raspberry Pi
+1. **Install Node.js (if not already installed):**
 
-To install saxi on a Raspberry Pi 2/3/4, first install node.js if you haven't already:
-
-```
+```bash
 $ curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 $ sudo apt-get install -y nodejs
 ```
 
-If you are on a raspberry pi zero or 1, you will need to download an [unofficial armv6l build](https://github.com/nodejs/unofficial-builds)
+2. **Install `saxi` globally:**
 
+```bash
+$ sudo npm install -g saxi
 ```
+
+If you encounter an `EACCES` error when installing the package globally, see [Resolving EACCES permissions errors when installing packages globally](https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally).
+
+---
+
+#### For Raspberry Pi Zero / 1 (armv6l)
+
+The official Node.js builds don’t support armv6l. Use an unofficial build:
+
+1. **Download and extract Node.js v20 for armv6l:**
+
+```bash
 $ wget https://unofficial-builds.nodejs.org/download/release/v20.5.1/node-v20.5.1-linux-armv6l.tar.xz
 $ tar xf node-v*-armv6l.tar.xz
 $ export PATH=$PATH:$PWD/node-v*-linux-armv6l/
 ```
 
-and then proceed as above :) If you connect to the raspberry pi over ssh, you might want to run the `saxi` server inside a tmux or screen session to have it stay running even if your ssh session disconnects.
+2. **Install `saxi`:**
+
+```bash
+$ npm install -g saxi
+```
+
+If you encounter an `EACCES` error when installing the package globally, see [Resolving EACCES permissions errors when installing packages globally](https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally).
+
+---
+
+### Usage
+
+Start the `saxi` server from the terminal:
+
+```bash
+$ saxi
+Server listening on http://0.0.0.0:9080
+Connecting to EBB on /dev/tty.usbmodem1461
+```
+
+Then open a web browser:
+
+Go to `http://localhost:9080` if you're using the same computer where saxi is running.
+
+Go to `http://<computer-ip>:9080` if you're on a different device.
+(You can find the IP address by running `hostname -I` on the computer running saxi.)
+
+---
+
+### Running `saxi` over SSH
+
+If you're connecting to your Raspberry Pi via SSH, it’s a good idea to keep the `saxi` server running inside a `tmux` session so it stays active even if your SSH session disconnects.
+
+#### Install `tmux` (if not installed)
+
+```bash
+$ sudo apt-get install -y tmux
+```
+
+#### Start a `tmux` session and run `saxi`
+
+```bash
+$ tmux new -s saxi
+$ saxi
+```
+
+To detach from the session (leaving it running), press:
+
+```
+Ctrl + b, then d
+```
+
+To reattach later:
+
+```bash
+$ tmux attach -t saxi
+```
+
+To list sessions:
+
+```bash
+$ tmux ls
+```
+
+To terminate session:
+```bash
+$ tmux kill-session -t saxi
+```
+
+---
 
 #### CORS
 If you want to connect to saxi from a web page that isn't served by saxi
