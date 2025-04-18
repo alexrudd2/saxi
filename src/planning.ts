@@ -650,7 +650,8 @@ export function plan(
   profile: ToolingProfile
 ): Plan {
   const motions: Motion[] = [];
-  let curPos = { x: 0, y: 0 };
+  const origin: Vec2 = { x: 0, y: 0 };
+  let curPos = origin;
 
   const penMotions = {
     up: new PenMotion(profile.penDownPos, profile.penUpPos, profile.penLiftDuration),
@@ -665,7 +666,7 @@ export function plan(
     curPos = motion.p2;
   }
 
-  // Move to {x: 0, y: 0}
-  motions.push(constantAccelerationPlan([curPos, { x: 0, y: 0 }], profile.penUpProfile));
+  // Final return to origin
+  motions.push(constantAccelerationPlan([curPos, origin], profile.penUpProfile));
   return new Plan(motions);
 }
