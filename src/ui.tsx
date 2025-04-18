@@ -558,6 +558,32 @@ function VisualizationOptions({ state }: { state: State }) {
   </>;
 }
 
+function OriginOptions({ state}: { state: State }) {
+  const dispatch = useContext(DispatchContext);
+  const device = Device(state.planOptions.hardware);
+  return <div className="flex">
+    <label title="Starting and final position of pen when plotting (x)">origin x:
+      <input
+        type="number"
+        min="0"
+        max={state.planOptions.paperSize.size.x * device.stepsPerMm}
+        step="10"
+        value={state.planOptions.origin.x}
+        onChange={(e) => dispatch({ type: "SET_PLAN_OPTION", value: { origin: { x: Number(e.target.value), y: state.planOptions.origin.y } } })}
+      />
+    </label>
+    <label title="Starting and final position of pen when plotting (y)">origin y:
+      <input
+        type="number"
+        min="0"
+        max={state.planOptions.paperSize.size.y * device.stepsPerMm}
+        step="10"
+        value={state.planOptions.origin.y}
+        onChange={(e) => dispatch({ type: "SET_PLAN_OPTION", value: { origin: { x: state.planOptions.origin.x, y: Number(e.target.value) } } })}
+      />
+    </label>
+  </div>
+}
 /**
  * Options to get an AI-Generated SVG image.
  * Use svg.io API: https://api.svg.io/v1/docs
@@ -1341,6 +1367,7 @@ function Root() {
           <summary className="section-header">more</summary>
           <div className="section-body">
             <PlanConfig state={state} />
+            <OriginOptions state={state} />
             <VisualizationOptions state={state} />
           </div>
         </details>

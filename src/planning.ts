@@ -32,7 +32,8 @@ export interface PlanOptions {
   cropToMargins: boolean;
 
   minimumPathLength: number;
-  hardware: Hardware
+  hardware: Hardware;
+  origin?: Vec2;
 }
 
 export const defaultPlanOptions: PlanOptions = {
@@ -62,8 +63,8 @@ export const defaultPlanOptions: PlanOptions = {
   cropToMargins: true,
 
   minimumPathLength: 0,
-
-  hardware: 'v3'
+  hardware: 'v3',
+  origin: {x: 0, y: 0}
 };
 
 /**
@@ -291,9 +292,9 @@ function scanLeft<A, B>(a: A[], z: B, op: (b: B, a: A) => B): B[] {
 
 /**
  * Find insertion point of en element on a sorted array, to keep the order.
- * @param array 
- * @param obj 
- * @returns 
+ * @param array
+ * @param obj
+ * @returns
  */
 function sortedIndex<T>(array: T[], obj: T): number {
   let low = 0;
@@ -647,10 +648,10 @@ function constantAccelerationPlan(points: Vec2[], profile: AccelerationProfile):
 
 export function plan(
   paths: Vec2[][],
-  profile: ToolingProfile
+  profile: ToolingProfile,
+  origin: Vec2 = {x: 0, y: 0},
 ): Plan {
   const motions: Motion[] = [];
-  const origin: Vec2 = { x: 0, y: 0 };
   let curPos = origin;
 
   const penMotions = {
