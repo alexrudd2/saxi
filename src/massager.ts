@@ -96,7 +96,9 @@ export function replan(inPaths: (Vec2[] & { stroke?: string, groupId?: string })
     },
     penDropDuration: planOptions.penDropDuration,
     penLiftDuration: planOptions.penLiftDuration,
-  });
+  },
+  planOptions.origin,
+  );
   console.timeEnd("planning pen motions");
 
   return theplan;
