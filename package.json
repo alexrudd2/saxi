@@ -22,7 +22,7 @@
     "prebuild": "npm run lint",
     "lint": "npx @biomejs/biome lint src",
     "build": "npm run build:server && npm run build:ui",
-    "build:server": "tsc",
+    "build:server": "tsc --project tsconfig.server.json",
     "build:ui": "node --experimental-modules build.mjs",
     "prepare": "rimraf dist && npm run build",
     "start": "npm run build && node cli.mjs",
