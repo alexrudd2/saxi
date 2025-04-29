@@ -33,7 +33,7 @@ export interface PlanOptions {
 
   minimumPathLength: number;
   hardware: Hardware;
-  origin?: Vec2;
+  penHome?: Vec2;
 }
 
 export const defaultPlanOptions: PlanOptions = {
@@ -64,7 +64,7 @@ export const defaultPlanOptions: PlanOptions = {
 
   minimumPathLength: 0,
   hardware: 'v3',
-  origin: {x: 0, y: 0}
+  penHome: {x: 0, y: 0}
 };
 
 /**
@@ -649,10 +649,10 @@ function constantAccelerationPlan(points: Vec2[], profile: AccelerationProfile):
 export function plan(
   paths: Vec2[][],
   profile: ToolingProfile,
-  origin: Vec2 = {x: 0, y: 0},
+  penHome: Vec2 = {x: 0, y: 0},
 ): Plan {
   const motions: Motion[] = [];
-  let curPos = origin;
+  let curPos = penHome;
 
   const penMotions = {
     up: new PenMotion(profile.penDownPos, profile.penUpPos, profile.penLiftDuration),
@@ -667,7 +667,7 @@ export function plan(
     curPos = motion.p2;
   }
 
-  // Final return to origin
-  motions.push(constantAccelerationPlan([curPos, origin], profile.penUpProfile));
+  // Final return to pen home
+  motions.push(constantAccelerationPlan([curPos, penHome], profile.penUpProfile));
   return new Plan(motions);
 }

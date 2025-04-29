@@ -562,24 +562,24 @@ function OriginOptions({ state}: { state: State }) {
   const dispatch = useContext(DispatchContext);
   const device = Device(state.planOptions.hardware);
   return <div className="flex">
-    <label title="Starting and final position of pen when plotting (x)">origin x:
+    <label title="Starting and final position of pen when plotting (x)">home x (mm):
       <input
         type="number"
         min="0"
         max={state.planOptions.paperSize.size.x * device.stepsPerMm}
         step="10"
-        value={state.planOptions.origin.x}
-        onChange={(e) => dispatch({ type: "SET_PLAN_OPTION", value: { origin: { x: Number(e.target.value), y: state.planOptions.origin.y } } })}
+        value={state.planOptions.penHome.x}
+        onChange={(e) => dispatch({ type: "SET_PLAN_OPTION", value: { penHome: { x: Number(e.target.value), y: state.planOptions.penHome.y } } })}
       />
     </label>
-    <label title="Starting and final position of pen when plotting (y)">origin y:
+    <label title="Starting and final position of pen when plotting (y)">home y (mm):
       <input
         type="number"
         min="0"
         max={state.planOptions.paperSize.size.y * device.stepsPerMm}
         step="10"
-        value={state.planOptions.origin.y}
-        onChange={(e) => dispatch({ type: "SET_PLAN_OPTION", value: { origin: { x: state.planOptions.origin.x, y: Number(e.target.value) } } })}
+        value={state.planOptions.penHome.y}
+        onChange={(e) => dispatch({ type: "SET_PLAN_OPTION", value: { penHome: { x: state.planOptions.penHome.x, y: Number(e.target.value) } } })}
       />
     </label>
   </div>
@@ -819,7 +819,7 @@ function PlanPreview(
         .map((m) => m.blocks.map((b) => b.p1).concat([m.p2]))  // Map each XYMotion to its start/end points
         .filter((m) => m.length);
       return <g transform={`scale(${1 / device.stepsPerMm})`}>
-        <title>Plot origin</title>
+        <title>Pen home</title>
         <text x={lines[0][0].x} y={lines[0][0].y}
           fontSize="40"
           textAnchor="middle" dominantBaseline="middle"
