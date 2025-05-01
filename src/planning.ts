@@ -32,7 +32,8 @@ export interface PlanOptions {
   cropToMargins: boolean;
 
   minimumPathLength: number;
-  hardware: Hardware
+  hardware: Hardware;
+  penHome?: Vec2;
 }
 
 export const defaultPlanOptions: PlanOptions = {
@@ -62,8 +63,8 @@ export const defaultPlanOptions: PlanOptions = {
   cropToMargins: true,
 
   minimumPathLength: 0,
-
-  hardware: 'v3'
+  hardware: 'v3',
+  penHome: {x: 0, y: 0}
 };
 
 /**
@@ -291,9 +292,9 @@ function scanLeft<A, B>(a: A[], z: B, op: (b: B, a: A) => B): B[] {
 
 /**
  * Find insertion point of en element on a sorted array, to keep the order.
- * @param array 
- * @param obj 
- * @returns 
+ * @param array
+ * @param obj
+ * @returns
  */
 function sortedIndex<T>(array: T[], obj: T): number {
   let low = 0;
@@ -647,11 +648,11 @@ function constantAccelerationPlan(points: Vec2[], profile: AccelerationProfile):
 
 export function plan(
   paths: Vec2[][],
-  profile: ToolingProfile
+  profile: ToolingProfile,
+  penHome: Vec2 = {x: 0, y: 0},
 ): Plan {
   const motions: Motion[] = [];
-  const origin: Vec2 = { x: 0, y: 0 };
-  let curPos = origin;
+  let curPos = penHome;
 
   const penMotions = {
     up: new PenMotion(profile.penDownPos, profile.penUpPos, profile.penLiftDuration),
@@ -666,7 +667,7 @@ export function plan(
     curPos = motion.p2;
   }
 
-  // Final return to origin
-  motions.push(constantAccelerationPlan([curPos, origin], profile.penUpProfile));
+  // Final return to pen home
+  motions.push(constantAccelerationPlan([curPos, penHome], profile.penUpProfile));
   return new Plan(motions);
 }

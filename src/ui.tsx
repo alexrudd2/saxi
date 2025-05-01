@@ -558,6 +558,32 @@ function VisualizationOptions({ state }: { state: State }) {
   </>;
 }
 
+function OriginOptions({ state}: { state: State }) {
+  const dispatch = useContext(DispatchContext);
+  const device = Device(state.planOptions.hardware);
+  return <div className="flex">
+    <label title="Starting and final position of pen when plotting (x)">home x (mm):
+      <input
+        type="number"
+        min="0"
+        max={state.planOptions.paperSize.size.x * device.stepsPerMm}
+        step="10"
+        value={state.planOptions.penHome.x}
+        onChange={(e) => dispatch({ type: "SET_PLAN_OPTION", value: { penHome: { x: Number(e.target.value), y: state.planOptions.penHome.y } } })}
+      />
+    </label>
+    <label title="Starting and final position of pen when plotting (y)">home y (mm):
+      <input
+        type="number"
+        min="0"
+        max={state.planOptions.paperSize.size.y * device.stepsPerMm}
+        step="10"
+        value={state.planOptions.penHome.y}
+        onChange={(e) => dispatch({ type: "SET_PLAN_OPTION", value: { penHome: { x: state.planOptions.penHome.x, y: Number(e.target.value) } } })}
+      />
+    </label>
+  </div>
+}
 /**
  * Options to get an AI-Generated SVG image.
  * Use svg.io API: https://api.svg.io/v1/docs
@@ -793,7 +819,7 @@ function PlanPreview(
         .map((m) => m.blocks.map((b) => b.p1).concat([m.p2]))  // Map each XYMotion to its start/end points
         .filter((m) => m.length);
       return <g transform={`scale(${1 / device.stepsPerMm})`}>
-        <title>Plot origin</title>
+        <title>Pen home</title>
         <text x={lines[0][0].x} y={lines[0][0].y}
           fontSize="40"
           textAnchor="middle" dominantBaseline="middle"
@@ -1341,6 +1367,7 @@ function Root() {
           <summary className="section-header">more</summary>
           <div className="section-body">
             <PlanConfig state={state} />
+            <OriginOptions state={state} />
             <VisualizationOptions state={state} />
           </div>
         </details>
