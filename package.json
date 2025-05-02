@@ -41,7 +41,7 @@
     "@types/cors": "^2.8.4",
     "@types/express": "^5.0.0",
     "@types/jest": "^29.0.0",
-    "@types/node": "^18.0.0 || ^20.0.0 || ^22.0.0",
+    "@types/node": "^20.0.0 || ^22.0.0 || ^23.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/supertest": "^6.0.2",
@@ -73,7 +73,7 @@
     "yargs": "^17.0.0"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "type": "module",
   "files": [
