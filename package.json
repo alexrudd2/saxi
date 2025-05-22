@@ -48,7 +48,7 @@
     "@types/w3c-web-serial": "^1.0.8",
     "@types/ws": "8.18",
     "@types/yargs": "^17.0.0",
-    "color-interpolate": "^1.0.5",
+    "color-interpolate": "^2.0.0",
     "colormap": "^2.3.2",
     "esbuild": "^0.25.0",
     "esbuild-plugin-inline-worker": "^0.1.1",
