@@ -7,8 +7,8 @@ import type { Line } from "flatten-svg";
  * An array of Vec2 with stroke and groupId.
  */
 export interface Path extends Array<Vec2> {
-  stroke: string;
-  groupId: string;
+  stroke?: string;
+  groupId?: string;
 }
 
 
