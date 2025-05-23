@@ -428,7 +428,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
   // biome-ignore lint/correctness/useExhaustiveDependencies(attemptRejigger): handled by planOptions
   useEffect(() => {
     if (!paths) {
-      return () => {};
+      return () => { };
     }
     if (lastPlan.current != null && lastPaths.current === paths) {
       const rejiggered = attemptRejigger(lastPlanOptions.current ?? defaultPlanOptions, planOptions, lastPlan.current);
@@ -436,7 +436,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
         setPlan(rejiggered);
         lastPlan.current = rejiggered;
         lastPlanOptions.current = planOptions;
-        return () => {};
+        return () => { };
       }
     }
     lastPaths.current = paths;
@@ -558,7 +558,7 @@ function VisualizationOptions({ state }: { state: State }) {
   </>;
 }
 
-function OriginOptions({ state}: { state: State }) {
+function OriginOptions({ state }: { state: State }) {
   const dispatch = useContext(DispatchContext);
   const device = Device(state.planOptions.hardware);
   return <div className="flex">
@@ -592,7 +592,7 @@ function SvgIoOptions({ state }: { state: State }) {
   const { prompt, vecType, status } = state.svgIoOptions;
   const dispatch = useContext(DispatchContext);
   // call server
-  const generateImage = async() => {
+  const generateImage = async () => {
     dispatch({ type: "SET_SVGIO_OPTION", value: { status: 'Generating ...' } });
     try {
       const resp = await fetch("/generate", {
@@ -1199,7 +1199,7 @@ type PortSelectorProps = {
 function PortSelector({ driver, setDriver, hardware }: PortSelectorProps) {
   const [initializing, setInitializing] = useState(false);
   useEffect(() => {
-    (async() => {
+    (async () => {
       try {
         const ports = await navigator.serial.getPorts();
         const port = ports[0];
@@ -1218,7 +1218,7 @@ function PortSelector({ driver, setDriver, hardware }: PortSelectorProps) {
       <button
         type="button"
         disabled={initializing}
-        onClick={async() => {
+        onClick={async () => {
           try {
             const port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x04D8, usbProductId: 0xFD92 }] });
             // TODO: describe why we close if we already checked that driver is null
@@ -1238,7 +1238,7 @@ function PortSelector({ driver, setDriver, hardware }: PortSelectorProps) {
 }
 
 function Root() {
-  const [driver, setDriver] = useState<BaseDriver>(new NullDriver);
+  const [driver, setDriver] = useState<BaseDriver>(new NullDriver());
   const [isDriverConnected, setIsDriverConnected] = useState(false);
   useEffect(() => {
     if (isDriverConnected) return;
@@ -1273,7 +1273,7 @@ function Root() {
     };
     driver.ondevinfo = (devInfo: DeviceInfo) => {
       dispatch({ type: "SET_DEVICE_INFO", value: devInfo });
-      dispatch({ type: "SET_PLAN_OPTION", value: { ...state.planOptions, hardware: devInfo.hardware } } );
+      dispatch({ type: "SET_PLAN_OPTION", value: { ...state.planOptions, hardware: devInfo.hardware } });
     };
     driver.onpause = (paused: boolean) => {
       dispatch({ type: "SET_PAUSED", value: paused });
@@ -1283,24 +1283,27 @@ function Root() {
     };
     if (driver instanceof SaxiDriver) {
       driver.svgioEnabled = (enabled: boolean) => {
-        dispatch({ type: "SET_SVGIO_OPTION", value: { enabled } } );
+        dispatch({ type: "SET_SVGIO_OPTION", value: { enabled } });
       };
     }
   }, [driver]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies(setPlan): React setters are stable
   useEffect(() => {
+    // Called when the user drags and drops the image
     const ondrop = (e: DragEvent) => {
       e.preventDefault();
       document.body.classList.remove("dragover");
       if (e.dataTransfer === null) { return; }
+      // Open the SVG file the user dragged into the area
       const item = e.dataTransfer.items[0];
       const file = item.getAsFile();
-      if (file === null ) { return; }
+      if (file === null) { return; }
       const reader = new FileReader();
       setIsLoadingFile(true);
       setPlan(null);
       reader.onload = () => {
+        // Convert SVG to Plan an path instructions
         dispatch(setPaths(readSvg(reader.result as string)));
         setIsLoadingFile(false);
       };
