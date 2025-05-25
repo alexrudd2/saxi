@@ -3,7 +3,7 @@
  * Execute also one-off instructions on the device.
  */
 import { readFileSync } from "node:fs";
-import { type Line, flattenSVG } from "flatten-svg";
+import { flattenSVG } from "flatten-svg";
 import { Window } from "svgdom";
 import yargs from "yargs";
 import { hideBin } from 'yargs/helpers';
@@ -12,7 +12,7 @@ import { replan } from "./massager.js";
 import { PaperSize } from "./paper-size.js";
 import { Device, type PlanOptions, defaultPlanOptions } from "./planning.js";
 import { connectEBB, startServer } from "./server.js";
-import { linesToPaths, formatDuration } from "./util.js";
+import { formatDuration } from "./util.js";
 
 function parseSvg(svg: string) {
   const window = new Window;
@@ -210,7 +210,7 @@ export function cli(argv: string[]): void {
           pathJoinRadius: args["path-join-radius"],
           pointJoinRadius: args["point-join-radius"],
         };
-        const p = replan(linesToPaths(lines), planOptions);
+        const p = replan(lines, planOptions);
         console.log(`${p.motions.length} motions, estimated duration: ${formatDuration(p.duration())}`);
         console.log("connecting to plotter...");
         const ebb = await connectEBB(args.hardware, args.device);
