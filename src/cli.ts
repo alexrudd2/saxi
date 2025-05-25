@@ -12,8 +12,7 @@ import { replan } from "./massager.js";
 import { PaperSize } from "./paper-size.js";
 import { Device, type PlanOptions, defaultPlanOptions } from "./planning.js";
 import { connectEBB, startServer } from "./server.js";
-import { type Path, linesToPaths, formatDuration } from "./util.js";
-import type { Vec2 } from "./vec.js";
+import { linesToPaths, formatDuration } from "./util.js";
 
 function parseSvg(svg: string) {
   const window = new Window;
