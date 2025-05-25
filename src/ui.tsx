@@ -7,10 +7,10 @@ import colormap from "colormap";
 import React, { type ChangeEvent, Fragment, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useReducer } from "react";
 import { createRoot } from 'react-dom/client';
 
-import { type Line, flattenSVG } from "flatten-svg";
+import { type Path, flattenSVG } from "flatten-svg";
 import { PaperSize } from "./paper-size";
 import { Device, type MotionData, Plan, type PlanOptions, XYMotion, defaultPlanOptions } from "./planning.js";
-import { type Path, formatDuration, linesToPaths } from "./util.js";
+import { formatDuration } from "./util.js";
 import type { Vec2 } from "./vec.js";
 
 import "./style.css";
@@ -48,7 +48,7 @@ const initialState = {
   plannedOptions: null as PlanOptions | null,
 
   // Info about the currently-loaded SVG.
-  paths: null as Vec2[][] | null,
+  paths: null as Path[] | null,
   groupLayers: [] as string[],
   strokeLayers: [] as string[],
 
@@ -119,7 +119,7 @@ function reducer(state: State, action: Action): State {
 }
 
 
-const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
+const usePlan = (paths: Path[] | null, planOptions: PlanOptions) => {
   const [isPlanning, setIsPlanning] = useState(false);
   const [latestPlan, setPlan] = useState<Plan | null>(null);
 
@@ -144,7 +144,7 @@ const usePlan = (paths: Vec2[][] | null, planOptions: PlanOptions) => {
     return null;
   }
 
-  const lastPaths = useRef<Vec2[][]>(null);
+  const lastPaths = useRef<Path[]>(null);
   const lastPlan = useRef<Plan>(null);
   const lastPlanOptions = useRef<PlanOptions>(null);
 
@@ -1160,8 +1160,7 @@ function readSvg(svgString: string): Path[] {
   try {
     div.innerHTML = svgString;
     const svg = div.querySelector("svg") as SVGSVGElement;
-    const lines = flattenSVG(svg);
-    const paths = linesToPaths(lines);
+    const paths = flattenSVG(svg);
     return paths;
   } finally {
     div.remove();
