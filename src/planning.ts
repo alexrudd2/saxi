@@ -646,6 +646,13 @@ function constantAccelerationPlan(points: Vec2[], profile: AccelerationProfile):
   return new XYMotion(blocks);
 }
 
+/**
+ * Build a Plan from a list of lines and profile parameters.
+ * @param paths list of lines, each a list of Vec2
+ * @param profile machine parameters
+ * @param penHome initial location of the pen
+ * @returns A full Plan
+ */
 export function plan(
   paths: Vec2[][],
   profile: ToolingProfile,

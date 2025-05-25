@@ -1,7 +1,8 @@
 import { elideShorterThan, merge as joinNearbyPaths, reorder as sortPaths } from "optimize-paths";
 import { Device, type Plan, type PlanOptions, plan } from "./planning.js";
-import { cropToMargins, dedupPoints, scaleToPaper } from "./util.js";
+import { type Path, cropToMargins, dedupPoints, scaleToPaper } from "./util.js";
 import { type Vec2, vmul, vrot } from "./vec.js";
+
 
 // CSS, and thus SVG, defines 1px = 1/96th of 1in
 // https://www.w3.org/TR/css-values-4/#absolute-lengths
@@ -15,8 +16,8 @@ const mmPerSvgUnit = mmPerInch / svgUnitsPerInch;
  * @param planOptions 
  * @returns 
  */
-export function replan(inPaths: (Vec2[] & { stroke?: string, groupId?: string })[], planOptions: PlanOptions): Plan {
-  let paths = inPaths;
+export function replan(inPaths: Path[], planOptions: PlanOptions): Plan {
+  let paths: Vec2[][] = inPaths;
   const device = Device(planOptions.hardware);
 
   // Rotate drawing around center of paper to handle plotting portrait drawings

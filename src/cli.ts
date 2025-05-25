@@ -12,8 +12,7 @@ import { replan } from "./massager.js";
 import { PaperSize } from "./paper-size.js";
 import { Device, type PlanOptions, defaultPlanOptions } from "./planning.js";
 import { connectEBB, startServer } from "./server.js";
-import { formatDuration } from "./util.js";
-import type { Vec2 } from "./vec.js";
+import { linesToPaths, formatDuration } from "./util.js";
 
 function parseSvg(svg: string) {
   const window = new Window;
@@ -211,7 +210,7 @@ export function cli(argv: string[]): void {
           pathJoinRadius: args["path-join-radius"],
           pointJoinRadius: args["point-join-radius"],
         };
-        const p = replan(linesToVecs(lines), planOptions);
+        const p = replan(linesToPaths(lines), planOptions);
         console.log(`${p.motions.length} motions, estimated duration: ${formatDuration(p.duration())}`);
         console.log("connecting to plotter...");
         const ebb = await connectEBB(args.hardware, args.device);
@@ -268,18 +267,4 @@ export function cli(argv: string[]): void {
       }
     )
     .parse(argv);
-}
-/**
- * Convert a list of lines into a Vectors matrix to display on the
- * plot canvas.
- * @param lines 
- * @returns 
- */
-function linesToVecs(lines: Line[]): (Vec2[] & { stroke: string, groupId: string })[] {
-  return lines.map(({ points, stroke, groupId }) => {
-    const a = points.map(([x, y]) => ({ x, y })) as (Vec2[] & { stroke: string, groupId: string });
-    a.stroke = stroke;
-    a.groupId = groupId;
-    return a;
-  });
 }

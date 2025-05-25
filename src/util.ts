@@ -1,5 +1,30 @@
 import type { PaperSize } from "./paper-size.js";
 import { type Vec2, vadd, vlen2, vmul, vsub } from "./vec.js";
+import type { Line } from "flatten-svg";
+
+
+/**
+ * An array of Vec2 with stroke and groupId.
+ */
+export interface Path extends Array<Vec2> {
+  stroke: string;
+  groupId: string;
+}
+
+
+/**
+ * Convert an array of Lines into an array of Path. Use this as a
+ * Vec2 matrix to display on a canvas
+ */
+export function linesToPaths(lines: Line[]): Path[] {
+  return lines.map(({ points, stroke, groupId }) => {
+    const a = points.map(([x, y]) => ({ x, y })) as Path;
+    a.stroke = stroke;
+    a.groupId = groupId;
+    return a;
+  });
+}
+
 
 /** Format a smallish duration in 2h30m15s form */
 export function formatDuration(seconds: number): string {
