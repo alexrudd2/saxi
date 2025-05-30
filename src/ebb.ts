@@ -320,8 +320,10 @@ export class EBB {
     // dur is in [sec]
     // but rate needs to be in [clocks] / [24ms]
     // duration in units of 24ms is duration * [24ms] / [1s]
-    return this.setPenHeight(pm.finalPos, 0, Math.round(pm.duration() * 1000 + 0));
-  }
+    const diff = Math.abs(pm.finalPos - pm.initialPos);
+    const durMs = pm.duration() * 1000;
+    const rate = Math.round((diff * 24) / durMs);
+    return this.setPenHeight(pm.finalPos, rate, durMs);  }
 
   public executeMotion(m: Motion): Promise<void> {
     if (m instanceof XYMotion) {
