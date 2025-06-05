@@ -1,4 +1,4 @@
-import { AxidrawFast, Device, PenMotion, Plan, XYMotion, defaultPlanOptions, plan } from '../planning';
+import { AxidrawFast, PenMotion, Plan, XYMotion, plan } from '../planning';
 import type { Vec2 } from '../vec';
 
 describe("plan", () => {
