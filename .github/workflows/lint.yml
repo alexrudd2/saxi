@@ -27,7 +27,7 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-    - run: npm ci --prefer-offline
+    - run: npm ci --prefer-offline --no-audit
     - run: npm test
 permissions:
   contents: read
