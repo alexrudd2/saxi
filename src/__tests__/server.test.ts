@@ -291,7 +291,8 @@ describe('Plot Endpoint Test', () => {
   }, 10000);
 
   test('should accept resume request and continue plotting', async () => {
-    // Start plot
+    
+    mockSerialPortInstance.slowMode = true;
     await request(server)
       .post('/plot')  
       .send(SIMPLE_PLAN)
