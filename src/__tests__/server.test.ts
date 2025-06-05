@@ -66,11 +66,6 @@ jest.mock("../serialport-serialport", () => {
             mockSerialPortInstance.commands.push(trimmedCommand);
             // console.log(`Serial Command #${mockSerialPortInstance.commandCount}: ${trimmedCommand}`);
             
-            // Simulate delay if in slow mode
-            if (mockSerialPortInstance.slowMode) {
-              await new Promise(resolve => setTimeout(resolve, 10));
-            }
-            
             // Generate response with small delay to simulate hardware
             setTimeout(() => {
               if (responseController) {
@@ -83,7 +78,7 @@ jest.mock("../serialport-serialport", () => {
                 // Send as bytes since TextDecoderStream will decode it
                 responseController.enqueue(new TextEncoder().encode(responseWithNewline));
               }
-            }, 10);
+            }, mockSerialPortInstance.slowMode ? 10: 2);
           }
         }
       });
@@ -92,7 +87,7 @@ jest.mock("../serialport-serialport", () => {
       const readableStream = new ReadableStream({
         start(controller) {
           responseController = controller;
-          console.log('Mock SerialPort readable stream ready for TextDecoderStream');
+          // console.log('Mock SerialPort readable stream ready for TextDecoderStream');
         }
       });
       
@@ -103,31 +98,20 @@ jest.mock("../serialport-serialport", () => {
         connected: false,
         
         open: jest.fn().mockImplementation((options: any) => {
-          console.log('Mock SerialPort.open() called with options:', options);
+          // console.log('Mock SerialPort.open() called with options:', options);
           return Promise.resolve();
         }),
         
         close: jest.fn().mockImplementation(() => {
-          if (mockSerialPortInstance) {
-            mockSerialPortInstance.commands.push('port.close()');
-          }
-          if (responseController) {
-            try {
-              responseController.close();
-            } catch (e) {
-              console.log('Error closing response controller:', e);
-            }
+          mockSerialPortInstance?.commands.push('port.close()');
+          try {
+            responseController?.close();
+          } catch (e) {
+            console.log('Error closing response controller:', e);
           }
           return Promise.resolve();
         }),
         
-        setSignals: jest.fn().mockResolvedValue(undefined),
-        getSignals: jest.fn().mockResolvedValue({}),
-        getInfo: jest.fn().mockReturnValue({}),
-        addEventListener: jest.fn(),
-        removeEventListener: jest.fn(),
-        dispatchEvent: jest.fn(),
-        forget: jest.fn().mockResolvedValue(undefined)
       };
     })
   };
@@ -142,8 +126,6 @@ jest.mock("../server", () => {
   };
 });
 
-
-// Test data constants
 const SIMPLE_PATHS = [
   [{x: 10, y: 10}, {x: 20, y: 10}],
 ];
@@ -165,40 +147,41 @@ function createValidPlan(paths: Array<Array<{x: number, y: number}>>) {
 const SIMPLE_PLAN = createValidPlan(SIMPLE_PATHS);
 const COMPLEX_PLAN = createValidPlan(COMPLEX_PATHS);
 
+// Helper function to check server plotting status
+async function isServerPlotting(server: Server): Promise<boolean> {
+  const statusResponse = await request(server).get('/plot/status');
+  return statusResponse.body.plotting;
+}
+
 // Helper function to wait for plotting to complete
 async function waitForPlottingComplete(server: Server, timeout = 10000): Promise<void> {
   const startTime = Date.now();
   
   while (Date.now() - startTime < timeout) {
-    const statusResponse = await request(server).get('/plot/status');
-    if (!statusResponse.body.plotting) {
-      return; // Plotting complete
-    }
-    
-    // Wait 100ms before checking again
+    if (!await isServerPlotting(server)) return;
     await new Promise(resolve => setTimeout(resolve, 100));
   }
-  
-  throw new Error(`Plotting did not complete within ${timeout}ms`);
+
+  throw new Error(`Server did not complete plotting within ${timeout}ms`);
 }
 
-describe('Plot Endpoint Test', () => {
+// Helper function to reset mock state between tests
+function resetMockState(): void {
+  if (mockSerialPortInstance) {
+    mockSerialPortInstance.commands = [];
+    mockSerialPortInstance.commandCount = 0;
+    mockSerialPortInstance.slowMode = false;
+  }
+}
+
+describe('Plot Endpoint Test Suite', () => {
   let server: Server;
 
-  // Set up server before each test
-  beforeEach(async () => {
-    // Clean up mock state
-    if (mockSerialPortInstance) {
-      mockSerialPortInstance.commands = [];
-      mockSerialPortInstance.slowMode = false;
-    }
-    
-    // Create fresh server instance
+  beforeAll(async () => {
     server = await startServer(0); // Use port 0 for dynamic port assignment
   });
 
-  // Clean up server after each test
-  afterEach(async () => {
+  afterAll(async () => {
     if (server) {
       await new Promise<void>((resolve) => {
         server.close(() => resolve());
@@ -206,124 +189,135 @@ describe('Plot Endpoint Test', () => {
     }
   });
 
-  test('should accept a valid plot plan and log EBB commands', async () => {
-    await request(server)
-      .post('/plot')
-      .send(SIMPLE_PLAN)
-      .expect(200);
- 
-    // Check the commands that were sent to the mock serial port
-    expect(mockSerialPortInstance.commands.length).toBeGreaterThan(0);
-    expect(mockSerialPortInstance.commands).toContain('EM,1,1');
-  });
-
-  test('should reject plot when another plot is in progress', async () => {
-    // Start first plot - note the request resolves before the plot is finished
-    await request(server)
-      .post('/plot')
-      .send(SIMPLE_PLAN)
-      .expect(200);
-
-    // Immediately try second plot
-    await request(server)
-      .post('/plot')
-      .send(SIMPLE_PLAN)
-      .expect(400);
-  });
-
-  test('should handle malformed plan data', async () => {
-    const invalidPlan = {
-      notMotions: "invalid"
-    };
-
-    await request(server)
-      .post('/plot')
-      .send(invalidPlan)
-      .expect(500);
-  });
-
-  test('should handle empty request body', async () => {
-    await request(server)
-      .post('/plot')
-      .send({})
-      .expect(500);
-  });
-
-  test('should accept cancel request and stop plotting', async () => {
-    // Start plot
-    await request(server)
-      .post('/plot')
-      .send(COMPLEX_PLAN)
-      .expect(200);
-
-    // Wait for plot to start executing motions, then cancel
-    await new Promise(resolve => setTimeout(resolve, 20));
-
-    await request(server)
-      .post('/cancel')
-      .expect(200);
-
+  // Reset state before each test to ensure isolation
+  beforeEach(async () => {
     await waitForPlottingComplete(server);
+    resetMockState();
+  });
 
-    // Verify cancellation behavior
-    expect(mockSerialPortInstance.commands).toContain('EM,1,1');
-    // Should have executed the postCancel sequence
-    expect(mockSerialPortInstance.commands).toContain('HM,4000');
-  }, 15000);
+  describe('Basic Plot Operations', () => {
+    test('accept a valid plot plan and log EBB commands', async () => {
+      await request(server)
+        .post('/plot')
+        .send(SIMPLE_PLAN)
+        .expect(200);
+   
+      // Check the commands that were sent to the mock serial port
+      expect(mockSerialPortInstance.commands.length).toBeGreaterThan(0);
+      expect(mockSerialPortInstance.commands).toContain('EM,1,1');
+    });
 
-  test('should pause and resume plotting', async () => {
-    
-    mockSerialPortInstance.slowMode = true;
-    await request(server)
-      .post('/plot')  
-      .send(COMPLEX_PLAN)
-      .expect(200);
+    test('reject plot when another plot is in progress', async () => {
+      // Start first plot - note the request resolves before the plot is finished
+      await request(server)
+        .post('/plot')
+        .send(SIMPLE_PLAN)
+        .expect(200);
 
-    await request(server)
-      .post('/pause')
-      .expect(200);
+      // Immediately try second plot
+      await request(server)
+        .post('/plot')
+        .send(SIMPLE_PLAN)
+        .expect(400);
+        
+      // Wait for first plot to complete to avoid affecting other tests
+      await waitForPlottingComplete(server);
+    });
+  });
 
-    expect(mockSerialPortInstance.commands).not.toContain('SR,60000000,0')
+  describe('Error Handling', () => {
+    test('handle malformed plan data', async () => {
+      const invalidPlan = {
+        notMotions: "invalid"
+      };
 
-    await request(server)
-      .post('/resume')
-      .expect(200);
+      await request(server)
+        .post('/plot')
+        .send(invalidPlan)
+        .expect(500);
+    });
 
-    // Wait for plot to complete
-    await waitForPlottingComplete(server);
+    test('handle empty request body', async () => {
+      await request(server)
+        .post('/plot')
+        .send({})
+        .expect(500);
+    });
+  });
 
-    // Verify commands were still executed
-    expect(mockSerialPortInstance.commands.length).toBeGreaterThan(0);
-    expect(mockSerialPortInstance.commands).toContain('EM,1,1');
-    // Should have completed with motor disable (plot continued after resume)
-    expect(mockSerialPortInstance.commands).toContain('SR,60000000,0');
-  }, 10000);
+  describe('Plot Control Operations', () => {
+    test('cancel plot', async () => {
+      await request(server)
+        .post('/plot')
+        .send(COMPLEX_PLAN)
+        .expect(200);
 
-  test('should get plot status correctly', async () => {
-    // Check initial status (should not be plotting)
-    let statusResponse = await request(server)
-      .get('/plot/status')
-      .expect(200);
-    expect(statusResponse.body.plotting).toBe(false);
+      // Wait for plot to start executing motions, then cancel
+      await new Promise(resolve => setTimeout(resolve, 20));
 
-    await request(server)
-      .post('/plot')
-      .send(COMPLEX_PLAN)
-      .expect(200);
+      await request(server)
+        .post('/cancel')
+        .expect(200);
 
-    // Check status while plotting
-    statusResponse = await request(server)
-      .get('/plot/status')
-      .expect(200);
-    expect(statusResponse.body.plotting).toBe(true);
+      await waitForPlottingComplete(server);
 
-    // Wait for plot to complete
-    await waitForPlottingComplete(server);
+      expect(mockSerialPortInstance.commands).toContain('EM,1,1');
+      // Should have executed the postCancel sequence
+      expect(mockSerialPortInstance.commands).toContain('HM,4000');
+    }, 15000);
 
-    // Check final status
-    statusResponse = await request(server)
-      .get('/plot/status')
-      .expect(200);
-    expect(statusResponse.body.plotting).toBe(false);
-  }, 10000);
+    test('pause and resume plotting', async () => {
+      mockSerialPortInstance.slowMode = true;
+      
+      await request(server)
+        .post('/plot')  
+        .send(COMPLEX_PLAN)
+        .expect(200);
+
+      await request(server)
+        .post('/pause')
+        .expect(200);
+
+      expect(mockSerialPortInstance.commands).not.toContain('SR,60000000,0');
+
+      await request(server)
+        .post('/resume')
+        .expect(200);
+
+      // Wait for plot to complete
+      await waitForPlottingComplete(server);
+
+      // Verify commands were still executed
+      expect(mockSerialPortInstance.commands.length).toBeGreaterThan(0);
+      expect(mockSerialPortInstance.commands).toContain('EM,1,1');
+      // Should have completed with motor disable (plot continued after resume)
+      expect(mockSerialPortInstance.commands).toContain('SR,60000000,0');
+    }, 10000);
+  });
+
+  describe('Status Monitoring', () => {
+    test('should get plot status correctly', async () => {
+      let statusResponse = await request(server)
+        .get('/plot/status')
+        .expect(200);
+      expect(statusResponse.body.plotting).toBe(false);
+
+      await request(server)
+        .post('/plot')
+        .send(COMPLEX_PLAN)
+        .expect(200);
+
+      statusResponse = await request(server)
+        .get('/plot/status')
+        .expect(200);
+      expect(statusResponse.body.plotting).toBe(true);
+
+      await waitForPlottingComplete(server);
+
+      statusResponse = await request(server)
+        .get('/plot/status')
+        .expect(200);
+      expect(statusResponse.body.plotting).toBe(false);
+    }, 10000);
+  });
 });
