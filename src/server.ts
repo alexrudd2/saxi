@@ -13,7 +13,6 @@ import type { PortInfo } from "@serialport/bindings-interface";
 import cors from "cors";
 import type { Request, Response } from "express";
 import express from "express";
-import { WakeLock } from "wake-lock";
 import type WebSocket from 'ws';
 import { WebSocketServer } from 'ws';
 import { EBB, type Hardware } from './ebb.js';
@@ -123,15 +122,19 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
       res.status(200).end();
 
       const begin = Date.now();
-      // biome-ignore lint/suspicious/noExplicitAny: need a new strategy for wakeLock
-      let wakeLock: any;
+      let wakeLock: { release(): void } | null = null;
+      
       // The wake-lock module is macOS-only.
       if (process.platform === 'darwin') {
         try {
+          // Dynamically import wake-lock only on macOS
+          const { WakeLock } = await import("wake-lock");
           wakeLock = new WakeLock("saxi plotting");
-        } catch {
+        } catch (error) {
           console.warn("Couldn't acquire wake lock. Ensure your machine does not sleep during plotting");
         }
+      } else {
+        console.log("Wake lock not available on this platform. Ensure your machine does not sleep during plotting");
       }
 
       try {
