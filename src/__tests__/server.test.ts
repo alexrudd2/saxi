@@ -3,7 +3,135 @@ import request from 'supertest';
 import { startServer } from '../server';
 import { AxidrawFast, plan } from '../planning';
 
-jest.mock("../serialport-serialport");
+// Global reference to track the mock serial port instance
+const mockSerialPortInstance: any = {
+  commands: [],
+  slowMode: false,
+  commandCount: 0,
+  
+  // Generate appropriate responses based on command type
+  getResponseForCommand(command: string): string {
+    if (command.startsWith('QM')) {
+      // QM returns: GlobalStatus,CommandStatus,Motor1Status,Motor2Status,FIFOStatus
+      // The waitUntilMotorsIdle() checks commandStatus[1] === "0" and fifoStatus[4] === "0"
+      // Return "1,0,0,0,0" meaning: Global=1, Command=0(idle), M1=0, M2=0, FIFO=0(empty)
+      return '1,0,0,0,0\r\n';
+    } if (command.startsWith('QB')) {
+      // Query button - return not pressed
+      return '0\r\n';
+    } if (command.startsWith('QP')) {
+      // Query pen status - return pen up (1) or down (0)
+      return '1\r\n';
+    } if (command.startsWith('V') || command.startsWith('v')) {
+      // Version query
+      return 'EBBv13_and_above\r\n';
+    } if (command.startsWith('QE')) {
+      // Query encoder - return 0,0 for no movement
+      return '0,0\r\n';
+    } if (command.startsWith('QS')) {
+      // Query step position - return current step positions
+      return '0,0\r\n';
+    } if (command.startsWith('ST')) {
+      // Stepper and servo mode query
+      return '1\r\n';
+    }
+    // Default OK response for most commands (SM, XM, LM, EM, etc.)
+    return 'OK\r\n';
+  },
+  
+  clearCommands(): void {
+    this.commands = [];
+    this.commandCount = 0;
+  },
+  
+  getCommandSummary(): string {
+    return `Total commands: ${this.commandCount}\nCommands: ${this.commands.join(', ')}`;
+  }
+};
+
+// Mock the serialport module to capture commands and generate responses
+jest.mock("../serialport-serialport", () => {
+  return {
+    SerialPortSerialPort: jest.fn().mockImplementation((path: string) => {
+      let responseController: ReadableStreamDefaultController | null = null;
+      
+      // Create a writable stream that captures commands and generates responses
+      const writableStream = new WritableStream({
+        write: async (chunk) => {
+          const command = new TextDecoder().decode(chunk);
+          const trimmedCommand = command.trim();
+          
+          if (mockSerialPortInstance && trimmedCommand) {
+            mockSerialPortInstance.commandCount++;
+            mockSerialPortInstance.commands.push(trimmedCommand);
+            // console.log(`Serial Command #${mockSerialPortInstance.commandCount}: ${trimmedCommand}`);
+            
+            // Simulate delay if in slow mode
+            if (mockSerialPortInstance.slowMode) {
+              await new Promise(resolve => setTimeout(resolve, 5));
+            }
+            
+            // Generate response with small delay to simulate hardware
+            setTimeout(() => {
+              if (responseController) {
+                const response = mockSerialPortInstance.getResponseForCommand(trimmedCommand);
+                // console.log(`Serial Response #${mockSerialPortInstance.commandCount}: ${response.trim()}`);
+                
+                // Ensure response has proper line ending for TextDecoderStream parsing
+                const responseWithNewline = response.endsWith('\r\n') ? response : `${response}\r\n`;
+                
+                // Send as bytes since TextDecoderStream will decode it
+                responseController.enqueue(new TextEncoder().encode(responseWithNewline));
+              }
+            }, 10);
+          }
+        }
+      });
+      
+      // Create a readable stream that the TextDecoderStream can process
+      const readableStream = new ReadableStream({
+        start(controller) {
+          responseController = controller;
+          console.log('Mock SerialPort readable stream ready for TextDecoderStream');
+        }
+      });
+      
+      // Return mock SerialPort instance
+      return {
+        readable: readableStream,
+        writable: writableStream,
+        connected: false,
+        
+        open: jest.fn().mockImplementation((options: any) => {
+          console.log('Mock SerialPort.open() called with options:', options);
+          return Promise.resolve();
+        }),
+        
+        close: jest.fn().mockImplementation(() => {
+          if (mockSerialPortInstance) {
+            mockSerialPortInstance.commands.push('port.close()');
+          }
+          if (responseController) {
+            try {
+              responseController.close();
+            } catch (e) {
+              console.log('Error closing response controller:', e);
+            }
+          }
+          return Promise.resolve();
+        }),
+        
+        setSignals: jest.fn().mockResolvedValue(undefined),
+        getSignals: jest.fn().mockResolvedValue({}),
+        getInfo: jest.fn().mockReturnValue({}),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        dispatchEvent: jest.fn(),
+        forget: jest.fn().mockResolvedValue(undefined)
+      };
+    })
+  };
+});
 
 // Mock the server module to ensure EBB is always connected in tests
 jest.mock("../server", () => {
@@ -14,154 +142,17 @@ jest.mock("../server", () => {
   };
 });
 
-// Global reference to track the mock EBB instance
-let mockEbbInstance: any = null;
-
-jest.mock("../ebb", () => {
-  const actualEbb = jest.requireActual('../ebb');
-  
-  return {
-    ...actualEbb,
-    EBB: class MockEBB extends actualEbb.EBB {
-      public commands: string[] = [];
-      public slowMode = false;
-      public commandCount = 0;
-      
-      constructor(port: any, hardware: any = 'v3') {
-        let responseController: ReadableStreamDefaultController | null = null;
-        
-        // Create a writable stream that captures commands and generates responses
-        const writableStream = new WritableStream({
-          write: async (chunk) => {
-            const command = new TextDecoder().decode(chunk);
-            const trimmedCommand = command.trim();
-            
-            if (mockEbbInstance && trimmedCommand) {
-              mockEbbInstance.commandCount++;
-              mockEbbInstance.commands.push(trimmedCommand);
-              // console.log(`EBB Command #${mockEbbInstance.commandCount}: ${trimmedCommand}`);
-              
-              // Simulate delay if in slow mode
-              if (mockEbbInstance.slowMode) {
-                await new Promise(resolve => setTimeout(resolve, 5));
-              }
-              
-              // Generate response with small delay to simulate hardware
-              setTimeout(() => {
-                if (responseController) {
-                  const response = mockEbbInstance.getResponseForCommand(trimmedCommand);
-                  // console.log(`EBB Response #${mockEbbInstance.commandCount}: ${response.trim()}`);
-                  
-                  // Ensure response has proper line ending for TextDecoderStream parsing
-                  const responseWithNewline = response.endsWith('\r\n') ? response : `${response}\r\n`;
-                  
-                  // Send as bytes since TextDecoderStream will decode it
-                  responseController.enqueue(new TextEncoder().encode(responseWithNewline));
-                }
-              }, 10);
-            }
-          }
-        });
-        
-        // Create a readable stream that the TextDecoderStream can process
-        const readableStream = new ReadableStream({
-          start(controller) {
-            responseController = controller;
-            console.log('Mock EBB readable stream ready for TextDecoderStream');
-          }
-        });
-        
-        // Create the mock port
-        const mockPort = {
-          writable: writableStream,
-          readable: readableStream,
-          close: async () => {
-            if (mockEbbInstance) {
-              mockEbbInstance.commands.push('port.close()');
-            }
-            if (responseController) {
-              try {
-                responseController.close();
-              } catch (e) {
-                console.log('Error closing response controller:', e);
-              }
-            }
-          },
-          addEventListener: () => {},
-        };
-        
-        super(mockPort, hardware);
-        mockEbbInstance = this;
-        console.log('MockEBB constructed for TextDecoderStream pipeline');
-      }
-      
-      // Generate appropriate responses based on command type
-      getResponseForCommand(command: string): string {
-        if (command.startsWith('QM')) {
-          // QM returns: GlobalStatus,CommandStatus,Motor1Status,Motor2Status,FIFOStatus
-          // The waitUntilMotorsIdle() checks commandStatus[1] === "0" and fifoStatus[4] === "0"
-          // Return "1,0,0,0,0" meaning: Global=1, Command=0(idle), M1=0, M2=0, FIFO=0(empty)
-          return '1,0,0,0,0\r\n';
-        }if (command.startsWith('QB')) {
-          // Query button - return not pressed
-          return '0\r\n';
-        } if (command.startsWith('QP')) {
-          // Query pen status - return pen up (1) or down (0)
-          return '1\r\n';
-        } if (command.startsWith('V') || command.startsWith('v')) {
-          // Version query
-          return 'EBBv13_and_above\r\n';
-        } if (command.startsWith('QE')) {
-          // Query encoder - return 0,0 for no movement
-          return '0,0\r\n';
-        } if (command.startsWith('QS')) {
-          // Query step position - return current step positions
-          return '0,0\r\n';
-        } if (command.startsWith('ST')) {
-          // Stepper and servo mode query
-          return '1\r\n';
-        }
-          // Default OK response for most commands (SM, XM, LM, EM, etc.)
-        return 'OK\r\n';
-
-      }
-      
-      clearCommands(): void {
-        this.commands = [];
-        this.commandCount = 0;
-      }
-      
-      getCommandSummary(): string {
-        return `Total commands: ${this.commandCount}\nCommands: ${this.commands.join(', ')}`;
-      }
-    }
-  };
-});
-
 
 // Test data constants
 const SIMPLE_PATHS = [
   [{x: 10, y: 10}, {x: 20, y: 10}],
-  [{x: 10, y: 20}, {x: 20, y: 20}]
 ];
 
 const COMPLEX_PATHS = [
   [{x: 0, y: 0}, {x: 100, y: 0}],
   [{x: 0, y: 50}, {x: 100, y: 50}],
   [{x: 0, y: 100}, {x: 100, y: 100}],
-  [{x: 0, y: 150}, {x: 100, y: 150}]
-];
-
-const PAUSE_PATHS = [
-  [{x: 0, y: 0}, {x: 100, y: 0}],
-  [{x: 0, y: 50}, {x: 100, y: 50}],
-  [{x: 0, y: 100}, {x: 100, y: 100}],
-  [{x: 0, y: 200}, {x: 200, y: 200}],
-];
-
-const STATUS_PATHS = [
-  [{x: 0, y: 0}, {x: 100, y: 0}],
-  [{x: 0, y: 50}, {x: 100, y: 50}]
+  [{x: 0, y: 150}, {x: 100, y: 150}],
 ];
 
 // Helper function to create valid plan
@@ -173,8 +164,6 @@ function createValidPlan(paths: Array<Array<{x: number, y: number}>>) {
 // Pre-serialized plan constants
 const SIMPLE_PLAN = createValidPlan(SIMPLE_PATHS);
 const COMPLEX_PLAN = createValidPlan(COMPLEX_PATHS);
-const PAUSE_PLAN = createValidPlan(PAUSE_PATHS);
-const STATUS_PLAN = createValidPlan(STATUS_PATHS);
 
 // Helper function to wait for plotting to complete
 async function waitForPlottingComplete(server: Server, timeout = 10000): Promise<void> {
@@ -199,9 +188,9 @@ describe('Plot Endpoint Test', () => {
   // Set up server before each test
   beforeEach(async () => {
     // Clean up mock state
-    if (mockEbbInstance) {
-      mockEbbInstance.commands = [];
-      mockEbbInstance.slowMode = false;
+    if (mockSerialPortInstance) {
+      mockSerialPortInstance.commands = [];
+      mockSerialPortInstance.slowMode = false;
     }
     
     // Create fresh server instance
@@ -223,9 +212,9 @@ describe('Plot Endpoint Test', () => {
       .send(SIMPLE_PLAN)
       .expect(200);
  
-    // Check the commands that were sent to the mock EBB
-    expect(mockEbbInstance.commands.length).toBeGreaterThan(0);
-    expect(mockEbbInstance.commands).toContain('EM,1,1');
+    // Check the commands that were sent to the mock serial port
+    expect(mockSerialPortInstance.commands.length).toBeGreaterThan(0);
+    expect(mockSerialPortInstance.commands).toContain('EM,1,1');
   });
 
   test('should reject plot when another plot is in progress', async () => {
@@ -277,16 +266,17 @@ describe('Plot Endpoint Test', () => {
     await waitForPlottingComplete(server);
 
     // Verify cancellation behavior
-    expect(mockEbbInstance.commands).toContain('EM,1,1');
+    expect(mockSerialPortInstance.commands).toContain('EM,1,1');
     // Should have executed the postCancel sequence
-    expect(mockEbbInstance.commands).toContain('HM,4000');
+    expect(mockSerialPortInstance.commands).toContain('HM,4000');
   }, 15000);
 
   test('should accept pause request and pause plotting', async () => {
+    mockSerialPortInstance.slowMode = true;
     // Start the plot
     await request(server)
       .post('/plot')
-      .send(PAUSE_PLAN)
+      .send(COMPLEX_PLAN)
       .expect(200);
 
     // Send pause command
@@ -295,9 +285,9 @@ describe('Plot Endpoint Test', () => {
       .expect(200);
 
     // Check that some commands were logged before pause
-    expect(mockEbbInstance.commands).toContain('EM,1,1');
+    expect(mockSerialPortInstance.commands).toContain('EM,1,1');
     // should NOT have the final motor disable command
-    expect(mockEbbInstance.commands).not.toContain('SR,60000000,0')
+    expect(mockSerialPortInstance.commands).not.toContain('SR,60000000,0')
   }, 10000);
 
   test('should accept resume request and continue plotting', async () => {
@@ -319,10 +309,10 @@ describe('Plot Endpoint Test', () => {
     await waitForPlottingComplete(server);
 
     // Verify commands were still executed
-    expect(mockEbbInstance.commands.length).toBeGreaterThan(0);
-    expect(mockEbbInstance.commands).toContain('EM,1,1');
+    expect(mockSerialPortInstance.commands.length).toBeGreaterThan(0);
+    expect(mockSerialPortInstance.commands).toContain('EM,1,1');
     // Should have completed with motor disable (plot continued after resume)
-    expect(mockEbbInstance.commands).toContain('SR,60000000,0');
+    expect(mockSerialPortInstance.commands).toContain('SR,60000000,0');
   }, 10000);
 
   test('should get plot status correctly', async () => {
@@ -334,7 +324,7 @@ describe('Plot Endpoint Test', () => {
 
     await request(server)
       .post('/plot')
-      .send(STATUS_PLAN)
+      .send(COMPLEX_PLAN)
       .expect(200);
 
     // Check status while plotting
