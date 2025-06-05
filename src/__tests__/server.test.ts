@@ -68,7 +68,7 @@ jest.mock("../serialport-serialport", () => {
             
             // Simulate delay if in slow mode
             if (mockSerialPortInstance.slowMode) {
-              await new Promise(resolve => setTimeout(resolve, 5));
+              await new Promise(resolve => setTimeout(resolve, 10));
             }
             
             // Generate response with small delay to simulate hardware
