@@ -111,6 +111,8 @@ jest.mock("../serialport-serialport", () => {
           }
           return Promise.resolve();
         }),
+
+        addEventListener: jest.fn(),
         
       };
     })
@@ -137,15 +139,9 @@ const COMPLEX_PATHS = [
   [{x: 0, y: 150}, {x: 100, y: 150}],
 ];
 
-// Helper function to create valid plan
-function createValidPlan(paths: Array<Array<{x: number, y: number}>>) {
-  const validPlan = plan(paths, AxidrawFast);
-  return validPlan.serialize();
-}
-
 // Pre-serialized plan constants
-const SIMPLE_PLAN = createValidPlan(SIMPLE_PATHS);
-const COMPLEX_PLAN = createValidPlan(COMPLEX_PATHS);
+const SIMPLE_PLAN = plan(SIMPLE_PATHS, AxidrawFast).serialize();
+const COMPLEX_PLAN = plan(COMPLEX_PATHS, AxidrawFast).serialize();
 
 // Helper function to check server plotting status
 async function isServerPlotting(server: Server): Promise<boolean> {
