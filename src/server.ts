@@ -151,6 +151,10 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
     }
   });
 
+  app.get('/plot/status', (req, res) => {
+    res.json({ plotting });
+  });
+
   app.post("/cancel", (_req: Request, res: Response) => {
     cancelRequested = true;
     if (unpaused) {
