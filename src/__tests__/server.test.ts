@@ -271,36 +271,19 @@ describe('Plot Endpoint Test', () => {
     expect(mockSerialPortInstance.commands).toContain('HM,4000');
   }, 15000);
 
-  test('should accept pause request and pause plotting', async () => {
-    mockSerialPortInstance.slowMode = true;
-    // Start the plot
-    await request(server)
-      .post('/plot')
-      .send(COMPLEX_PLAN)
-      .expect(200);
-
-    // Send pause command
-    await request(server)
-      .post('/pause')
-      .expect(200);
-
-    // Check that some commands were logged before pause
-    expect(mockSerialPortInstance.commands).toContain('EM,1,1');
-    // should NOT have the final motor disable command
-    expect(mockSerialPortInstance.commands).not.toContain('SR,60000000,0')
-  }, 10000);
-
-  test('should accept resume request and continue plotting', async () => {
+  test('should pause and resume plotting', async () => {
     
     mockSerialPortInstance.slowMode = true;
     await request(server)
       .post('/plot')  
-      .send(SIMPLE_PLAN)
+      .send(COMPLEX_PLAN)
       .expect(200);
 
     await request(server)
       .post('/pause')
       .expect(200);
+
+    expect(mockSerialPortInstance.commands).not.toContain('SR,60000000,0')
 
     await request(server)
       .post('/resume')
