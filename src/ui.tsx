@@ -921,10 +921,13 @@ type PortSelectorProps = {
 
 function PortSelector({ driver, setDriver, hardware }: PortSelectorProps) {
   const [initializing, setInitializing] = useState(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: setDriver is stable
   useEffect(() => {
     (async () => {
+      if (!(driver instanceof NullDriver)) { return } // Already connected
+      setInitializing(true);
       try {
-        const ports = await navigator.serial.getPorts();
+        const ports = await navigator.serial.getPorts();  // re-connect to previously established connection
         const port = ports[0];
         if (port) {
           console.log('connecting to', port);
@@ -935,28 +938,27 @@ function PortSelector({ driver, setDriver, hardware }: PortSelectorProps) {
         setInitializing(false);
       }
     })();
-  });
+  }, [driver, hardware]);
   return <>
-    {!(driver instanceof NullDriver) ? `Connected: ${driver.name()}` :
-      <button
-        type="button"
-        disabled={initializing}
-        onClick={async () => {
-          try {
-            const port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x04D8, usbProductId: 0xFD92 }] });
-            // TODO: describe why we close if we already checked that driver is null
-            // await driver?.close()
-            setDriver(await WebSerialDriver.connect(port, hardware));
-          } catch (e) {
-            alert(`Failed to connect to serial device: ${e.message}`);
-            console.error(e);
-          }
-        }}
-      >
-        {/* TODO: allow changing port */}
-        {initializing ? "Connecting..." : (driver ? "Change Port" : "Connect")}
-      </button>
-    }
+    {(driver instanceof NullDriver) ? null : `Connected to ${driver.name()}`}
+     <button
+       type="button"
+       disabled={initializing}
+       onClick={async () => {
+        setInitializing(true);
+         try {
+           const port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x04D8, usbProductId: 0xFD92 }] });
+           setDriver(await WebSerialDriver.connect(port, hardware));
+         } catch (e) {
+           alert(`Failed to connect to serial device: ${e.message}`);
+           console.error(e);
+         } finally {
+          setInitializing(false);
+         }
+       }}
+     >
+      {initializing ? "Connecting..." : ((driver instanceof NullDriver) ? "Connect" : "Change port")}
+     </button>
   </>;
 }
 
@@ -965,12 +967,9 @@ function Root() {
   const [isDriverConnected, setIsDriverConnected] = useState(false);
   useEffect(() => {
     if (isDriverConnected) return;
-    if (IS_WEB) {
-      setDriver(new NullDriver());
-    } else {
-      setDriver(SaxiDriver.connect());
-      setIsDriverConnected(true);
-    }
+    if (IS_WEB) return;
+    setDriver(SaxiDriver.connect());
+    setIsDriverConnected(true);
   }, [isDriverConnected]);
 
   const [state, dispatch] = useReducer(reducer, initialState);
