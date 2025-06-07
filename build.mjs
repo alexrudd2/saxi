@@ -17,6 +17,7 @@ const buildOptions = {
   loader: { '.svg': 'file' },
   define: {
     IS_WEB: process.env.IS_WEB ?? '0',
+    'process.env.DEBUG_SAXI_COMMANDS': JSON.stringify(process.env.DEBUG_SAXI_COMMANDS ?? ''),
   },
   plugins: [ inlineWorker(),
     html({
