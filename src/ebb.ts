@@ -10,7 +10,7 @@ function modf(d: number): [number, number] {
 
 export type Hardware = 'v3' | 'brushless'
 
-type CommandGenerator<TReturn = unknown> = Iterator<unknown, TReturn, Buffer> & {
+type CommandGenerator<TReturn = unknown> = Iterator<unknown, TReturn, string> & {
   resolve: (value: TReturn) => void;
   reject: (reason: Error) => void;
 };
@@ -54,7 +54,7 @@ export class EBB {
               }
 
               try {
-                const d = this.commandQueue[0].next(Buffer.from(part, 'ascii'));
+                const d = this.commandQueue[0].next(part);
                 if (d.done) {
                   this.commandQueue.shift().resolve(d.value);
                 }
@@ -100,9 +100,9 @@ export class EBB {
   /** Send a raw command to the EBB and expect a single line in return, without an "OK" line to terminate. */
   public async query(cmd: string): Promise<string> {
     try {
-      return await this.run(function* (): Iterator<string, string, Buffer> {
+      return await this.run(function* (): Iterator<string, string, string> {
         this.write(`${cmd}\r`);
-        const result = (yield).toString("ascii");
+        const result = (yield);
         return result;
       });
     } catch (err) {
@@ -113,11 +113,11 @@ export class EBB {
   /** Send a raw command to the EBB and expect multiple lines in return, with an "OK" line to terminate. */
   public async queryM(cmd: string): Promise<string[]> {
     try {
-      return await this.run(function*(): Iterator<string[], string[], Buffer> {
+      return await this.run(function*(): Iterator<string[], string[], string> {
         this.write(`${cmd}\r`);
         const result: string[] = [];
         while (true) {
-          const line = (yield).toString("ascii");
+          const line = (yield);
           if (line === "OK") { break; }
           result.push(line);
         }
@@ -131,9 +131,9 @@ export class EBB {
   /** Send a raw command to the EBB and expect a single "OK" line in return. */
   public async command(cmd: string): Promise<void> {
     try {
-      return await this.run(function*(): Iterator<void, void, Buffer> {
+      return await this.run(function*(): Iterator<void, void, string> {
         this.write(`${cmd}\r`);
-        const ok = (yield).toString("ascii");
+        const ok = (yield);
         if (ok !== "OK") {
           throw new Error(`Expected OK, got ${ok}`);
         }
