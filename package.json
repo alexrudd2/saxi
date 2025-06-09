@@ -27,8 +27,8 @@
     "prepare": "rimraf dist && npm run build",
     "start": "npm run build && node cli.mjs",
     "start-svgio": "npm run build && node cli.mjs --svgio-api-key YOUR_API_KEY",
-    "dev": "BUILD_MODE=development npm start",
-    "deploy": "rimraf dist/ui && IS_WEB=1 npm run build:ui && gh-pages --dist dist/ui",
+    "dev": "cross-env BUILD_MODE=development npm start",
+    "deploy": "rimraf dist/ui && cross-env IS_WEB=1 npm run build:ui && gh-pages --dist dist/ui",
     "test": "jest"
   },
   "author": "Jeremy Rose <nornagon@nornagon.net>",
@@ -50,6 +50,7 @@
     "@types/yargs": "^17.0.0",
     "color-interpolate": "^2.0.0",
     "colormap": "^2.3.2",
+    "cross-env": "^7.0.3",
     "esbuild": "^0.25.0",
     "esbuild-plugin-inline-worker": "^0.1.1",
     "gh-pages": "^6.0.0",
