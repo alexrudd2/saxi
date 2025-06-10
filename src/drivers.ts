@@ -17,7 +17,7 @@ export abstract class BaseDriver {
   public onfinished: () => void = () => {};
   public ondevinfo: (devInfo: DeviceInfo) => void = () => {};
   public onpause: (paused: boolean) => void = () => {};
-  public onconnectionchange: (connected: boolean) => void = () => {};
+  public connected = false;
   /**
    * Called when plan loaded
    */
@@ -57,6 +57,7 @@ export class WebSerialDriver extends BaseDriver {
   private _unpaused: Promise<void> | null = null;
   private _signalUnpause: (() => void) | null = null;
   private _cancelRequested = false;
+  private _disconnectHandler: ((event: Event) => void) | null = null;
 
   public static async connect(port?: SerialPort, hardware: Hardware = 'v3') {
     if (!port)
@@ -74,7 +75,16 @@ export class WebSerialDriver extends BaseDriver {
     const productId = usbProductId?.toString(16).padStart(4, '0');
     const name = `${vendorId}:${productId}`;
 
-    return new WebSerialDriver(ebb, name);
+    const driver = new WebSerialDriver(ebb, name);
+    driver._disconnectHandler = (event: Event) => {
+      if (event.target === port) {
+        driver.handleDisconnection();
+      }
+    };
+    navigator.serial.addEventListener('disconnect', driver._disconnectHandler);
+    driver.connected = true;
+
+    return driver;
   }
 
   private _name: string;
@@ -89,7 +99,14 @@ export class WebSerialDriver extends BaseDriver {
     this._name = name;
   }
 
-  public close(): Promise<void> {
+  private handleDisconnection(): void {
+    console.log('WebSerial device disconnected');
+    this.connected = false;
+  }
+
+  public async close(): Promise<void> {
+    this.handleDisconnection();
+    navigator.serial.removeEventListener('disconnect', this._disconnectHandler);
     return this.ebb.close();
   }
 
@@ -175,7 +192,6 @@ export class SaxiDriver extends BaseDriver {
     return d;
   }
   private socket: WebSocket;
-  private connected: boolean;
   private pingInterval: number | undefined;
   svgioEnabled: ((enabled: boolean) => void);
 
@@ -196,8 +212,6 @@ export class SaxiDriver extends BaseDriver {
     this.socket.addEventListener("open", () => {
       console.log("Connected to EBB server.");
       this.connected = true;
-      this.onconnectionchange(true);
-
       this.pingInterval = window.setInterval(() => this.ping(), 30000);
     });
     this.socket.addEventListener("message", (e: MessageEvent) => {
@@ -240,7 +254,6 @@ export class SaxiDriver extends BaseDriver {
       window.clearInterval(this.pingInterval);
       this.pingInterval = undefined;
       this.connected = false;
-      this.onconnectionchange(false);
       setTimeout(() => this.connect(), 5000);
     });
   }
