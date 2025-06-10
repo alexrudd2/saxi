@@ -940,7 +940,7 @@ function PortSelector({ driver, setDriver, hardware }: PortSelectorProps) {
     })();
   }, [driver, hardware]);
   return <>
-    {(driver instanceof NullDriver) ? null : `Connected to ${driver.name()}`}
+    {(!driver.connected) ? null : `Connected to ${driver.name()}`}
      <button
        type="button"
        disabled={initializing}
@@ -957,7 +957,7 @@ function PortSelector({ driver, setDriver, hardware }: PortSelectorProps) {
          }
        }}
      >
-      {initializing ? "Connecting..." : ((driver instanceof NullDriver) ? "Connect" : "Change port")}
+      {initializing ? "Connecting..." : ((!driver.connected) ? "Connect" : "Change port")}
      </button>
   </>;
 }
@@ -990,9 +990,6 @@ function Root() {
     driver.oncancelled = driver.onfinished = () => {
       dispatch({ type: "SET_PROGRESS", motionIdx: null });
     };
-    driver.onconnectionchange = (connected: boolean) => {
-      dispatch({ type: "SET_CONNECTED", connected });
-    };
     driver.ondevinfo = (devInfo: DeviceInfo) => {
       dispatch({ type: "SET_DEVICE_INFO", value: devInfo });
       dispatch({ type: "SET_PLAN_OPTION", value: { ...state.planOptions, hardware: devInfo.hardware } });
@@ -1009,6 +1006,15 @@ function Root() {
       };
     }
   }, [driver]);
+
+  useEffect(() => { // poll the driver so React notices connection changes
+    const interval = setInterval(() => {
+      if (state.connected !== driver.connected) {
+        dispatch({ type: "SET_CONNECTED", connected: driver.connected });
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, [driver, state.connected]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies(setPlan): React setters are stable
   useEffect(() => {
@@ -1074,8 +1080,8 @@ function Root() {
         <div className={"saxi-title red"} title={state.deviceInfo ? state.deviceInfo.path : undefined}>
           <span className="red reg">s</span><span className="teal">axi</span>
         </div>
-        {IS_WEB ? <PortSelector driver={driver} setDriver={setDriver} hardware={state.deviceInfo?.hardware ?? 'v3'} /> : null}
         {!state.connected ? <div className="info-disconnected">disconnected</div> : null}
+        {IS_WEB ? <PortSelector driver={driver} setDriver={setDriver} hardware={state.deviceInfo?.hardware ?? 'v3'} /> : null}
         <div className="section-header">pen</div>
         <div className="section-body">
           <PenHeight state={state} driver={driver} />
