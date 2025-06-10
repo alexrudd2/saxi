@@ -11,7 +11,6 @@ import { type Path, flattenSVG } from "flatten-svg";
 import { PaperSize } from "./paper-size";
 import { Device, type MotionData, Plan, type PlanOptions, XYMotion, defaultPlanOptions } from "./planning.js";
 import { formatDuration } from "./util.js";
-import type { Vec2 } from "./vec.js";
 
 import "./style.css";
 import { type DeviceInfo, type BaseDriver, NullDriver, WebSerialDriver, SaxiDriver } from "./drivers";
