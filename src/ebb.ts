@@ -66,7 +66,13 @@ export class EBB {
             }
           }
         }
-      }));
+      }))
+      .catch((error) => {
+        // Swallow premature close error; the disconnect handler takes care of it
+        if (error.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
+         throw error;
+        }
+      });
   }
 
   private get stepMultiplier() {
