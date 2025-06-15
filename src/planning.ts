@@ -372,6 +372,12 @@ export class Plan {
   constructor(
     public motions: Motion[]
   ) {}
+
+  /**
+   * Calculate duration of the plan from a given start index.
+   * @param start - the index of the first motion to consider (default: 0)
+   * @returns duration of the plan (sec)
+   */
   public duration(start = 0): number {
     return this.motions.slice(start).map((m) => m.duration()).reduce((a, b) => a + b, 0);
   }
