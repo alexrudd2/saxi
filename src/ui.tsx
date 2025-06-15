@@ -513,7 +513,6 @@ function TimeLeft({ plan, progress, currentMotionStartedTime, paused }: {
 
   const currentMotionTimeSpent = (new Date().getTime() - currentMotionStartedTime.getTime()) / 1000;
   const duration = plan.duration(progress);
-
   return <div className="duration">
     <div className="time-remaining-label">Time remaining</div>
     <div><strong>{formatDuration(duration - currentMotionTimeSpent)}</strong></div>
@@ -1065,9 +1064,10 @@ function Root() {
   }, []);
 
   // Each time new motion is started, save the start time
+  // biome-ignore lint/correctness/useExhaustiveDependencies: currentMotionStartedTime should be re-set with each motion
   const currentMotionStartedTime = useMemo(() => {
     return new Date();
-  }, []);
+  }, [state.progress, plan, state.paused]);
 
   const previewArea = useRef(null);
   const previewSize = useComponentSize(previewArea);
