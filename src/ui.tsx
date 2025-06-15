@@ -513,7 +513,6 @@ function TimeLeft({ plan, progress, currentMotionStartedTime, paused }: {
 
   const currentMotionTimeSpent = (new Date().getTime() - currentMotionStartedTime.getTime()) / 1000;
   const duration = plan.duration(progress);
-  
   return <div className="duration">
     <div className="time-remaining-label">Time remaining</div>
     <div><strong>{formatDuration(duration - currentMotionTimeSpent)}</strong></div>
