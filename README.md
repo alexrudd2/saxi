@@ -21,7 +21,7 @@ easy-to-use interface, and is exactingly precise.
 1. **Install Node.js (if not already installed):**
 
 ```bash
-$ curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+$ curl -sL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 $ sudo apt-get install -y nodejs
 ```
 
@@ -112,6 +112,7 @@ $ tmux ls
 ```
 
 To terminate session:
+
 ```bash
 $ tmux kill-session -t saxi
 ```
@@ -119,6 +120,7 @@ $ tmux kill-session -t saxi
 ---
 
 #### CORS
+
 If you want to connect to saxi from a web page that isn't served by saxi
 itself, you'll need to enable
 [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), otherwise
@@ -135,7 +137,7 @@ less-accurate (but still pretty accurate) `XM` command.
 
 To check what version of the EBB firmware your AxiDraw is running, run `saxi --firmware-version`:
 
-```
+```bash
 $ saxi --firmware-version
 EBBv13_and_above EB Firmware Version 2.5.3
 ```
@@ -147,14 +149,15 @@ To upgrade your AxiDraw's firmware, see [here](https://github.com/evil-mad/EggBo
 To work on saxi, you can clone this repo and then run `npm start`:
 
 ```sh
-$ git clone https://github.com/nornagon/saxi
+$ git clone https://github.com/alexrudd2/saxi
 $ cd saxi
-$ npm run dev
+$ npm run start
 ```
 
-This will watch local files for changes. If you change the server code, you'll need to restart manually.
+This will not watch local files for changes. If you change the server code, you'll need to restart manually.
 
 ### Credits
+
 saxi's motion planning algorithm is heavily inspired by Michael Fogleman's
 [axi](https://github.com/fogleman/axi) project.
 
