@@ -48,7 +48,7 @@ export function cli(argv: string[]): void {
           alias: "s",
           describe: "Paper size to use",
           coerce: (value) => {
-            if (Object.prototype.hasOwnProperty.call(PaperSize.standard, value)) {
+            if (Object.hasOwn(PaperSize.standard, value)) {
               return PaperSize.standard[value];
             }
             const m = /^([0-9]*(?:\.[0-9]+)?)\s*x\s*([0-9]*(?:\.[0-9]+)?)\s*(cm|mm|in)$/i.exec(String(value).trim());

@@ -130,7 +130,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
           // Dynamically import wake-lock only on macOS
           const { WakeLock } = await import("wake-lock");
           wakeLock = new WakeLock("saxi plotting");
-        } catch (error) {
+        } catch (_error) {
           console.warn("Couldn't acquire wake lock. Ensure your machine does not sleep during plotting");
         }
       } else {
@@ -151,7 +151,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
     }
   });
 
-  app.get('/plot/status', (req, res) => {
+  app.get('/plot/status', (_req, res) => {
     res.json({ plotting });
   });
 

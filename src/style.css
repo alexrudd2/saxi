@@ -89,10 +89,6 @@ path {
   left: 0;
 }
 
-.dragover .drag-target {
-  opacity: 0;
-}
-
 .drag-target {
   position: absolute;
   top: 0;
@@ -103,6 +99,10 @@ path {
   justify-content: center;
   align-items: center;
   background: rgba(0, 0, 0, 0.2);
+}
+
+.dragover .drag-target {
+  opacity: 0;
 }
 
 .drag-target-message {
@@ -132,10 +132,6 @@ path {
   background-color: white;
 }
 
-.control-panel-bottom .section-header {
-  padding-top: 0.25rem;
-}
-
 .saxi-title {
   margin: 0 1rem;
   padding-top: 0.5rem;
@@ -156,6 +152,10 @@ path {
   font-weight: 900;
   text-align: center;
   user-select: none;
+}
+
+.control-panel-bottom .section-header {
+  padding-top: 0.25rem;
 }
 
 .section-body {
@@ -388,10 +388,6 @@ summary:focus {
   /*background-color: var(--purple-light);*/
   /*color: var(--purple-light);*/
   cursor: default;
-}
-
-.replan-button {
-  /*color: var(--purple);*/
 }
 
 .plot-button {
