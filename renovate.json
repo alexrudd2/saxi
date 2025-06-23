@@ -3,7 +3,8 @@
   "extends": [
     "config:recommended",
     ":automergeLinters",
-    "group:nodeJs"
+    "group:nodeJs",
+    "customManagers:biomeVersions"
   ],
   "rangeStrategy": "replace",
   "packageRules": [
