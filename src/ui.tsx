@@ -511,7 +511,7 @@ function TimeLeft({ plan, progress, currentMotionStartedTime, paused }: {
     return null;
   }
 
-  const currentMotionTimeSpent = (new Date().getTime() - currentMotionStartedTime.getTime()) / 1000;
+  const currentMotionTimeSpent = (Date.now()- currentMotionStartedTime.getTime()) / 1000;
   const duration = plan.duration(progress);
   return <div className="duration">
     <div className="time-remaining-label">Time remaining</div>
@@ -601,7 +601,6 @@ function PlanPreview(
         height={height * 2}
         viewBox={`${-width} ${-height} ${width * 2} ${height * 2}`}
         style={{
-          // biome-ignore lint/style/useTemplate: multi-line
           transform: "translateZ(0.001px) " +
             `translate(${-width}px, ${-height}px) ` +
             `translate(${posXMm / ps.size.x * 50}%,${posYMm / ps.size.y * 50}%)`
@@ -1079,8 +1078,8 @@ function Root() {
         <div className={"saxi-title red"} title={state.deviceInfo ? state.deviceInfo.path : undefined}>
           <span className="red reg">s</span><span className="teal">axi</span>
         </div>
-        {!state.connected ? <div className="info-disconnected">disconnected</div> : null}
-        {IS_WEB ? <PortSelector driver={driver} setDriver={setDriver} hardware={state.deviceInfo?.hardware ?? 'v3'} /> : null}
+        {!state.connected && <div className="info-disconnected">disconnected</div>}
+        {IS_WEB && <PortSelector driver={driver} setDriver={setDriver} hardware={state.deviceInfo?.hardware ?? 'v3'} />}
         <div className="section-header">pen</div>
         <div className="section-body">
           <PenHeight state={state} driver={driver} />
@@ -1101,15 +1100,14 @@ function Root() {
             <VisualizationOptions state={state} />
           </div>
         </details>
-        {state.svgIoOptions.enabled
-          ? <details>
+        {state.svgIoOptions.enabled &&
+          (<details>
             <summary className="section-header">AI</summary>
             <div className="section-body">
               <SvgIoOptions state={state} />
             </div>
           </details>
-          : <></>
-        }
+        )}
         <div className="spacer" />
         <div className="control-panel-bottom">
           <div className="section-header">plot</div>

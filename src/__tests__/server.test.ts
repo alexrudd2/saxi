@@ -52,7 +52,7 @@ const mockSerialPortInstance: any = {
 // Mock the serialport module to capture commands and generate responses
 jest.mock("../serialport-serialport", () => {
   return {
-    SerialPortSerialPort: jest.fn().mockImplementation((path: string) => {
+    SerialPortSerialPort: jest.fn().mockImplementation((_path: string) => {
       let responseController: ReadableStreamDefaultController | null = null;
       
       // Create a writable stream that captures commands and generates responses
@@ -96,7 +96,7 @@ jest.mock("../serialport-serialport", () => {
         writable: writableStream,
         connected: false,
         
-        open: jest.fn().mockImplementation((options: any) => {
+        open: jest.fn().mockImplementation((_options: any) => {
           // console.log('Mock SerialPort.open() called with options:', options);
           return Promise.resolve();
         }),

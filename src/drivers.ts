@@ -186,11 +186,7 @@ export class WebSerialDriver extends BaseDriver {
  * configuration (IS_WEB is unset).
  */
 export class SaxiDriver extends BaseDriver {
-  public static connect(): SaxiDriver {
-    const d = new SaxiDriver();
-    d.connect();
-    return d;
-  }
+
   private socket: WebSocket;
   private pingInterval: number | undefined;
   svgioEnabled: ((enabled: boolean) => void);
@@ -202,6 +198,13 @@ export class SaxiDriver extends BaseDriver {
   public close() {
     this.socket.close();
     return Promise.resolve();
+  }
+
+  public static connect(): SaxiDriver {
+    const d = new SaxiDriver();
+    d.connect();
+    // FIXME: Returns instance before WebSocket connection is established (async timing issue)
+    return d;
   }
 
   public connect() {
