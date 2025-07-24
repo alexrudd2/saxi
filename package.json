@@ -60,7 +60,7 @@
     "rimraf": "^5.0.0 || ^6.0.0",
     "semver": "^7.5.2",
     "supertest": "^7.0.0",
-    "ts-jest": "^29.0.0",
+    "ts-jest": "^29.4.0",
     "typescript": "^5.0"
   },
   "dependencies": {
