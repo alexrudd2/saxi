@@ -555,7 +555,7 @@ function PlanPreview(
         )}
       </g>;
     }
-    return <></>;
+    return null;
   }, [plan, strokeWidth, colorPathsByStrokeOrder, device.stepsPerMm]);
 
   // w/h of svg.
