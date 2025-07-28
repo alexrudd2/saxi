@@ -50,7 +50,7 @@
     "@types/yargs": "^17.0.0",
     "color-interpolate": "^2.0.0",
     "colormap": "^2.3.2",
-    "cross-env": "^7.0.3",
+    "cross-env": "^10.0.0",
     "esbuild": "^0.25.0",
     "esbuild-plugin-inline-worker": "^0.1.1",
     "gh-pages": "^6.0.0",
