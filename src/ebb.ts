@@ -19,7 +19,8 @@ export class EBB {
   public port: SerialPort;
   private commandQueue: CommandGenerator[];
   private writer: WritableStreamDefaultWriter<Uint8Array>;
-  private readableClosed: Promise<void>;
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: used in constructor
+  private readableClosed: Promise<void>;  
   public hardware: Hardware;
 
   private microsteppingMode = 0;
