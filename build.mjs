@@ -34,7 +34,7 @@ const buildOptions = {
 
 (async() => {
   try {
-    if (process.env.BUILD_MODE === 'development') {
+    if (process.env.IS_WEB) {
       // enables live-reloading
       const ctx = await context({
         ...buildOptions,
