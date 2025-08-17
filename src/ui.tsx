@@ -1015,29 +1015,29 @@ function Root() {
     return () => clearInterval(interval);
   }, [driver, state.connected]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies(setPlan): React setters are stable
+  const handleFile = React.useCallback((file: File) => {
+    setIsLoadingFile(true);
+    setPlan(null);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      dispatch(setPaths(readSvg(reader.result as string)));
+      setIsLoadingFile(false);
+    };
+    reader.onerror = () => {
+      setIsLoadingFile(false);
+    };
+    reader.readAsText(file);
+  }, [setPlan]);
+
+
   useEffect(() => {
     // Called when the user drags and drops the image
     const ondrop = (e: DragEvent) => {
       e.preventDefault();
       document.body.classList.remove("dragover");
-      if (e.dataTransfer === null) { return; }
-      // Open the SVG file the user dragged into the area
-      const item = e.dataTransfer.items[0];
-      const file = item.getAsFile();
-      if (file === null) { return; }
-      const reader = new FileReader();
-      setIsLoadingFile(true);
-      setPlan(null);
-      reader.onload = () => {
-        // Convert SVG to Plan an path instructions
-        dispatch(setPaths(readSvg(reader.result as string)));
-        setIsLoadingFile(false);
-      };
-      reader.onerror = () => {
-        setIsLoadingFile(false);
-      };
-      reader.readAsText(file);
+      const file = e.dataTransfer?.items[0]?.getAsFile();
+      if (file) handleFile(file);
     };
     const ondragover = (e: DragEvent) => {
       e.preventDefault();
@@ -1062,7 +1062,7 @@ function Root() {
       document.body.removeEventListener("dragleave", ondragleave);
       document.removeEventListener("paste", onpaste);
     };
-  }, []);
+  }, [handleFile]);
 
   // Each time new motion is started, save the start time
   // biome-ignore lint/correctness/useExhaustiveDependencies: currentMotionStartedTime should be re-set with each motion
@@ -1140,18 +1140,39 @@ function Root() {
           plan={plan}
         />
         <PlanLoader isPlanning={isPlanning} isLoadingFile={isLoadingFile} />
-        {showDragTarget && <DragTarget />}
+        {showDragTarget && <DragTarget handleFile={handleFile} />
+}
       </div>
     </div>
   </DispatchContext.Provider>;
 }
 
-function DragTarget() {
-  return <div className="drag-target">
-    <div className="drag-target-message">
-      Drag SVG here
+function DragTarget({ handleFile }: { handleFile: (file: File) => void }) {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="drag-target">
+      <div className="drag-target-message">
+        <span>Drag SVG here or</span>
+        <button type="button"
+          onClick={() => fileInputRef.current.click()}
+        >
+          Upload SVG
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".svg"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+            e.target.value = "";
+          }}
+        />
+      </div>
     </div>
-  </div>;
+  );
 }
 
 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
