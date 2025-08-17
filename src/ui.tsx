@@ -965,8 +965,10 @@ function Root() {
   useEffect(() => {
     if (isDriverConnected) return;
     if (IS_WEB) return;
-    setDriver(SaxiDriver.connect());
-    setIsDriverConnected(true);
+    (async () => {
+      setDriver(await SaxiDriver.connect());
+      setIsDriverConnected(true);
+    })();
   }, [isDriverConnected]);
 
   const [state, dispatch] = useReducer(reducer, initialState);

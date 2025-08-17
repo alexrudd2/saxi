@@ -200,14 +200,13 @@ export class SaxiDriver extends BaseDriver {
     return Promise.resolve();
   }
 
-  public static connect(): SaxiDriver {
+  public static async connect(): Promise<SaxiDriver> {
     const d = new SaxiDriver();
-    d.connect();
-    // FIXME: Returns instance before WebSocket connection is established (async timing issue)
+    await d.connect();
     return d;
   }
 
-  public connect() {
+  public async connect() {
 
     const websocketProtocol = document.location.protocol === "https:" ? "wss" : "ws";
     this.socket = new WebSocket(`${websocketProtocol}://${document.location.host}/chat`);
@@ -257,7 +256,7 @@ export class SaxiDriver extends BaseDriver {
       window.clearInterval(this.pingInterval);
       this.pingInterval = undefined;
       this.connected = false;
-      setTimeout(() => this.connect(), 5000);
+      setTimeout(() => void this.connect(), 5000);
     });
   }
 
