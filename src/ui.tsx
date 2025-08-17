@@ -4,16 +4,15 @@
 import useComponentSize from "@rehooks/component-size";
 import interpolator from "color-interpolate";
 import colormap from "colormap";
-import React, { type ChangeEvent, Fragment, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useReducer } from "react";
+import { flattenSVG, type Path } from "flatten-svg";
+import React, { type ChangeEvent, Fragment, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createRoot } from 'react-dom/client';
-
-import { type Path, flattenSVG } from "flatten-svg";
 import { PaperSize } from "./paper-size";
-import { Device, type MotionData, Plan, type PlanOptions, XYMotion, defaultPlanOptions } from "./planning.js";
+import { Device, defaultPlanOptions, type MotionData, Plan, type PlanOptions, XYMotion } from "./planning.js";
 import { formatDuration } from "./util.js";
 
 import "./style.css";
-import { type DeviceInfo, type BaseDriver, WebSerialDriver, SaxiDriver } from "./drivers";
+import { type BaseDriver, type DeviceInfo, SaxiDriver, WebSerialDriver } from "./drivers";
 import type { Hardware } from "./ebb";
 import pathJoinRadiusIcon from "./icons/path-joining radius.svg";
 import pointJoinRadiusIcon from "./icons/point-joining radius.svg";
