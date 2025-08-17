@@ -107,11 +107,12 @@ path {
 
 .drag-target-message {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
   color: whitesmoke;
   font-weight: bold;
   font-size: 36px;
+  gap: 12px;  /* space between text and button */
 }
 
 .control-panel {
