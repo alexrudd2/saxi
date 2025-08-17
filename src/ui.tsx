@@ -1158,7 +1158,7 @@ function DragTarget({ handleFile }: { handleFile: (file: File) => void }) {
           onClick={() => fileInputRef.current.click()}
         >
           Upload SVG
-        </button>
+        </button> {/* the input for the system file picker can't be styled, so hide it and use this button*/}
         <input
           ref={fileInputRef}
           type="file"
