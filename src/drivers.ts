@@ -33,21 +33,6 @@ export abstract class BaseDriver {
   abstract close(): Promise<void>;
 }
 
-export class NullDriver extends BaseDriver {
-  plot(): void {}
-  cancel(): void {}
-  pause(): void {}
-  resume(): void {}
-  setPenHeight(): void {}
-  limp(): void {}
-  name(): string {
-    return "NullDriver";
-  }
-  close(): Promise<void> {
-    return Promise.resolve();
-  }
-}
-
 /**
  * WebSerial driver for the EBB. Implement interface by connecting directly to the Axi 
  * machine. Used on serverless configuration (IS_WEB is set), where the control is handled
