@@ -13,7 +13,7 @@ import { Device, type MotionData, Plan, type PlanOptions, XYMotion, defaultPlanO
 import { formatDuration } from "./util.js";
 
 import "./style.css";
-import { type DeviceInfo, type BaseDriver, NullDriver, WebSerialDriver, SaxiDriver } from "./drivers";
+import { type DeviceInfo, type BaseDriver, WebSerialDriver, SaxiDriver } from "./drivers";
 import type { Hardware } from "./ebb";
 import pathJoinRadiusIcon from "./icons/path-joining radius.svg";
 import pointJoinRadiusIcon from "./icons/point-joining radius.svg";
@@ -911,7 +911,7 @@ function PlanConfig({ state }: { state: State }) {
 }
 
 type PortSelectorProps = {
-  driver: BaseDriver;
+  driver: BaseDriver | null;
   setDriver: (driver: BaseDriver) => void;
   hardware: Hardware;
 }
@@ -921,7 +921,7 @@ function PortSelector({ driver, setDriver, hardware }: PortSelectorProps) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: setDriver is stable
   useEffect(() => {
     (async () => {
-      if (!(driver instanceof NullDriver)) { return } // Already connected
+      if (driver?.connected) return // Already connected
       setInitializing(true);
       try {
         const ports = await navigator.serial.getPorts();  // re-connect to previously established connection
@@ -937,7 +937,7 @@ function PortSelector({ driver, setDriver, hardware }: PortSelectorProps) {
     })();
   }, [driver, hardware]);
   return <>
-    {(!driver.connected) ? null : `Connected to ${driver.name()}`}
+    {(driver?.connected) ? `Connected to ${driver.name()}`: null}
      <button
        type="button"
        disabled={initializing}
@@ -954,13 +954,13 @@ function PortSelector({ driver, setDriver, hardware }: PortSelectorProps) {
          }
        }}
      >
-      {initializing ? "Connecting..." : ((!driver.connected) ? "Connect" : "Change port")}
+      {initializing ? "Connecting..." : ((driver?.connected) ? "Change port" : "Connect")}
      </button>
   </>;
 }
 
 function Root() {
-  const [driver, setDriver] = useState<BaseDriver>(new NullDriver());
+  const [driver, setDriver] = useState<BaseDriver | null>(null);
   const [isDriverConnected, setIsDriverConnected] = useState(false);
   useEffect(() => {
     if (isDriverConnected) return;
