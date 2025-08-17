@@ -437,6 +437,10 @@ summary:focus {
   justify-content: space-between;
 }
 
+.info {
+  text-align: center;
+}
+
 .info-disconnected {
   text-align: center;
   color: var(--red);

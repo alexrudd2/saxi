@@ -1077,10 +1077,18 @@ function Root() {
   return <DispatchContext.Provider value={dispatch}>
     <div className={`root ${state.connected ? "connected" : "disconnected"}`}>
       <div className="control-panel">
-        <div className={"saxi-title red"} title={state.deviceInfo ? state.deviceInfo.path : undefined}>
+        <div className={"saxi-title red"}>
           <span className="red reg">s</span><span className="teal">axi</span>
         </div>
-        {!state.connected && <div className="info-disconnected">disconnected</div>}
+        {!IS_WEB && (
+          <div className={state.connected && state.deviceInfo?.path ? "info" : "info-disconnected"}>
+            {state.connected
+              ? state.deviceInfo?.path
+                ? `Connected to EBB at ${state.deviceInfo.path}`
+                : 'Not connected to EBB'
+              : 'disconnected'}
+          </div>
+        )}
         {IS_WEB && <PortSelector driver={driver} setDriver={setDriver} hardware={state.deviceInfo?.hardware ?? 'v3'} />}
         <div className="section-header">pen</div>
         <div className="section-body">
@@ -1153,7 +1161,7 @@ createRoot(document.getElementById("app")!).render(<Root />);
 /**
  * Read an SVG string and transform it to a list of Path.
  * @param svgString Raw SVG String
- * @returns A list of obj 
+ * @returns A list of obj
  */
 function readSvg(svgString: string): Path[] {
   // create a DOM object for the SVG

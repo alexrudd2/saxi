@@ -29,8 +29,10 @@ type Com = string
  * @param com 
  * @returns 
  */
-const getDeviceInfo = (ebb: EBB | null, com: Com) => {
-  return { com: ebb ? com : null, hardware: ebb?.hardware };
+const getDeviceInfo = (ebb: EBB | null, _com: Com) => {
+  // biome-ignore lint/suspicious/noExplicitAny: private member access
+  const portPath = (ebb?.port as any)?._path ?? null;
+  return { path: portPath, hardware: ebb?.hardware };
 }
 
 /**
