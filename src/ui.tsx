@@ -1140,7 +1140,7 @@ function Root() {
           plan={plan}
         />
         <PlanLoader isPlanning={isPlanning} isLoadingFile={isLoadingFile} />
-        {showDragTarget ? <DragTarget /> : null}
+        {showDragTarget && <DragTarget />}
       </div>
     </div>
   </DispatchContext.Provider>;
