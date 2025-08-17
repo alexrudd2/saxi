@@ -16,7 +16,7 @@ const buildOptions = {
   tsconfig: 'tsconfig.ui.json',
   loader: { '.svg': 'file' },
   define: {
-    IS_WEB: process.env.IS_WEB ?? '0',
+    IS_WEB: (process.env.IS_WEB === '1').toString(),
     'process.env.DEBUG_SAXI_COMMANDS': JSON.stringify(process.env.DEBUG_SAXI_COMMANDS ?? ''),
   },
   plugins: [ inlineWorker(),
