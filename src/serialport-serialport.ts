@@ -47,9 +47,9 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
       path: this._path,
     };
     if (options.dataBits != null)
-      opts.dataBits = options.dataBits as 5 | 6 | 7 | 8;
+      opts.dataBits = options.dataBits;
     if (options.stopBits != null)
-      opts.stopBits = options.stopBits as 1 | 1.5 | 2;
+      opts.stopBits = options.stopBits;
     if (options.parity != null)
       opts.parity = options.parity;
 
