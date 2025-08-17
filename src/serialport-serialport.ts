@@ -59,9 +59,9 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
       flowControl?: FlowControlType | undefined;
       */
     return new Promise((resolve, reject) => {
-      this._port = new NodeSerialPort(opts, (err) => {
+      this._port = new NodeSerialPort(opts, (closeErr) => {
         this._port.once('close', () => this.emit('disconnect'));
-        if (err) reject(err);
+        if (closeErr) reject(closeErr);
         else {
         // Flush RX buffer before considering the port "ready"
         this._port.flush((flushErr) => {
@@ -77,8 +77,8 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
       this.writable = new WritableStream({
         write: (chunk) => {
           return new Promise((resolve, reject) => {
-            this._port.write(Buffer.from(chunk), (err: Error) => {
-              if (err) reject(err);
+            this._port.write(Buffer.from(chunk), (writeErr) => {
+              if (writeErr) reject(writeErr);
               else resolve();
               // TODO: check bytesWritten?
             });
