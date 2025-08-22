@@ -30,7 +30,7 @@ jobs:
     - run: npm ci
     - run: IS_WEB=1 npm run build:ui
     - name: Upload artifact
-      uses: actions/upload-pages-artifact@v3
+      uses: actions/upload-pages-artifact@v4
       with:
           # upload build materials
         path: 'dist/ui'
