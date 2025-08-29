@@ -25,9 +25,9 @@ type Com = string
 
 /**
  * Shorthand for getting the device info, either EBB or com port.
- * @param ebb 
- * @param com 
- * @returns 
+ * @param ebb
+ * @param com
+ * @returns
  */
 const getDeviceInfo = (ebb: EBB | null, _com: Com) => {
   // biome-ignore lint/suspicious/noExplicitAny: private member access
@@ -37,12 +37,12 @@ const getDeviceInfo = (ebb: EBB | null, _com: Com) => {
 
 /**
  * Start the express server.
- * @param port 
- * @param hardware 
- * @param com 
- * @param enableCors 
- * @param maxPayloadSize 
- * @returns 
+ * @param port
+ * @param hardware
+ * @param com
+ * @param enableCors
+ * @param maxPayloadSize
+ * @returns
  */
 export async function startServer(port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, maxPayloadSize = '200mb', svgIoApiKey = '') {
   const app = express();
@@ -125,7 +125,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
 
       const begin = Date.now();
       let wakeLock: { release(): void } | null = null;
-      
+
       // The wake-lock module is macOS-only.
       if (process.platform === 'darwin') {
         try {
