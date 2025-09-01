@@ -113,7 +113,7 @@ export class EBB {
         return result;
       });
     } catch (err) {
-      throw new Error(`Error in response to query '${cmd}': ${err.message}`);
+      throw new Error(`Error in response to query '${cmd}': ${(err as Error).message}`);
     }
   }
 
@@ -131,7 +131,7 @@ export class EBB {
         return result;
       });
     } catch (err) {
-      throw new Error(`Error in response to queryM '${cmd}': ${err.message}`);
+      throw new Error(`Error in response to queryM '${cmd}': ${(err as Error).message}`);
     }
   }
 
@@ -146,7 +146,7 @@ export class EBB {
         }
       });
     } catch (err) {
-      throw new Error(`Error in response to command '${cmd}': ${err.message}`);
+      throw new Error(`Error in response to command '${cmd}': ${(err as Error).message}`);
     }
   }
 
