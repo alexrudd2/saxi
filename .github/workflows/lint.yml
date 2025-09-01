@@ -27,6 +27,15 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
+    - name: Cache dependencies and build info
+      uses: actions/cache@v3
+      with:
+        path: |
+          node_modules
+          ~/.npm
+          dist/.tsbuildinfo
+        key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
+
     - run: npm ci --prefer-offline --no-audit
     - name: Run tests
       shell: bash
