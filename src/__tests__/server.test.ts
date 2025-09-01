@@ -251,7 +251,9 @@ describe('Plot Endpoint Test Suite', () => {
         .expect(200);
 
       await waitForPlottingComplete(server);
-
+      if (process.platform === 'win32') {  // godammn it windows
+         await new Promise(resolve => setTimeout(resolve, 2000));
+      }
       expect(mockSerialPortInstance.commands).toContain('EM,1,1');
       // Should have executed the postCancel sequence
       expect(mockSerialPortInstance.commands).toContain('HM,4000');
@@ -261,7 +263,7 @@ describe('Plot Endpoint Test Suite', () => {
       // mockSerialPortInstance.slowMode = true;
       
       await request(server)
-        .post('/plot')  
+        .post('/plot')
         .send(COMPLEX_PLAN)
         .expect(200);
 
