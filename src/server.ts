@@ -57,12 +57,12 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
 
   let ebb: EBB | null;
   let clients: WebSocket[] = [];
-  let cancelRequested = false;
   let unpaused: Promise<void> | null = null;
   let signalUnpause: (() => void) | null = null;
   let motionIdx: number | null = null;
   let currentPlan: Plan | null = null;
   let plotting = false;
+  let controller: AbortController | null = null;
 
   wss.on("connection", (ws) => {
     clients.push(ws);
@@ -115,7 +115,8 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
       res.status(400).send('Plot in progress');
       return;
     }
-    plotting = true;
+    controller = new AbortController();
+    const { signal } = controller;
     try {
       const plan = Plan.deserialize(req.body);
       currentPlan = req.body;
@@ -138,9 +139,9 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
       } else {
         console.log("Wake lock not available on this platform. Ensure your machine does not sleep during plotting");
       }
-
+      plotting = true;
       try {
-        await doPlot(ebb != null ? realPlotter : simPlotter, plan);
+        await doPlot(ebb != null ? realPlotter : simPlotter, plan, signal);
         const end = Date.now();
         console.log(`Plot took ${formatDuration((end - begin) / 1000)}`);
       } finally {
@@ -150,6 +151,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
       }
     } finally {
       plotting = false;
+      controller = null;
     }
   });
 
@@ -158,9 +160,14 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
   });
 
   app.post("/cancel", (_req: Request, res: Response) => {
-    cancelRequested = true;
+    if (controller) {
+      controller.abort();
+      controller = null;
+    }
+    ebb.cancel();
     if (unpaused) {
       signalUnpause();
+      broadcast({ c: "pause", p: { paused: false } });
     }
     unpaused = signalUnpause = null;
     res.status(200).end();
@@ -248,7 +255,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
     },
     async postCancel(initialPenHeight: number): Promise<void> {
       await ebb.setPenHeight(initialPenHeight, 1000);
-      await ebb.query('HM,4000'); // HM returns carriage home without 3rd and 4th arguments
+      await ebb.command('HM,4000'); // HM returns carriage home without 3rd and 4th arguments
     },
     async postPlot(): Promise<void> {
       await ebb.waitUntilMotorsIdle();
@@ -272,8 +279,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
     },
   };
 
-  async function doPlot(plotter: Plotter, plan: Plan): Promise<void> {
-    cancelRequested = false;
+  async function doPlot(plotter: Plotter, plan: Plan, signal: AbortSignal): Promise<void> {
     unpaused = null;
     signalUnpause = null;
     motionIdx = 0;
@@ -282,30 +288,51 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
     await plotter.prePlot(firstPenMotion.initialPos);
 
     let penIsUp = true;
+    try {
+      for (const motion of plan.motions) {
+        broadcast({ c: "progress", p: { motionIdx } });
 
-    for (const motion of plan.motions) {
-      broadcast({ c: "progress", p: { motionIdx } });
-      await plotter.executeMotion(motion, [motionIdx, plan.motions.length]);
-      if (motion instanceof PenMotion) {
-        penIsUp = motion.initialPos < motion.finalPos;
+        await Promise.race([
+          plotter.executeMotion(motion, [motionIdx, plan.motions.length]),
+          onceAbort(signal)
+        ]);
+
+        if (motion instanceof PenMotion) {
+          penIsUp = motion.initialPos < motion.finalPos;
+        }
+
+        if (unpaused && penIsUp) {
+          await Promise.race([
+            unpaused,
+            onceAbort(signal)
+          ]);
+          broadcast({ c: "pause", p: { paused: false } });
+        }
+
+        motionIdx += 1;
       }
-      if (unpaused && penIsUp) {
-        await unpaused;
-        broadcast({ c: "pause", p: { paused: false } });
-      }
-      if (cancelRequested) { break; }
-      motionIdx += 1;
-    }
-    motionIdx = null;
-    currentPlan = null;
-    if (cancelRequested) {
-      await plotter.postCancel(firstPenMotion.initialPos);
-      broadcast({ c: "cancelled" });
-      cancelRequested = false;
-    } else {
+
       broadcast({ c: "finished" });
+
+    } catch (err) {
+      if (signal.aborted) {
+        await plotter.postCancel(firstPenMotion.initialPos);
+        broadcast({ c: "cancelled" });
+        return;
+      }
+      throw err; // propagate real errors
+    } finally {
+      motionIdx = null;
+      currentPlan = null;
+      await plotter.postPlot();
     }
-    await plotter.postPlot();
+  }
+
+  function onceAbort(signal: AbortSignal): Promise<never> {
+    return new Promise((_resolve, reject) => {
+      signal.throwIfAborted();
+      signal.addEventListener("abort", () => reject(new Error("Aborted")), { once: true });
+    });
   }
 
   return new Promise<http.Server>((resolve) => {
