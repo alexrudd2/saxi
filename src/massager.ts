@@ -13,9 +13,9 @@ const mmPerSvgUnit = mmPerInch / svgUnitsPerInch;
 
 /**
  * Create a plan based on new vectors and plan options
- * @param inPaths 
- * @param planOptions 
- * @returns 
+ * @param inPaths
+ * @param planOptions
+ * @returns
  */
 export function replan(inPaths: Path[], planOptions: PlanOptions): Plan {
   let paths: Vec2[][] = inPaths.map(path => path.points);
