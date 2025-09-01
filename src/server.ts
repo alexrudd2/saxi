@@ -165,8 +165,10 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
       controller.abort();
       controller = null;
     }
+    ebb.cancel();
     if (unpaused) {
       signalUnpause();
+      broadcast({ c: "pause", p: { paused: false } });
     }
     unpaused = signalUnpause = null;
     res.status(200).end();

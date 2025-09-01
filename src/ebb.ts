@@ -20,7 +20,7 @@ export class EBB {
   private commandQueue: CommandGenerator[];
   private writer: WritableStreamDefaultWriter<Uint8Array>;
   // biome-ignore lint/correctness/noUnusedPrivateClassMembers: used in constructor
-  private readableClosed: Promise<void>;  
+  private readableClosed: Promise<void>;
   public hardware: Hardware;
 
   private microsteppingMode = 0;
@@ -150,6 +150,13 @@ export class EBB {
     }
   }
 
+  /** Reject all pending commands immediately **/
+  public cancel(): void {
+    while (this.commandQueue.length > 0) {
+      const cmd = this.commandQueue.shift();
+      cmd.reject(new Error("Cancelled"));
+    }
+  }
   public async enableMotors(microsteppingMode: number): Promise<void> {
     if (!(1 <= microsteppingMode && microsteppingMode <= 5)) {
       throw new Error(`Microstepping mode must be between 1 and 5, but was ${microsteppingMode}`);
