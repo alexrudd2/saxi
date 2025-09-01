@@ -1,6 +1,36 @@
 import { type Block, type Motion, PenMotion, type Plan, XYMotion } from "./planning.js";
 import { type Vec2, vsub } from "./vec.js";
 
+type MicrostepMode = 0 | 1 | 2 | 3 | 4 | 5;  // (0 = disabled)
+type PowerState = 0 | 1;
+
+type EBBCommand =
+  // Motor commands
+  | `EM,${Exclude<MicrostepMode, 0>},${Exclude<MicrostepMode, 0>}`
+  | `EM,0,0` // disable motors
+  
+  // Movement commands
+  | `HM,${number}` // home with step frequency
+  | `HM,${number},${number},${number}` // home to specific position
+  | `XM,${number},${number},${number}` // mixed-axis move
+  | `LM,${number},${number},${number},${number},${number},${number}` // low-level move
+  
+  // Servo commands
+  | `S2,${number},${number}` // basic servo position
+  | `S2,${number},${number},${number}` // with rate
+  | `S2,${number},${number},${number},${number}` // with rate and delay
+  | `S2,0,${number}` // disable servo output
+  | `SR,${number}` // servo power timeout
+  | `SR,${number},${PowerState}` // servo power timeout with immediate state
+
+type EBBQuery = // queries that return a single line
+  | 'V'    // version
+  | 'QM'   // query motors
+
+type EBBQueryM =  // queries that return multiple lines
+  | 'QB'   // query button
+  | 'QC'   // query configuration
+
 /** Split d into its fractional and integral parts */
 function modf(d: number): [number, number] {
   const intPart = Math.floor(d);
@@ -23,7 +53,7 @@ export class EBB {
   private readableClosed: Promise<void>;
   public hardware: Hardware;
 
-  private microsteppingMode = 0;
+  private microsteppingMode: MicrostepMode = 0;
 
   /** Accumulated XY error, used to correct for movements with sub-step resolution */
   private error: Vec2 = { x: 0, y: 0 };
@@ -105,7 +135,7 @@ export class EBB {
   }
 
   /** Send a raw command to the EBB and expect a single line in return, without an "OK" line to terminate. */
-  public async query(cmd: string): Promise<string> {
+  public async query(cmd: EBBQuery): Promise<string> {
     try {
       return await this.run(function* (): Iterator<string, string, string> {
         this.write(`${cmd}\r`);
@@ -118,7 +148,7 @@ export class EBB {
   }
 
   /** Send a raw command to the EBB and expect multiple lines in return, with an "OK" line to terminate. */
-  public async queryM(cmd: string): Promise<string[]> {
+  public async queryM(cmd: EBBQueryM): Promise<string[]> {
     try {
       return await this.run(function*(): Iterator<string[], string[], string> {
         this.write(`${cmd}\r`);
@@ -136,7 +166,7 @@ export class EBB {
   }
 
   /** Send a raw command to the EBB and expect a single "OK" line in return. */
-  public async command(cmd: string): Promise<void> {
+  public async command(cmd: EBBCommand): Promise<void> {
     try {
       return await this.run(function*(): Iterator<void, void, string> {
         this.write(`${cmd}\r`);
@@ -157,10 +187,7 @@ export class EBB {
       cmd.reject(new Error("Cancelled"));
     }
   }
-  public async enableMotors(microsteppingMode: number): Promise<void> {
-    if (!(1 <= microsteppingMode && microsteppingMode <= 5)) {
-      throw new Error(`Microstepping mode must be between 1 and 5, but was ${microsteppingMode}`);
-    }
+  public async enableMotors(microsteppingMode: Exclude<MicrostepMode, 0>): Promise<void> {
     this.microsteppingMode = microsteppingMode;
     await this.command(`EM,${microsteppingMode},${microsteppingMode}`);
     // if the board supports SR, we should also enable the servo motors.
@@ -186,7 +213,13 @@ export class EBB {
    * least version 2.5.0.
    */
   public async setServoPowerTimeout(timeout: number, power?: boolean) {
-    await this.command(`SR,${(timeout * 1000) | 0}${power != null ? `,${power ? 1 : 0}` : ''}`);
+    const timeoutMs = (timeout * 1000) | 0;
+    if (power != null) {
+      const powerState: PowerState = power ? 1 : 0;
+      await this.command(`SR,${timeoutMs},${powerState}`);
+    } else {
+      await this.command(`SR,${timeoutMs}`);
+    }
   }
 
   // https://evil-mad.github.io/EggBot/ebb.html#S2 General RC Servo Output
@@ -348,7 +381,7 @@ export class EBB {
     throw new Error(`Unknown motion type: ${m.constructor.name}`);
   }
 
-  public async executePlan(plan: Plan, microsteppingMode = 2): Promise<void> {
+  public async executePlan(plan: Plan, microsteppingMode: Exclude<MicrostepMode, 0> = 2): Promise<void> {
     await this.enableMotors(microsteppingMode);
 
     for (const m of plan.motions) {
