@@ -124,7 +124,7 @@ export class WebSerialDriver extends BaseDriver {
         const penMotion = plan.motions.find((motion): motion is PenMotion => motion instanceof PenMotion);
         const penUpPosition = penMotion ? Math.max(penMotion.initialPos, penMotion.finalPos) : device.penPctToPos(50);
         await this.ebb.setPenHeight(penUpPosition, 1000);
-        await this.ebb.query('HM,4000'); // HM returns carriage home without 3rd and 4th arguments
+        await this.ebb.command('HM,4000'); // HM returns carriage home without 3rd and 4th arguments
       }
       this.oncancelled();
     } else {
