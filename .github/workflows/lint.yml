@@ -26,7 +26,13 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
+    - name: Cache dependencies and build info
+      uses: actions/cache@v3
+      with:
+        path: |
+          node_modules
+          dist/.tsbuildinfo
+        key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
     - run: npm install --prefer-offline --no-audit  --no-fund
     - run: npm test
 permissions:
