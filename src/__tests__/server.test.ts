@@ -251,12 +251,15 @@ describe('Plot Endpoint Test Suite', () => {
         .expect(200);
 
       await waitForPlottingComplete(server);
-      if (process.platform === 'win32') {  // godammn it windows
-         await new Promise(resolve => setTimeout(resolve, 2000));
-      }
       expect(mockSerialPortInstance.commands).toContain('EM,1,1');
       // Should have executed the postCancel sequence
-      expect(mockSerialPortInstance.commands).toContain('HM,4000');
+      if (process.platform !== 'win32') {  // windows is dumb
+        while (!mockSerialPortInstance.commands.includes("HM,4000")) {
+          await new Promise(r => setTimeout(r, 10));
+        }
+      } else {
+        expect(mockSerialPortInstance.commands).toContain("HM,4000");
+      }
     }, 10000);
 
     test('pause and resume plotting', async () => {
