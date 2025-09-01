@@ -115,7 +115,6 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
       res.status(400).send('Plot in progress');
       return;
     }
-    plotting = true;
     controller = new AbortController();
     const { signal } = controller;
     try {
@@ -140,7 +139,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
       } else {
         console.log("Wake lock not available on this platform. Ensure your machine does not sleep during plotting");
       }
-
+      plotting = true;
       try {
         await doPlot(ebb != null ? realPlotter : simPlotter, plan, signal);
         const end = Date.now();

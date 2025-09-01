@@ -1,7 +1,7 @@
 import type { Server } from 'node:http';
 import request from 'supertest';
-import { startServer } from '../server';
 import { AxidrawFast, plan } from '../planning';
+import { startServer } from '../server';
 
 // Global reference to track the mock serial port instance
 const mockSerialPortInstance: any = {
@@ -253,13 +253,7 @@ describe('Plot Endpoint Test Suite', () => {
       await waitForPlottingComplete(server);
       expect(mockSerialPortInstance.commands).toContain('EM,1,1');
       // Should have executed the postCancel sequence
-      if (process.platform !== 'win32') {  // windows is dumb
-        while (!mockSerialPortInstance.commands.includes("HM,4000")) {
-          await new Promise(r => setTimeout(r, 10));
-        }
-      } else {
-        expect(mockSerialPortInstance.commands).toContain("HM,4000");
-      }
+      expect(mockSerialPortInstance.commands).toContain("HM,4000");
     }, 10000);
 
     test('pause and resume plotting', async () => {
