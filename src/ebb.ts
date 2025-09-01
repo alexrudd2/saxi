@@ -50,17 +50,17 @@ export class EBB {
             if (part.trim() === '') continue; // empty line
             if (this.commandQueue.length) {
               if (part[0] === '!') {  // error from EBB
-                this.commandQueue.shift().reject(new Error(part));
+                this.commandQueue.shift()?.reject(new Error(part));
                 continue;
               }
 
               try {
                 const d = this.commandQueue[0].next(part);
                 if (d.done) {
-                  this.commandQueue.shift().resolve(d.value);
+                  this.commandQueue.shift()?.resolve(d.value);
                 }
               } catch (e) {
-                this.commandQueue.shift().reject(e);
+                this.commandQueue.shift()?.reject(e as Error);
               }
             } else {
               console.log(`unexpected data: ${part}`);
@@ -153,8 +153,7 @@ export class EBB {
   /** Reject all pending commands immediately **/
   public cancel(): void {
     while (this.commandQueue.length > 0) {
-      const cmd = this.commandQueue.shift();
-      cmd.reject(new Error("Cancelled"));
+      this.commandQueue.shift()?.reject(new Error("Cancelled"));
     }
   }
   public async enableMotors(microsteppingMode: number): Promise<void> {
