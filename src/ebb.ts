@@ -39,7 +39,7 @@ export class EBB {
     let buffer = '';
 
     this.readableClosed = port.readable
-      .pipeThrough(new TextDecoderStream())
+      .pipeThrough(new TextDecoderStream() as TransformStream<Uint8Array, string>)
       .pipeTo(new WritableStream({
         write: (chunk) => {
           buffer += chunk;
