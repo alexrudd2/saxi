@@ -35,7 +35,7 @@ jobs:
           dist/.tsbuildinfo
         key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
 
-    - run: npm ci --prefer-offline --no-audit
+    - run: npm i --prefer-offline --no-audit
     - name: Run tests
       shell: bash
       run: |
