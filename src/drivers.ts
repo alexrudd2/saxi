@@ -91,7 +91,9 @@ export class WebSerialDriver extends BaseDriver {
 
   public async close(): Promise<void> {
     this.handleDisconnection();
-    navigator.serial.removeEventListener('disconnect', this._disconnectHandler);
+    if (this._disconnectHandler) {
+      navigator.serial.removeEventListener('disconnect', this._disconnectHandler);
+    }
     return this.ebb.close();
   }
 
