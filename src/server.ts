@@ -331,7 +331,9 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
   function onceAbort(signal: AbortSignal): Promise<never> {
     return new Promise((_resolve, reject) => {
       signal.throwIfAborted();
-      signal.addEventListener("abort", () => reject(new Error("Aborted")), { once: true });
+      signal.addEventListener("abort", () => {
+        setImmediate(() => reject(new Error("Aborted")));
+      }, { once: true });
     });
   }
 
