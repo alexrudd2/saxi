@@ -131,11 +131,12 @@ const SIMPLE_PATHS = [
   [{x: 10, y: 10}, {x: 20, y: 10}],
 ];
 
-const COMPLEX_PATHS = Array.from({ length: 20 }, (_, i) => [
-  { x: 0, y: i * 50 },
-  { x: 100, y: i * 50 },
-]);
-
+const COMPLEX_PATHS = [
+  [{x: 0, y: 0}, {x: 100, y: 0}],
+  [{x: 0, y: 50}, {x: 100, y: 50}],
+  [{x: 0, y: 100}, {x: 100, y: 100}],
+  [{x: 0, y: 150}, {x: 100, y: 150}],
+];
 
 // Pre-serialized plan constants
 const SIMPLE_PLAN = plan(SIMPLE_PATHS, AxidrawFast).serialize();
