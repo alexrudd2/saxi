@@ -28,6 +28,13 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
     - run: npm ci --prefer-offline --no-audit
-    - run: npm test
+    - name: Run tests
+      run: |
+        if [ "${RUNNER_OS}" = "Windows" ]; then
+          npm test -- --maxWorkers=50%
+        else
+          npm test -- --maxWorkers=75%
+        fi
+
 permissions:
   contents: read
