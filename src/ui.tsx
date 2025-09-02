@@ -981,7 +981,6 @@ function Root() {
   }, [state.planOptions]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies(setPlan): React setters are stable
-  // biome-ignore lint/correctness/useExhaustiveDependencies(state.planOptions): planOptions is managed elsewhere
   useEffect(() => {
     if (driver == null) return;
     driver.onprogress = (motionIdx: number) => {
@@ -1005,7 +1004,7 @@ function Root() {
         dispatch({ type: "SET_SVGIO_OPTION", value: { enabled } });
       };
     }
-  }, [driver]);
+  }, [driver, state.planOptions]);
 
   useEffect(() => { // poll the driver so React notices connection changes
     const interval = setInterval(() => {
