@@ -661,18 +661,20 @@ function PlanLoader(
 
 function LayerSelector({ state }: { state: State }) {
   const dispatch = useContext(DispatchContext);
-  const layers = state.planOptions.layerMode === 'group' ? state.groupLayers : state.strokeLayers;
-  const selectedLayers = state.planOptions.layerMode === 'group' ? state.planOptions.selectedGroupLayers : state.planOptions.selectedStrokeLayers;
+  
+  const { layerMode } = state.planOptions;
+  const layers = layerMode === 'group' ? state.groupLayers : state.strokeLayers;
   if (layers.length <= 1) { return null; }
-  const layersChanged = state.planOptions.layerMode === 'group' ?
-    (e: ChangeEvent) => {
-      const selectedLayers = new Set([...(e.target as HTMLSelectElement).selectedOptions].map((o) => o.value));
+
+  const selectedLayers = layerMode === 'group' ? state.planOptions.selectedGroupLayers : state.planOptions.selectedStrokeLayers;
+  const layersChanged = (e: ChangeEvent<HTMLSelectElement>) => {
+    const selectedLayers = new Set([...e.target.selectedOptions].map((o) => o.value));
+    if (layerMode === 'group') {
       dispatch({ type: "SET_PLAN_OPTION", value: { selectedGroupLayers: selectedLayers } });
-    } :
-    (e: ChangeEvent) => {
-      const selectedLayers = new Set([...(e.target as HTMLSelectElement).selectedOptions].map((o) => o.value));
+    } else {
       dispatch({ type: "SET_PLAN_OPTION", value: { selectedStrokeLayers: selectedLayers } });
-    };
+    }
+  }
   return <div>
     <label>
       layers
