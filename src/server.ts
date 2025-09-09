@@ -85,6 +85,10 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
             })();
           }
           break;
+        case "changeHardware":
+          ebb?.changeHardware(msg.p.hardware);
+          broadcast({ c: 'dev', p: getDeviceInfo(ebb, com) });
+          break;
       }
     });
 
