@@ -1007,6 +1007,7 @@ function Root() {
   }, [driver, state.planOptions]);
 
   useEffect(() => { // poll the driver so React notices connection changes
+    if (!driver) return;
     const interval = setInterval(() => {
       if (state.connected !== driver.connected) {
         dispatch({ type: "SET_CONNECTED", connected: driver.connected });
