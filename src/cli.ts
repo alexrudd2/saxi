@@ -29,7 +29,7 @@ export function cli(argv: string[]): void {
     .strict()
     .option('hardware', {
       describe: 'select hardware type',
-      choices: ['v3', 'brushless'] as const,
+      choices: ['v3', 'brushless', 'nextdraw-2234'] as const,
       default: 'v3',
       coerce: value => value as Hardware
     })
