@@ -1069,7 +1069,7 @@ function Root() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: currentMotionStartedTime should be re-set with each motion
   const currentMotionStartedTime = useMemo(() => {
     return new Date();
-  }, [state.progress, plan, state.paused]);
+  }, [state.progress, state.paused]);
 
   const previewArea = useRef(null);
   const previewSize = useComponentSize(previewArea);
