@@ -1151,6 +1151,11 @@ function Root() {
 function DragTarget({ handleFile }: { handleFile: (file: File) => void }) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const handleFileInputChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFile(file);
+  }, [handleFile]);
+
   return (
     <div className="drag-target">
       <div className="drag-target-message">
@@ -1165,11 +1170,7 @@ function DragTarget({ handleFile }: { handleFile: (file: File) => void }) {
           type="file"
           accept=".svg"
           style={{ display: "none" }}
-          onChange={(e) => {
-            const file = e.target.files[0];
-            if (file) handleFile(file);
-            e.target.value = "";
-          }}
+          onChange={handleFileInputChange}
         />
       </div>
     </div>
