@@ -117,36 +117,36 @@ function reducer(state: State, action: Action): State {
 }
 
 
+// FIXME: This should probably be used for the WebWorker
+function serialize(po: PlanOptions): string {
+  return JSON.stringify(po, (_k, v) => v instanceof Set ? [...v] : v);
+}
+
+function attemptRejigger(previousOptions: PlanOptions, newOptions: PlanOptions, previousPlan: Plan): Plan | null {
+  const newOptionsWithOldPenHeights = {
+    ...newOptions,
+    penUpHeight: previousOptions.penUpHeight,
+    penDownHeight: previousOptions.penDownHeight,
+  };
+  if (serialize(previousOptions) === serialize(newOptionsWithOldPenHeights)) {
+    const device = Device(newOptions.hardware);
+    // The existing plan should be the same except for penup/pendown heights.
+    return previousPlan.withPenHeights(
+      device.penPctToPos(newOptions.penUpHeight),
+      device.penPctToPos(newOptions.penDownHeight)
+    );
+  }
+  return null;
+}
+
 const usePlan = (paths: Path[] | null, planOptions: PlanOptions) => {
   const [isPlanning, setIsPlanning] = useState(false);
   const [latestPlan, setPlan] = useState<Plan | null>(null);
-
-  function serialize(po: PlanOptions): string {
-    return JSON.stringify(po, (_k, v) => v instanceof Set ? [...v] : v);
-  }
-
-  function attemptRejigger(previousOptions: PlanOptions, newOptions: PlanOptions, previousPlan: Plan): Plan | null {
-    const newOptionsWithOldPenHeights = {
-      ...newOptions,
-      penUpHeight: previousOptions.penUpHeight,
-      penDownHeight: previousOptions.penDownHeight,
-    };
-    if (serialize(previousOptions) === serialize(newOptionsWithOldPenHeights)) {
-      const device = Device(newOptions.hardware);
-      // The existing plan should be the same except for penup/pendown heights.
-      return previousPlan.withPenHeights(
-        device.penPctToPos(newOptions.penUpHeight),
-        device.penPctToPos(newOptions.penDownHeight)
-      );
-    }
-    return null;
-  }
 
   const lastPaths = useRef<Path[]>(null);
   const lastPlan = useRef<Plan>(null);
   const lastPlanOptions = useRef<PlanOptions>(null);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies(attemptRejigger): handled by planOptions
   useEffect(() => {
     if (!paths) {
       return () => { };
@@ -164,6 +164,8 @@ const usePlan = (paths: Path[] | null, planOptions: PlanOptions) => {
     const worker = new Worker('background-planner.js');
     setIsPlanning(true);
     console.time("posting to worker");
+    // FIXME: planOptions contains Set objects which get converted to empty objects {} 
+    // during structured cloning. Should use: { paths, planOptions: JSON.parse(serialize(planOptions)) }
     worker.postMessage({ paths, planOptions });
     console.timeEnd("posting to worker");
     const listener = (m: Record<'data', MotionData[]>) => {
