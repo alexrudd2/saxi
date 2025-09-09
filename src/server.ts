@@ -221,16 +221,6 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
     }
   });
 
-  app.post("/change-hardware", (_req, res) => {
-    if (ebb?.hardware === 'brushless') {
-      ebb.hardware = 'v3';
-    } else if (ebb?.hardware === 'v3') {
-      ebb.hardware = 'brushless';
-    }
-    broadcast({ c: 'dev', p: getDeviceInfo(ebb, com) });
-    // fixme: change planning.ts : Device
-    res.status(200).end();
-  });
 
   function broadcast(msg: Record<string, unknown>) {
     for (const client of clients) {
