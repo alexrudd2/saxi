@@ -240,17 +240,32 @@ function PenHeight({ state, driver }: { state: State; driver: BaseDriver }) {
   </Fragment>;
 }
 
-function HardwareOptions({ state }: { state: State }) {
+function HardwareOptions({ state, driver }: { state: State, driver: BaseDriver | null }) {
+  const dispatch = useContext(DispatchContext);
+  
+  const handleHardwareChange = (hardware: Hardware) => {
+    // Always update the UI state first
+    dispatch({ type: "SET_PLAN_OPTION", value: { hardware } });
+    
+    // Then notify the driver if connected
+    driver?.changeHardware(hardware);
+  };
+
+  const currentHardware = state.deviceInfo?.hardware || state.planOptions.hardware;
+
   return <div>
-    <label className="flex-checkbox" title="Motor type (affects pin and power settings)">
-      <input
-        type="checkbox"
-        checked={state.deviceInfo?.hardware === 'brushless'}
-        onChange={() => {
-          fetch("/change-hardware", { method: "POST" });
-        }}
-      />
-      brushless
+    <label title="Hardware model (affects servo and motor settings)">
+      Hardware:
+      <select
+        value={currentHardware}
+        onChange={(e) => handleHardwareChange(e.target.value as Hardware)}
+        style={{ marginLeft: '8px' }}
+        disabled={!driver}
+      >
+        <option value="v3">AxiDraw V3</option>
+        <option value="brushless">AxiDraw V3 Brushless</option>
+        <option value="nextdraw-2234">NextDraw 2234</option>
+      </select>
     </label>
   </div>;
 }
@@ -1092,12 +1107,12 @@ function Root() {
               : 'disconnected'}
           </div>
         )}
-        {IS_WEB && <PortSelector driver={driver} setDriver={setDriver} hardware={state.deviceInfo?.hardware ?? 'v3'} />}
+        {IS_WEB && <PortSelector driver={driver} setDriver={setDriver} hardware={(driver as WebSerialDriver)?.ebb?.hardware ?? state.planOptions.hardware} />}
         <div className="section-header">pen</div>
         <div className="section-body">
           <PenHeight state={state} driver={driver} />
           <MotorControl driver={driver} />
-          <HardwareOptions state={state} />
+          <HardwareOptions state={state} driver={driver} />
           <ResetToDefaultsButton />
         </div>
         <div className="section-header">paper</div>

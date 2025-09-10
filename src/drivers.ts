@@ -29,6 +29,7 @@ export abstract class BaseDriver {
   abstract resume(): void;
   abstract setPenHeight(height: number, rate: number): void;
   abstract limp(): void;
+  abstract changeHardware(hardware: Hardware): void;
   abstract name(): string;
   abstract close(): Promise<void>;
 }
@@ -165,6 +166,15 @@ export class WebSerialDriver extends BaseDriver {
   public limp(): void {
     this.ebb.disableMotors();
   }
+
+  public changeHardware(hardware: Hardware): void {
+    this.ebb.changeHardware(hardware);
+    this.ondevinfo({
+      path: this._name,
+      hardware: hardware,
+      svgIoEnabled: false // WebSerial doesn't support SVG I/O
+    });
+  }
 }
 
 /**
@@ -279,5 +289,6 @@ export class SaxiDriver extends BaseDriver {
   }
 
   public limp() { this.send({ c: "limp" }); }
+  public changeHardware(hardware: Hardware) { this.send({ c: "changeHardware", p: { hardware } }); }
   public ping() { this.send({ c: "ping" }); }
 }
