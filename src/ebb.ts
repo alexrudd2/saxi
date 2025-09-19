@@ -1,13 +1,21 @@
 import { type Block, type Motion, PenMotion, type Plan, XYMotion } from "./planning.js";
 import { type Vec2, vsub } from "./vec.js";
 
-type MicrostepMode = 0 | 1 | 2 | 3 | 4 | 5;  // (0 = disabled)
+enum MicrostepMode {
+  DISABLED=0,
+  SIXTEENTH=1,
+  EIGHTH=2,
+  QUARTER=3,
+  HALF=4,
+  FULL=5
+};
+type RunningMicrostepMode = Exclude<MicrostepMode, MicrostepMode.DISABLED>;
+
 type PowerState = 0 | 1;
 
 type EBBCommand =
   // Motor commands
-  | `EM,${Exclude<MicrostepMode, 0>},${Exclude<MicrostepMode, 0>}`
-  | `EM,0,0` // disable motors
+  | `EM,${MicrostepMode},${MicrostepMode}`
   
   // Movement commands
   | `HM,${number}` // home with step frequency
@@ -53,7 +61,7 @@ export class EBB {
   private readableClosed: Promise<void>;
   public hardware: Hardware;
 
-  private microsteppingMode: MicrostepMode = 0;
+  private microsteppingMode = MicrostepMode.DISABLED;
 
   /** Accumulated XY error, used to correct for movements with sub-step resolution */
   private error: Vec2 = { x: 0, y: 0 };
@@ -108,11 +116,11 @@ export class EBB {
 
   private get stepMultiplier() {
     switch (this.microsteppingMode) {
-      case 5: return 1;
-      case 4: return 2;
-      case 3: return 4;
-      case 2: return 8;
-      case 1: return 16;
+      case MicrostepMode.FULL: return 1;
+      case MicrostepMode.HALF: return 2;
+      case MicrostepMode.QUARTER: return 4;
+      case MicrostepMode.EIGHTH: return 8;
+      case MicrostepMode.SIXTEENTH: return 16;
       default:
         throw new Error(`Invalid microstepping mode: ${this.microsteppingMode}`);
     }
@@ -187,7 +195,7 @@ export class EBB {
       cmd.reject(new Error("Cancelled"));
     }
   }
-  public async enableMotors(microsteppingMode: Exclude<MicrostepMode, 0>): Promise<void> {
+  public async enableMotors(microsteppingMode: RunningMicrostepMode): Promise<void> {
     this.microsteppingMode = microsteppingMode;
     await this.command(`EM,${microsteppingMode},${microsteppingMode}`);
     // if the board supports SR, we should also enable the servo motors.
@@ -381,7 +389,7 @@ export class EBB {
     throw new Error(`Unknown motion type: ${m.constructor.name}`);
   }
 
-  public async executePlan(plan: Plan, microsteppingMode: Exclude<MicrostepMode, 0> = 2): Promise<void> {
+  public async executePlan(plan: Plan, microsteppingMode: RunningMicrostepMode = MicrostepMode.EIGHTH): Promise<void> {
     await this.enableMotors(microsteppingMode);
 
     for (const m of plan.motions) {
