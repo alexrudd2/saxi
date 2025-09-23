@@ -35,8 +35,7 @@ const buildOptions = {
 
 (async() => {
   try {
-    if (process.env.IS_WEB) {
-      // enables live-reloading
+    if (process.env.SAXI_HOT_RELOAD) {
       const ctx = await context({
         ...buildOptions,
         banner: { js: "new EventSource('/esbuild').addEventListener('change', () => location.reload());" }

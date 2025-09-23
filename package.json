@@ -27,7 +27,7 @@
     "prepare": "rimraf dist && npm run build",
     "start": "npm run build && node cli.mjs",
     "start-svgio": "npm run build && node cli.mjs --svgio-api-key YOUR_API_KEY",
-    "start-webserial": "cross-env IS_WEB=1 npm run build:ui",
+    "start-webserial": "cross-env IS_WEB=1 SAXI_HOT_RELOAD=1 npm run build:ui",
     "deploy": "rimraf dist/ui && cross-env IS_WEB=1 npm run build:ui && gh-pages --dist dist/ui",
     "test": "jest"
   },
