@@ -1,11 +1,11 @@
-const semver = require('semver')
-const path = require('path')
-const fs = require('fs')
-const child_process = require('child_process')
+import { spawnSync } from 'node:child_process'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { inc } from 'semver'
 
-const repositoryRoot = path.join(__dirname, '..')
-const packageJsonPath = path.join(repositoryRoot, 'package.json')
-const packageParsed = JSON.parse(fs.readFileSync(packageJsonPath))
+const repositoryRoot = join(__dirname, '..')
+const packageJsonPath = join(repositoryRoot, 'package.json')
+const packageParsed = JSON.parse(readFileSync(packageJsonPath))
 
 const args = require('yargs')
   .strict()
@@ -16,18 +16,18 @@ const args = require('yargs')
   })
   .parse()
 
-const newVersion = semver.inc(packageParsed.version, args.level)
+const newVersion = inc(packageParsed.version, args.level)
 
 const newPackageJson = {...packageParsed, version: newVersion}
-fs.writeFileSync(packageJsonPath, JSON.stringify(newPackageJson, null, 2) + "\n")
+writeFileSync(packageJsonPath, `${JSON.stringify(newPackageJson, null, 2)}\n`)
 
-const packageLockJsonPath = path.join(repositoryRoot, 'package-lock.json')
-const packageLock = JSON.parse(fs.readFileSync(packageLockJsonPath))
+const packageLockJsonPath = join(repositoryRoot, 'package-lock.json')
+const packageLock = JSON.parse(readFileSync(packageLockJsonPath))
 const newPackageLockJson = {...packageLock, version: newVersion}
-fs.writeFileSync(packageLockJsonPath, JSON.stringify(newPackageLockJson, null, 2) + "\n")
+writeFileSync(packageLockJsonPath, `${JSON.stringify(newPackageLockJson, null, 2)}\n`)
 
 function git(args) {
-  const r = child_process.spawnSync("git", args, {cwd: repositoryRoot})
+  const r = spawnSync("git", args, {cwd: repositoryRoot})
   if (r.status !== 0) {
     console.error(r.stderr)
     throw new Error(`Command failed: git ${args.join(" ")}`)
