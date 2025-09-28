@@ -274,6 +274,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
   };
 
   async function doPlot(plotter: Plotter, plan: Plan, signal: AbortSignal): Promise<void> {
+    const abortPromise = onceAbort(signal);  // reuse abort promise
     unpaused = null;
     signalUnpause = null;
     motionIdx = 0;
@@ -288,7 +289,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
 
         await Promise.race([
           plotter.executeMotion(motion, [motionIdx, plan.motions.length]),
-          onceAbort(signal)
+          abortPromise
         ]);
 
         if (motion instanceof PenMotion) {
@@ -298,7 +299,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
         if (unpaused && penIsUp) {
           await Promise.race([
             unpaused,
-            onceAbort(signal)
+            abortPromise
           ]);
           broadcast({ c: "pause", p: { paused: false } });
         }
