@@ -34,7 +34,7 @@
   "author": "Jeremy Rose <nornagon@nornagon.net>",
   "license": "AGPL-3.0-only",
   "devDependencies": {
-    "@biomejs/biome": "2.2.4",
+    "@biomejs/biome": "2.2.5",
     "@craftamap/esbuild-plugin-html": "^0.9.0",
     "@serialport/bindings-cpp": "^12.0.0 || ^13.0.0",
     "@types/cors": "^2.8.4",
