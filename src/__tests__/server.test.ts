@@ -47,6 +47,14 @@ async function waitForPlottingComplete(server: Server, timeout = 10000): Promise
   }
 }
 
+async function waitForCommandsLogged(timeout = 5000): Promise<void> {
+  const startTime = Date.now();
+  while (Date.now() - startTime < timeout) {
+    if (mockSerialPortInstance.commands.length > 0) break;
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+}
+
 describe('Plot Endpoint Test Suite', () => {
   let server: Server;
 
@@ -75,6 +83,9 @@ describe('Plot Endpoint Test Suite', () => {
         .send(SIMPLE_PLAN)
         .expect(200);
    
+      // Wait for the plotting to actually start and commands to be logged
+      await waitForCommandsLogged();
+      
       // Check the commands that were sent to the mock serial port
       expect(mockSerialPortInstance.commands.length).toBeGreaterThan(0);
       expect(mockSerialPortInstance.commands).toContain('EM,1,1');
