@@ -8,8 +8,8 @@ import { flattenSVG, type Path } from "flatten-svg";
 import React, { type ChangeEvent, Fragment, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createRoot } from 'react-dom/client';
 import { PaperSize } from "./paper-size";
-import { Device, defaultPlanOptions, type MotionData, Plan, type PlanOptions, XYMotion } from "./planning.js";
-import { formatDuration } from "./util.js";
+import { Device, defaultPlanOptions, type MotionData, Plan, type PlanOptions, XYMotion } from "./planning";
+import { formatDuration } from "./util";
 
 import "./style.css";
 import { type BaseDriver, type DeviceInfo, SaxiDriver, WebSerialDriver } from "./drivers";

@@ -1,5 +1,5 @@
-import { type Block, type Motion, PenMotion, type Plan, XYMotion } from "./planning.js";
-import { type Vec2, vsub } from "./vec.js";
+import { type Block, type Motion, PenMotion, type Plan, XYMotion } from "./planning";
+import { type Vec2, vsub } from "./vec";
 
 enum MicrostepMode {
   DISABLED=0,

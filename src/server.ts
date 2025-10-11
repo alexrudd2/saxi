@@ -15,11 +15,11 @@ import type { Request, Response } from "express";
 import express from "express";
 import type WebSocket from 'ws';
 import { WebSocketServer } from 'ws';
-import { EBB, type Hardware } from './ebb.js';
-import { type Motion, PenMotion, Plan } from "./planning.js";
-import { SerialPortSerialPort } from "./serialport-serialport.js";
-import * as _self from './server.js';  // use self-import for test mocking
-import { formatDuration } from "./util.js";
+import { EBB, type Hardware } from './ebb';
+import { type Motion, PenMotion, Plan } from "./planning";
+import { SerialPortSerialPort } from "./serialport-serialport";
+import * as _self from './server';  // use self-import for test mocking
+import { formatDuration } from "./util";
 
 type Com = string
 

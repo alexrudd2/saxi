@@ -7,12 +7,12 @@ import { flattenSVG } from "flatten-svg";
 import { Window } from "svgdom";
 import yargs from "yargs";
 import { hideBin } from 'yargs/helpers';
-import type { Hardware } from "./ebb.js";
-import { replan } from "./massager.js";
-import { PaperSize } from "./paper-size.js";
-import { Device, type PlanOptions, defaultPlanOptions } from "./planning.js";
-import { connectEBB, startServer } from "./server.js";
-import { formatDuration } from "./util.js";
+import type { Hardware } from "./ebb";
+import { replan } from "./massager";
+import { PaperSize } from "./paper-size";
+import { Device, defaultPlanOptions, type PlanOptions } from "./planning";
+import { connectEBB, startServer } from "./server";
+import { formatDuration } from "./util";
 
 function parseSvg(svg: string) {
   const window = new Window;

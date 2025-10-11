@@ -1,6 +1,6 @@
 
 import { EBB, type Hardware } from "./ebb";
-import { Device, PenMotion, Plan } from "./planning.js";
+import { Device, PenMotion, Plan } from "./planning";
 
 export interface DeviceInfo {
   path: string;
