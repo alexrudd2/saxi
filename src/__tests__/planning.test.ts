@@ -1,4 +1,6 @@
-import { AxidrawFast, PenMotion, Plan, XYMotion, plan } from '../planning';
+import { describe, expect, it } from 'vitest';
+
+import { AxidrawFast, PenMotion, Plan, plan, XYMotion } from '../planning';
 import type { Vec2 } from '../vec';
 
 describe("plan", () => {

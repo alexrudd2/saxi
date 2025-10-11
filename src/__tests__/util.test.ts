@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest'
+
 import { PaperSize } from '../paper-size'
 import { cropToMargins } from '../util'
 import type { Vec2 } from '../vec'
