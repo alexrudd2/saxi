@@ -20,7 +20,7 @@
   },
   "scripts": {
     "prebuild": "npm run lint",
-    "lint": "npx @biomejs/biome lint src",
+    "lint": "biome lint src",
     "build": "npm run build:server && npm run build:ui",
     "build:server": "tsc --project tsconfig.server.json",
     "build:ui": "node --experimental-modules build.mjs",
