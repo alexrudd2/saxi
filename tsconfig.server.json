@@ -4,15 +4,7 @@
   "compilerOptions": {
     "sourceMap": true,
     "outDir": "dist/server",
-    "baseUrl": ".",
-    "paths": {
-      "@serialport/bindings-interface": [
-        "node_modules/@serialport/bindings-interface"
-      ],
-      "@serialport/binding-mock": [
-        "node_modules/@serialport/binding-mock"
-      ]
-    }
+    "baseUrl": "."
   },
   "files": [
     "src/cli.ts",
