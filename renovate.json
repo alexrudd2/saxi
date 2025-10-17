@@ -19,6 +19,15 @@
       "matchPackageNames": [
         "/esbuild/"
       ]
+    },
+    {
+      "groupName": "biome",
+      "matchPackageNames": [
+        "/biome/"
+      ],
+      "schedule": [
+        "* * 15 * *"
+      ]
     }
   ]
 }
