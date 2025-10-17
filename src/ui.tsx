@@ -164,7 +164,7 @@ const usePlan = (paths: Path[] | null, planOptions: PlanOptions) => {
     const worker = new Worker('background-planner.js');
     setIsPlanning(true);
     console.time("posting to worker");
-    // FIXME: planOptions contains Set objects which get converted to empty objects {} 
+    // FIXME: planOptions contains Set objects which get converted to empty objects {}
     // during structured cloning. Should use: { paths, planOptions: JSON.parse(serialize(planOptions)) }
     worker.postMessage({ paths, planOptions });
     console.timeEnd("posting to worker");
@@ -1204,17 +1204,9 @@ createRoot(document.getElementById("app")!).render(<Root />);
  * @returns A list of obj
  */
 function readSvg(svgString: string): Path[] {
-  // create a DOM object for the SVG
-  const div = document.createElement("div");
-  div.style.position = "absolute";
-  div.style.left = "99999px";
-  document.body.appendChild(div);
-  try {
-    div.innerHTML = svgString;
-    const svg = div.querySelector("svg") as SVGSVGElement;
-    const paths = flattenSVG(svg);
-    return paths;
-  } finally {
-    div.remove();
-  }
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svgString, "image/svg+xml");
+
+  const svg = doc.querySelector("svg");
+  return flattenSVG(svg);
 }
