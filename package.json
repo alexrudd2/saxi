@@ -54,7 +54,7 @@
     "semver": "^7.5.2",
     "supertest": "^7.0.0",
     "typescript": "^5.0",
-    "vitest": "^3.2.4"
+    "vitest": "^4.0.0"
   },
   "dependencies": {
     "@rehooks/component-size": "^1.0.3",
