@@ -78,7 +78,7 @@ export class WebSerialDriver extends BaseDriver {
     return this._name;
   }
 
-  private ebb: EBB;
+  public ebb: EBB;
   private constructor(ebb: EBB, name: string) {
     super();
     this.ebb = ebb;
