@@ -2,6 +2,7 @@
 import type { Hardware } from './ebb.js';
 import { PaperSize } from './paper-size.js';
 import { type Vec2, vadd, vdot, vlen, vmul, vnorm, vsub } from './vec.js';
+
 const epsilon = 1e-9;
 
 export interface PlanOptions {

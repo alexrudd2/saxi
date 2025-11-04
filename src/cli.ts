@@ -10,7 +10,7 @@ import { hideBin } from 'yargs/helpers';
 import type { Hardware } from "./ebb.js";
 import { replan } from "./massager.js";
 import { PaperSize } from "./paper-size.js";
-import { Device, type PlanOptions, defaultPlanOptions } from "./planning.js";
+import { Device, defaultPlanOptions, type PlanOptions } from "./planning.js";
 import { connectEBB, startServer } from "./server.js";
 import { formatDuration } from "./util.js";
 
