@@ -5,8 +5,10 @@ import { AxidrawFast, plan } from '../planning';
 import { createMockSerialPort, mockSerialPortInstance } from './mocks/serialport';
 
 // Mock SerialPortSerialPort using shared implementation
-vi.mock("../serialport-serialport", () => ({
-  SerialPortSerialPort: vi.fn().mockImplementation(createMockSerialPort)
+vi.mock('../serialport-serialport', () => ({
+  SerialPortSerialPort: vi.fn(function SerialPortSerialPort() {
+    return createMockSerialPort();
+  }),
 }));
 
 // Mock server to use test device

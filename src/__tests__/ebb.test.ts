@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EBB } from "../ebb";
+import { SerialPortSerialPort } from '../serialport-serialport';
 import { createMockSerialPort, mockSerialPortInstance } from './mocks/serialport';
 
-vi.mock("../serialport-serialport", () => ({
-  SerialPortSerialPort: vi.fn().mockImplementation(createMockSerialPort)
+vi.mock('../serialport-serialport', () => ({
+  SerialPortSerialPort: vi.fn(function SerialPortSerialPort() {
+    return createMockSerialPort();
+  }),
 }));
-
-const { SerialPortSerialPort } = await import("../serialport-serialport");
 
 describe("EBB", () => {
   beforeEach(() => {
