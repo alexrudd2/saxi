@@ -1,6 +1,6 @@
-import { vi } from 'vitest';
-import { mockSerialPortInstance, createMockSerialPort } from './mocks/serialport';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EBB } from "../ebb";
+import { createMockSerialPort, mockSerialPortInstance } from './mocks/serialport';
 
 vi.mock("../serialport-serialport", () => ({
   SerialPortSerialPort: vi.fn().mockImplementation(createMockSerialPort)

@@ -1,8 +1,8 @@
 import type { Server } from 'node:http';
-import { vi } from 'vitest';
 import request from 'supertest';
+import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 import { AxidrawFast, plan } from '../planning';
-import { mockSerialPortInstance, createMockSerialPort } from './mocks/serialport';
+import { createMockSerialPort, mockSerialPortInstance } from './mocks/serialport';
 
 // Mock SerialPortSerialPort using shared implementation
 vi.mock("../serialport-serialport", () => ({
