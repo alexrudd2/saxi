@@ -340,7 +340,7 @@ export class EBB {
   public async executeXYMotionWithXM(plan: XYMotion, timestepMs = 15): Promise<void> {
     const timestepSec = timestepMs / 1000;
     let t = 0;
-    while (t < plan.duration()) {
+    while (t < plan.duration) {
       const i1 = plan.instant(t);
       const i2 = plan.instant(t + timestepSec);
       const d = vsub(i2.p, i1.p);
@@ -375,9 +375,10 @@ export class EBB {
     // but rate needs to be in [clocks] / [24ms]
     // duration in units of 24ms is duration * [24ms] / [1s]
     const diff = Math.abs(pm.finalPos - pm.initialPos);
-    const durMs = pm.duration() * 1000;
+    const durMs = pm.duration * 1000;
     const rate = Math.round((diff * 24) / durMs);
-    return this.setPenHeight(pm.finalPos, rate, durMs);  }
+    return this.setPenHeight(pm.finalPos, rate, durMs);
+  }
 
   public executeMotion(m: Motion): Promise<void> {
     if (m instanceof XYMotion) {

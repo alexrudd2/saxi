@@ -8,7 +8,7 @@ import { flattenSVG, type Path } from "flatten-svg";
 import React, { type ChangeEvent, Fragment, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createRoot } from 'react-dom/client';
 import { PaperSize } from "./paper-size";
-import { Device, defaultPlanOptions, type MotionData, Plan, type PlanOptions, XYMotion } from "./planning.js";
+import { Device, type Motion, Plan, type PlanOptions, XYMotion, defaultPlanOptions } from "./planning.js";
 import { formatDuration } from "./util.js";
 
 import "./style.css";
@@ -168,9 +168,9 @@ const usePlan = (paths: Path[] | null, planOptions: PlanOptions) => {
     // during structured cloning. Should use: { paths, planOptions: JSON.parse(serialize(planOptions)) }
     worker.postMessage({ paths, planOptions });
     console.timeEnd("posting to worker");
-    const listener = (m: Record<'data', MotionData[]>) => {
+    const listener = (msg: Record<'data', Motion[]>) => {
       console.time("deserializing");
-      const deserialized = Plan.deserialize(m.data);
+      const deserialized = Plan.deserialize(msg.data);
       console.timeEnd("deserializing");
       setPlan(deserialized);
       lastPlan.current = deserialized;
@@ -607,7 +607,7 @@ function PlanPreview(
   if (state.progress != null && plan != null) {
     const motion = plan.motion(state.progress);
     const pos = motion instanceof XYMotion
-      ? motion.instant(Math.min(microprogress / 1000, motion.duration())).p
+      ? motion.instant(Math.min(microprogress / 1000, motion.duration)).p
       : (plan.motion(state.progress - 1) as XYMotion).p2;
     const posXMm = pos.x / device.stepsPerMm;
     const posYMm = pos.y / device.stepsPerMm;

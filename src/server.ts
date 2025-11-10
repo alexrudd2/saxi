@@ -265,7 +265,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
     },
     async executeMotion(motion: Motion, progress: [number, number]): Promise<void> {
       console.log(`Motion ${progress[0] + 1}/${progress[1]}`);
-      await new Promise((resolve) => setTimeout(resolve, motion.duration() * 1000));
+      await new Promise((resolve) => setTimeout(resolve, motion.duration * 1000));
     },
     async postCancel(_initialPenHeight: number): Promise<void> {
       console.log("Plot cancelled");
