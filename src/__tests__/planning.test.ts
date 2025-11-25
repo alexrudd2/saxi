@@ -68,6 +68,6 @@ describe("plan", () => {
       [{x: 10, y: 10}, {x: 25, y: 10}, {x: 30, y: 10}],
     ], AxidrawFast);
 
-    expect(p1.motions[2].duration()).toEqual(p2.motions[2].duration());
+    expect(p1.motions[2].duration).toEqual(p2.motions[2].duration);
   })
 });
