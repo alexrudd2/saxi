@@ -65,6 +65,6 @@ export function vrot(v: Vec2, c: Vec2, a: number): Vec2 {
   const sin = Math.sin(radians);
   const nx = cos * (v.x - c.x) - sin * (v.y - c.y) + c.x;
   const ny = cos * (v.y - c.y) + sin * (v.x - c.x) + c.y;
-      
-  return { x:nx, y:ny };
+
+  return { x: nx, y: ny };
 }

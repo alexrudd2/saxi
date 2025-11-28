@@ -1,4 +1,3 @@
-
 import { EBB, type Hardware } from "./ebb";
 import { Device, PenMotion, Plan } from "./planning.js";
 
@@ -45,10 +44,10 @@ export class WebSerialDriver extends BaseDriver {
   private _cancelRequested = false;
   private _disconnectHandler: ((event: Event) => void) | null = null;
 
-  public static async connect(port?: SerialPort, hardware: Hardware = 'v3') {
+  public static async connect(port?: SerialPort, hardware: Hardware = "v3") {
     if (!port)
       // biome-ignore lint/style/noParameterAssign: trivial
-      port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x04D8, usbProductId: 0xFD92 }] });
+      port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x04d8, usbProductId: 0xfd92 }] });
     // baudRate ref: https://github.com/evil-mad/plotink/blob/a45739b7d41b74d35c1e933c18949ed44c72de0e/plotink/ebb_serial.py#L281
     // (doesn't specify baud rate)
     // and https://pyserial.readthedocs.io/en/latest/pyserial_api.html#serial.Serial.__init__
@@ -57,8 +56,8 @@ export class WebSerialDriver extends BaseDriver {
     const { usbVendorId, usbProductId } = port.getInfo();
     const ebb = new EBB(port, hardware);
 
-    const vendorId = usbVendorId?.toString(16).padStart(4, '0');
-    const productId = usbProductId?.toString(16).padStart(4, '0');
+    const vendorId = usbVendorId?.toString(16).padStart(4, "0");
+    const productId = usbProductId?.toString(16).padStart(4, "0");
     const name = `${vendorId}:${productId}`;
 
     const driver = new WebSerialDriver(ebb, name);
@@ -67,7 +66,7 @@ export class WebSerialDriver extends BaseDriver {
         driver.handleDisconnection();
       }
     };
-    navigator.serial.addEventListener('disconnect', driver._disconnectHandler);
+    navigator.serial.addEventListener("disconnect", driver._disconnectHandler);
     driver.connected = true;
 
     return driver;
@@ -86,14 +85,14 @@ export class WebSerialDriver extends BaseDriver {
   }
 
   private handleDisconnection(): void {
-    console.log('WebSerial device disconnected');
+    console.log("WebSerial device disconnected");
     this.connected = false;
   }
 
   public async close(): Promise<void> {
     this.handleDisconnection();
     if (this._disconnectHandler) {
-      navigator.serial.removeEventListener('disconnect', this._disconnectHandler);
+      navigator.serial.removeEventListener("disconnect", this._disconnectHandler);
     }
     return this.ebb.close();
   }
@@ -116,7 +115,7 @@ export class WebSerialDriver extends BaseDriver {
         await this._unpaused;
         this.onpause(false);
       }
-      if (this._cancelRequested) { break; }
+      if (this._cancelRequested) { break; } // biome-ignore format: compactness
       motionIdx += 1;
     }
 
@@ -127,7 +126,7 @@ export class WebSerialDriver extends BaseDriver {
         const penMotion = plan.motions.find((motion): motion is PenMotion => motion instanceof PenMotion);
         const penUpPosition = penMotion ? Math.max(penMotion.initialPos, penMotion.finalPos) : device.penPctToPos(50);
         await this.ebb.setPenHeight(penUpPosition, 1000);
-        await this.ebb.command('HM,4000'); // HM returns carriage home without 3rd and 4th arguments
+        await this.ebb.command("HM,4000"); // HM returns carriage home without 3rd and 4th arguments
       }
       this.oncancelled();
     } else {
@@ -143,7 +142,7 @@ export class WebSerialDriver extends BaseDriver {
   }
 
   public pause(): void {
-    this._unpaused = new Promise(resolve => {
+    this._unpaused = new Promise((resolve) => {
       this._signalUnpause = resolve;
     });
     this.onpause(true);
@@ -172,7 +171,7 @@ export class WebSerialDriver extends BaseDriver {
     this.ondevinfo({
       path: this._name,
       hardware: hardware,
-      svgIoEnabled: false // WebSerial doesn't support SVG I/O
+      svgIoEnabled: false, // WebSerial doesn't support SVG I/O
     });
   }
 }
@@ -183,13 +182,12 @@ export class WebSerialDriver extends BaseDriver {
  * configuration (IS_WEB is unset).
  */
 export class SaxiDriver extends BaseDriver {
-
   private socket: WebSocket;
   private pingInterval: number | undefined;
-  svgioEnabled: ((enabled: boolean) => void);
+  svgioEnabled: (enabled: boolean) => void;
 
   public name() {
-    return 'Saxi Server';
+    return "Saxi Server";
   }
 
   public close() {
@@ -204,7 +202,6 @@ export class SaxiDriver extends BaseDriver {
   }
 
   public async connect() {
-
     const websocketProtocol = document.location.protocol === "https:" ? "wss" : "ws";
     this.socket = new WebSocket(`${websocketProtocol}://${document.location.host}/chat`);
 
@@ -244,7 +241,7 @@ export class SaxiDriver extends BaseDriver {
           console.log("Unknown message from server:", msg);
         } break;
       }
-    });
+    }); // biome-ignore format: compactness
     this.socket.addEventListener("error", () => {
       // TODO: something
     });
@@ -261,7 +258,7 @@ export class SaxiDriver extends BaseDriver {
     fetch("/plot", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: new Blob([JSON.stringify(plan.serialize())], { type: 'application/json' })
+      body: new Blob([JSON.stringify(plan.serialize())], { type: "application/json" }),
     });
   }
 
@@ -288,7 +285,13 @@ export class SaxiDriver extends BaseDriver {
     this.send({ c: "setPenHeight", p: { height, rate } });
   }
 
-  public limp() { this.send({ c: "limp" }); }
-  public changeHardware(hardware: Hardware) { this.send({ c: "changeHardware", p: { hardware } }); }
-  public ping() { this.send({ c: "ping" }); }
+  public limp() {
+    this.send({ c: "limp" });
+  }
+  public changeHardware(hardware: Hardware) {
+    this.send({ c: "changeHardware", p: { hardware } });
+  }
+  public ping() {
+    this.send({ c: "ping" });
+  }
 }

@@ -9,9 +9,12 @@ export function formatDuration(seconds: number): string {
   const parts = [
     [hours, "h"],
     [mins, "m"],
-    [secs, "s"]
+    [secs, "s"],
   ];
-  return parts.slice(parts.findIndex((x) => x[0] !== 0)).map(([v, u]) => `${v}${u}`).join("");
+  return parts
+    .slice(parts.findIndex((x) => x[0] !== 0))
+    .map(([v, u]) => `${v}${u}`)
+    .join("");
 }
 
 /** Return the top-left and bottom-right corners of the bounding box containing all points in pointLists */
@@ -26,9 +29,9 @@ function extent(pointLists: Vec2[][]): [Vec2, Vec2] {
       if (p.y > maxY) { maxY = p.y; }
       if (p.x < minX) { minX = p.x; }
       if (p.y < minY) { minY = p.y; }
-    }
+    } // biome-ignore format: compactness
   }
-  return [{ x: minX, y: minY }, { x: maxX, y: maxY }];
+  return [{ x: minX, y: minY }, { x: maxX, y: maxY }]; // biome-ignore format: compactness
 }
 
 /**
@@ -52,11 +55,7 @@ function scaleToFit(pointLists: Vec2[][], targetMin: Vec2, targetMax: Vec2): Vec
 
 /** Scale a drawing to fill a piece of paper, with the given size and margins. */
 export function scaleToPaper(pointLists: Vec2[][], paperSize: PaperSize, marginMm: number): Vec2[][] {
-  return scaleToFit(
-    pointLists,
-    { x: marginMm, y: marginMm },
-    vsub(paperSize.size, { x: marginMm, y: marginMm })
-  );
+  return scaleToFit(pointLists, { x: marginMm, y: marginMm }, vsub(paperSize.size, { x: marginMm, y: marginMm }));
 }
 
 /**
@@ -74,19 +73,15 @@ function liangBarsky(aabb: [Vec2, Vec2], seg: [Vec2, Vec2]): Vec2 | null {
 
   for (let i = 0; i < 4; i++) {
     if (p[i] === 0) {
-      if (q[i] < 0)
-        return null;
+      if (q[i] < 0) return null;
     } else {
       const t = q[i] / p[i];
-      if (p[i] < 0 && u1 < t)
-        u1 = t;
-      else if (p[i] > 0 && u2 > t)
-        u2 = t;
+      if (p[i] < 0 && u1 < t) u1 = t;
+      else if (p[i] > 0 && u2 > t) u2 = t;
     }
   }
 
-  if (u1 > u2 || u1 > 1 || u1 < 0)
-    return null;
+  if (u1 > u2 || u1 > 1 || u1 < 0) return null;
 
   return vadd(a, vmul(delta, u1));
 }
@@ -160,7 +155,9 @@ export function cropToMargins(pointLists: Vec2[][], paperSize: PaperSize, margin
 }
 
 export function dedupPoints(points: Vec2[], epsilon: number): Vec2[] {
-  if (epsilon === 0) { return points; }
+  if (epsilon === 0) {
+    return points;
+  }
   const dedupedPoints = [points[0]];
   const epsilon2 = epsilon * epsilon;
   for (const p of points.slice(1)) {

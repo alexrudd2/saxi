@@ -7,22 +7,22 @@
 
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { autoDetect } from '@serialport/bindings-cpp';
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { autoDetect } from "@serialport/bindings-cpp";
 import type { PortInfo } from "@serialport/bindings-interface";
 import cors from "cors";
 import type { Request, Response } from "express";
 import express from "express";
-import type WebSocket from 'ws';
-import { WebSocketServer } from 'ws';
-import { EBB, type Hardware } from './ebb.js';
+import type WebSocket from "ws";
+import { WebSocketServer } from "ws";
+import { EBB, type Hardware } from "./ebb.js";
 import { type Motion, PenMotion, Plan } from "./planning.js";
 import { SerialPortSerialPort } from "./serialport-serialport.js";
-import * as _self from './server.js';  // use self-import for test mocking
+import * as _self from "./server.js"; // use self-import for test mocking
 import { formatDuration } from "./util.js";
 
-type Com = string
+type Com = string;
 
 /**
  * Shorthand for getting the device info, either EBB or com port.
@@ -34,7 +34,7 @@ const getDeviceInfo = (ebb: EBB | null, _com: Com) => {
   // biome-ignore lint/suspicious/noExplicitAny: private member access
   const portPath = (ebb?.port as any)?._path ?? null;
   return { path: portPath, hardware: ebb?.hardware };
-}
+};
 
 /**
  * Start the express server.
@@ -45,10 +45,17 @@ const getDeviceInfo = (ebb: EBB | null, _com: Com) => {
  * @param maxPayloadSize
  * @returns
  */
-export async function startServer(port: number, hardware: Hardware = 'v3', com: Com = null, enableCors = false, maxPayloadSize = '200mb', svgIoApiKey = '') {
+export async function startServer(
+  port: number,
+  hardware: Hardware = "v3",
+  com: Com = null,
+  enableCors = false,
+  maxPayloadSize = "200mb",
+  svgIoApiKey = "",
+) {
   const app = express();
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  app.use('/', express.static(path.join(__dirname, '..', 'ui')));
+  app.use("/", express.static(path.join(__dirname, "..", "ui")));
   app.use(express.json({ limit: maxPayloadSize }));
   if (enableCors) {
     app.use(cors());
@@ -75,11 +82,13 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
           ws.send(JSON.stringify({ c: "pong" }));
           break;
         case "limp":
-          if (ebb) { ebb.disableMotors(); }
+          if (ebb) {
+            ebb.disableMotors();
+          }
           break;
         case "setPenHeight":
           if (ebb) {
-            (async() => {
+            (async () => {
               if (await ebb.supportsSR()) {
                 await ebb.setServoPowerTimeout(10000, true);
               }
@@ -89,15 +98,15 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
           break;
         case "changeHardware":
           ebb?.changeHardware(msg.p.hardware);
-          broadcast({ c: 'dev', p: getDeviceInfo(ebb, com) });
+          broadcast({ c: "dev", p: getDeviceInfo(ebb, com) });
           break;
       }
     });
 
     // send starting params to clients
-    ws.send(JSON.stringify({ c: 'dev', p: getDeviceInfo(ebb, com) }));
+    ws.send(JSON.stringify({ c: "dev", p: getDeviceInfo(ebb, com) }));
 
-    ws.send(JSON.stringify({ c: 'svgio-enabled', p: svgIoApiKey !== '' }));
+    ws.send(JSON.stringify({ c: "svgio-enabled", p: svgIoApiKey !== "" }));
 
     ws.send(JSON.stringify({ c: "pause", p: { paused: !!unpaused } }));
     if (motionIdx != null) {
@@ -115,10 +124,10 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
   /**
    * /plot POST endpoint. Receive a plan on the POST body, and execute it.
    */
-  app.post("/plot", async(req: Request, res: Response) => {
+  app.post("/plot", async (req: Request, res: Response) => {
     if (plotting) {
       console.log("Received plot request, but a plot is already in progress!");
-      res.status(400).send('Plot in progress');
+      res.status(400).send("Plot in progress");
       return;
     }
     plotting = true;
@@ -135,7 +144,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
       let wakeLock: { release(): void } | null = null;
 
       // The wake-lock module is macOS-only.
-      if (process.platform === 'darwin') {
+      if (process.platform === "darwin") {
         try {
           // Dynamically import wake-lock only on macOS
           const { WakeLock } = await import("wake-lock");
@@ -161,7 +170,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
     }
   });
 
-  app.get('/plot/status', (_req, res) => {
+  app.get("/plot/status", (_req, res) => {
     res.json({ plotting });
   });
 
@@ -181,7 +190,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
 
   app.post("/pause", (_req: Request, res: Response) => {
     if (!unpaused) {
-      unpaused = new Promise(resolve => {
+      unpaused = new Promise((resolve) => {
         signalUnpause = resolve;
       });
       broadcast({ c: "pause", p: { paused: true } });
@@ -197,22 +206,22 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
     res.status(200).end();
   });
 
-  app.post("/generate", async(req: Request, res: Response) => {
+  app.post("/generate", async (req: Request, res: Response) => {
     if (plotting) {
       console.log("Received generate request, but a plot is already in progress!");
-      res.status(400).end('Plot in progress');
+      res.status(400).end("Plot in progress");
       return;
     }
     const { prompt, vecType } = req.body;
     try {
       // call the api and return the svg
-      const apiResp = await fetch('https://api.svg.io/v1/generate-image', {
-        method: 'post',
+      const apiResp = await fetch("https://api.svg.io/v1/generate-image", {
+        method: "post",
         headers: {
           Authorization: `Bearer ${svgIoApiKey}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ prompt, style: vecType, negativePrompt: '' })
+        body: JSON.stringify({ prompt, style: vecType, negativePrompt: "" }),
       });
       // forward the api response
       const data = await apiResp.json();
@@ -222,7 +231,6 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
       res.status(500).end();
     }
   });
-
 
   function broadcast(msg: Record<string, unknown>) {
     for (const client of clients) {
@@ -251,7 +259,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
     },
     async postCancel(initialPenHeight: number): Promise<void> {
       await ebb.setPenHeight(initialPenHeight, 1000);
-      await ebb.command('HM,4000'); // HM returns carriage home without 3rd and 4th arguments
+      await ebb.command("HM,4000"); // HM returns carriage home without 3rd and 4th arguments
     },
     async postPlot(): Promise<void> {
       await ebb.waitUntilMotorsIdle();
@@ -261,8 +269,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
 
   const simPlotter: Plotter = {
     // eslint-disable-next-line @typescript-eslint/no-empty-function
-    async prePlot(_initialPenHeight: number): Promise<void> {
-    },
+    async prePlot(_initialPenHeight: number): Promise<void> {},
     async executeMotion(motion: Motion, progress: [number, number]): Promise<void> {
       console.log(`Motion ${progress[0] + 1}/${progress[1]}`);
       await new Promise((resolve) => setTimeout(resolve, motion.duration() * 1000));
@@ -271,17 +278,16 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
       console.log("Plot cancelled");
     },
     // eslint-disable-next-line @typescript-eslint/no-empty-function
-    async postPlot(): Promise<void> {
-    },
+    async postPlot(): Promise<void> {},
   };
 
   async function doPlot(plotter: Plotter, plan: Plan, signal: AbortSignal): Promise<void> {
-    const abortPromise = onceAbort(signal);  // reuse abort promise
+    const abortPromise = onceAbort(signal); // reuse abort promise
     unpaused = null;
     signalUnpause = null;
     motionIdx = 0;
 
-    const firstPenMotion = (plan.motions.find((x) => x instanceof PenMotion) as PenMotion);
+    const firstPenMotion = plan.motions.find((x) => x instanceof PenMotion) as PenMotion;
     await plotter.prePlot(firstPenMotion.initialPos);
 
     let penIsUp = true;
@@ -289,20 +295,14 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
       for (const motion of plan.motions) {
         broadcast({ c: "progress", p: { motionIdx } });
 
-        await Promise.race([
-          plotter.executeMotion(motion, [motionIdx, plan.motions.length]),
-          abortPromise
-        ]);
+        await Promise.race([plotter.executeMotion(motion, [motionIdx, plan.motions.length]), abortPromise]);
 
         if (motion instanceof PenMotion) {
           penIsUp = motion.initialPos < motion.finalPos;
         }
 
         if (unpaused && penIsUp) {
-          await Promise.race([
-            unpaused,
-            abortPromise
-          ]);
+          await Promise.race([unpaused, abortPromise]);
           broadcast({ c: "pause", p: { paused: false } });
         }
 
@@ -310,7 +310,6 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
       }
 
       broadcast({ c: "finished" });
-
     } catch (err) {
       if (signal.aborted) {
         await plotter.postCancel(firstPenMotion.initialPos);
@@ -338,7 +337,7 @@ export async function startServer(port: number, hardware: Hardware = 'v3', com: 
         const devices = ebbs(com, hardware);
         for await (const device of devices) {
           ebb = device;
-          broadcast({ c: 'dev', p: getDeviceInfo(ebb, com) });
+          broadcast({ c: "dev", p: getDeviceInfo(ebb, com) });
         }
       }
       connect();
@@ -361,7 +360,11 @@ function sleep(ms: number) {
 }
 
 function isEBB(p: PortInfo): boolean {
-  return p.manufacturer === "SchmalzHaus" || p.manufacturer === "SchmalzHaus LLC" || (p.vendorId === "04D8" && p.productId === "FD92");
+  return (
+    p.manufacturer === "SchmalzHaus" ||
+    p.manufacturer === "SchmalzHaus LLC" ||
+    (p.vendorId === "04D8" && p.productId === "FD92")
+  );
 }
 
 async function listEBBs() {
@@ -381,14 +384,14 @@ export async function waitForEbb(): Promise<Com> {
   }
 }
 
-async function* ebbs(path?: string, hardware: Hardware = 'v3') {
+async function* ebbs(path?: string, hardware: Hardware = "v3") {
   while (true) {
     try {
       const com: Com = path || (await _self.waitForEbb()); // use self-import for test mocking
       console.log(`Found EBB at ${com}`);
       const port = await tryOpen(com);
       const closed = new Promise((resolve) => {
-        port.addEventListener('disconnect', resolve, { once: true });
+        port.addEventListener("disconnect", resolve, { once: true });
       });
       yield new EBB(port, hardware);
       await closed;

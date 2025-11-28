@@ -8,7 +8,6 @@ function vround(v: Vec2, digits = 2): Vec2 {
  * Canvas size where the SVG is drawn.
  */
 export class PaperSize {
-
   public get landscape(): PaperSize {
     return new PaperSize({
       x: Math.max(this.size.x, this.size.y),
@@ -31,13 +30,13 @@ export class PaperSize {
    * Common-known paper sizes.
    */
   public static standard: { [name: string]: PaperSize } = {
-    "USLetter": new PaperSize(vround(vmul({ x: 8.5, y: 11 }, 25.4))),
-    "USLegal": new PaperSize(vround(vmul({ x: 8.5, y: 14 }, 25.4))),
-    "ArchA": new PaperSize(vround(vmul({ x: 9, y: 12 }, 25.4))),
-    "A3": new PaperSize({ x: 297, y: 420 }),
-    "A4": new PaperSize({ x: 210, y: 297 }),
-    "A5": new PaperSize({ x: 148, y: 210 }),
-    "A6": new PaperSize({ x: 105, y: 148 }),
+    USLetter: new PaperSize(vround(vmul({ x: 8.5, y: 11 }, 25.4))),
+    USLegal: new PaperSize(vround(vmul({ x: 8.5, y: 14 }, 25.4))),
+    ArchA: new PaperSize(vround(vmul({ x: 9, y: 12 }, 25.4))),
+    A3: new PaperSize({ x: 297, y: 420 }),
+    A4: new PaperSize({ x: 210, y: 297 }),
+    A5: new PaperSize({ x: 148, y: 210 }),
+    A6: new PaperSize({ x: 105, y: 148 }),
     "6x8": new PaperSize(vround(vmul({ x: 6, y: 8 }, 25.4))),
     "5x7": new PaperSize(vround(vmul({ x: 5, y: 7 }, 25.4))),
     "11x14": new PaperSize(vround(vmul({ x: 11, y: 14 }, 25.4))),

@@ -1,12 +1,11 @@
 {
-    "$schema": "https://json.schemastore.org/tsconfig",
-    "compilerOptions": {
-      "target": "es2022",
-      "module": "es2020",
-      "moduleResolution": "node",
-      "esModuleInterop": true,
-      "noImplicitAny": true,
-      "jsx": "react",
-    },
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "es2020",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "noImplicitAny": true,
+    "jsx": "react"
   }
-  
+}

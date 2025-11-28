@@ -1,9 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EBB } from "../ebb";
-import { SerialPortSerialPort } from '../serialport-serialport';
-import { createMockSerialPort, mockSerialPortInstance } from './mocks/serialport';
+import { SerialPortSerialPort } from "../serialport-serialport";
+import { createMockSerialPort, mockSerialPortInstance } from "./mocks/serialport";
 
-vi.mock('../serialport-serialport', () => ({
+vi.mock("../serialport-serialport", () => ({
   SerialPortSerialPort: vi.fn(function SerialPortSerialPort() {
     return createMockSerialPort();
   }),
@@ -15,22 +15,22 @@ describe("EBB", () => {
   });
 
   it("firmware version", async () => {
-    const port = new SerialPortSerialPort('/dev/ebb');
+    const port = new SerialPortSerialPort("/dev/ebb");
     await port.open({ baudRate: 9600 });
     const ebb = new EBB(port);
-    
+
     const version = await ebb.firmwareVersion();
-    expect(version).toEqual('test 2.5.3');
-    expect(mockSerialPortInstance.commands).toContain('V');
-  })
+    expect(version).toEqual("test 2.5.3");
+    expect(mockSerialPortInstance.commands).toContain("V");
+  });
 
   it("enable motors", async () => {
-    const port = new SerialPortSerialPort('/dev/ebb');
+    const port = new SerialPortSerialPort("/dev/ebb");
     await port.open({ baudRate: 9600 });
     const ebb = new EBB(port);
-    
+
     await ebb.enableMotors(2);
-    expect(mockSerialPortInstance.commands).toContain('EM,2,2');
-    expect(mockSerialPortInstance.commands).toContain('V'); // Version check for supportsSR()
-  })
-})
+    expect(mockSerialPortInstance.commands).toContain("EM,2,2");
+    expect(mockSerialPortInstance.commands).toContain("V"); // Version check for supportsSR()
+  });
+});

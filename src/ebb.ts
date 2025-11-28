@@ -2,13 +2,13 @@ import { type Block, type Motion, PenMotion, type Plan, XYMotion } from "./plann
 import { type Vec2, vsub } from "./vec.js";
 
 enum MicrostepMode {
-  DISABLED=0,
-  SIXTEENTH=1,
-  EIGHTH=2,
-  QUARTER=3,
-  HALF=4,
-  FULL=5
-};
+  DISABLED = 0,
+  SIXTEENTH = 1,
+  EIGHTH = 2,
+  QUARTER = 3,
+  HALF = 4,
+  FULL = 5,
+}
 type RunningMicrostepMode = Exclude<MicrostepMode, MicrostepMode.DISABLED>;
 
 type PowerState = 0 | 1;
@@ -16,28 +16,30 @@ type PowerState = 0 | 1;
 type EBBCommand =
   // Motor commands
   | `EM,${MicrostepMode},${MicrostepMode}`
-  
+
   // Movement commands
   | `HM,${number}` // home with step frequency
   | `HM,${number},${number},${number}` // home to specific position
   | `XM,${number},${number},${number}` // mixed-axis move
   | `LM,${number},${number},${number},${number},${number},${number}` // low-level move
-  
+
   // Servo commands
   | `S2,${number},${number}` // basic servo position
   | `S2,${number},${number},${number}` // with rate
   | `S2,${number},${number},${number},${number}` // with rate and delay
   | `S2,0,${number}` // disable servo output
   | `SR,${number}` // servo power timeout
-  | `SR,${number},${PowerState}` // servo power timeout with immediate state
+  | `SR,${number},${PowerState}`; // servo power timeout with immediate state
 
-type EBBQuery = // queries that return a single line
-  | 'V'    // version
-  | 'QM'   // query motors
+type EBBQuery =
+  // queries that return a single line
+  | "V" // version
+  | "QM"; // query motors
 
-type EBBQueryM =  // queries that return multiple lines
-  | 'QB'   // query button
-  | 'QC'   // query configuration
+type EBBQueryM =
+  // queries that return multiple lines
+  | "QB" // query button
+  | "QC"; // query configuration
 
 /** Split d into its fractional and integral parts */
 function modf(d: number): [number, number] {
@@ -46,7 +48,7 @@ function modf(d: number): [number, number] {
   return [fracPart, intPart];
 }
 
-export type Hardware = 'v3' | 'brushless' | 'nextdraw-2234'
+export type Hardware = "v3" | "brushless" | "nextdraw-2234";
 
 type CommandGenerator<TReturn = unknown> = Iterator<unknown, TReturn, string> & {
   resolve: (value: TReturn) => void;
@@ -68,48 +70,51 @@ export class EBB {
 
   private cachedFirmwareVersion: [number, number, number] | undefined = undefined;
 
-  public constructor(port: SerialPort, hardware: Hardware = 'v3') {
+  public constructor(port: SerialPort, hardware: Hardware = "v3") {
     this.hardware = hardware;
     this.port = port;
     this.writer = this.port.writable.getWriter();
     this.commandQueue = [];
-    
-    let buffer = '';
+
+    let buffer = "";
 
     this.readableClosed = port.readable
       .pipeThrough(new TextDecoderStream() as TransformStream<Uint8Array, string>)
-      .pipeTo(new WritableStream({
-        write: (chunk) => {
-          buffer += chunk;
-          const parts = buffer.split(/[\r\n]+/);  // each command is on a different line
-          buffer = parts.pop() || '';
+      .pipeTo(
+        new WritableStream({
+          write: (chunk) => {
+            buffer += chunk;
+            const parts = buffer.split(/[\r\n]+/); // each command is on a different line
+            buffer = parts.pop() || "";
 
-          for (const part of parts) {
-            if (part.trim() === '') continue; // empty line
-            if (this.commandQueue.length) {
-              if (part[0] === '!') {  // error from EBB
-                this.commandQueue.shift()?.reject(new Error(part));
-                continue;
-              }
-
-              try {
-                const d = this.commandQueue[0].next(part);
-                if (d.done) {
-                  this.commandQueue.shift()?.resolve(d.value);
+            for (const part of parts) {
+              if (part.trim() === "") continue; // empty line
+              if (this.commandQueue.length) {
+                if (part[0] === "!") {
+                  // error from EBB
+                  this.commandQueue.shift()?.reject(new Error(part));
+                  continue;
                 }
-              } catch (e) {
-                this.commandQueue.shift()?.reject(e as Error);
+
+                try {
+                  const d = this.commandQueue[0].next(part);
+                  if (d.done) {
+                    this.commandQueue.shift()?.resolve(d.value);
+                  }
+                } catch (e) {
+                  this.commandQueue.shift()?.reject(e as Error);
+                }
+              } else {
+                console.log(`unexpected data: ${part}`);
               }
-            } else {
-              console.log(`unexpected data: ${part}`);
             }
-          }
-        }
-      }))
+          },
+        }),
+      )
       .catch((error) => {
         // Swallow premature close error; the disconnect handler takes care of it
-        if (error.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
-         throw error;
+        if (error.code !== "ERR_STREAM_PREMATURE_CLOSE") {
+          throw error;
         }
       });
   }
@@ -123,7 +128,7 @@ export class EBB {
       case MicrostepMode.SIXTEENTH: return 16;
       default:
         throw new Error(`Invalid microstepping mode: ${this.microsteppingMode}`);
-    }
+    } // biome-ignore format: compactness
   }
 
   public async close(): Promise<void> {
@@ -147,7 +152,7 @@ export class EBB {
     try {
       return await this.run(function* (): Iterator<string, string, string> {
         this.write(`${cmd}\r`);
-        const result = (yield);
+        const result = yield;
         return result;
       });
     } catch (err) {
@@ -158,12 +163,12 @@ export class EBB {
   /** Send a raw command to the EBB and expect multiple lines in return, with an "OK" line to terminate. */
   public async queryM(cmd: EBBQueryM): Promise<string[]> {
     try {
-      return await this.run(function*(): Iterator<string[], string[], string> {
+      return await this.run(function* (): Iterator<string[], string[], string> {
         this.write(`${cmd}\r`);
         const result: string[] = [];
         while (true) {
-          const line = (yield);
-          if (line === "OK") { break; }
+          const line = yield;
+          if (line === "OK") { break; } // biome-ignore format: compactness
           result.push(line);
         }
         return result;
@@ -176,9 +181,9 @@ export class EBB {
   /** Send a raw command to the EBB and expect a single "OK" line in return. */
   public async command(cmd: EBBCommand): Promise<void> {
     try {
-      return await this.run(function*(): Iterator<void, void, string> {
+      return await this.run(function* (): Iterator<void, void, string> {
         this.write(`${cmd}\r`);
-        const ok = (yield);
+        const ok = yield;
         if (ok !== "OK") {
           throw new Error(`Expected OK, got ${ok}`);
         }
@@ -198,8 +203,7 @@ export class EBB {
     this.microsteppingMode = microsteppingMode;
     await this.command(`EM,${microsteppingMode},${microsteppingMode}`);
     // if the board supports SR, we should also enable the servo motors.
-    if (await this.supportsSR())
-      await this.setServoPowerTimeout(0, true);
+    if (await this.supportsSR()) await this.setServoPowerTimeout(0, true);
   }
 
   public async disableMotors(): Promise<void> {
@@ -231,7 +235,7 @@ export class EBB {
 
   // https://evil-mad.github.io/EggBot/ebb.html#S2 General RC Servo Output
   public async setPenHeight(height: number, rate: number, delay = 0): Promise<void> {
-    const output_pin = this.hardware === 'v3' ? 4 : 5;
+    const output_pin = this.hardware === "v3" ? 4 : 5;
     return await this.command(`S2,${height},${output_pin},${rate},${delay}`);
   }
 
@@ -241,7 +245,7 @@ export class EBB {
     finalStepsPerSecAxis1: number,
     stepsAxis2: number,
     initialStepsPerSecAxis2: number,
-    finalStepsPerSecAxis2: number
+    finalStepsPerSecAxis2: number,
   ): Promise<void> {
     const [initialRate1, deltaR1] = this.axisRate(stepsAxis1, initialStepsPerSecAxis1, finalStepsPerSecAxis1);
     const [initialRate2, deltaR2] = this.axisRate(stepsAxis2, initialStepsPerSecAxis2, finalStepsPerSecAxis2);
@@ -282,7 +286,13 @@ export class EBB {
     const finalRateAxis1 = Math.abs(finalRateX + finalRateY);
     const finalRateAxis2 = Math.abs(finalRateX - finalRateY);
     return this.lowlevelMove(
-      stepsAxis1, initialRateAxis1, finalRateAxis1, stepsAxis2, initialRateAxis2, finalRateAxis2);
+      stepsAxis1,
+      initialRateAxis1,
+      finalRateAxis1,
+      stepsAxis2,
+      initialRateAxis2,
+      finalRateAxis2,
+    );
   }
 
   /**
@@ -316,7 +326,7 @@ export class EBB {
         stepsX,
         stepsY,
         block.vInitial * this.stepMultiplier,
-        block.vFinal * this.stepMultiplier
+        block.vFinal * this.stepMultiplier,
       );
     }
   }
@@ -377,12 +387,14 @@ export class EBB {
     const diff = Math.abs(pm.finalPos - pm.initialPos);
     const durMs = pm.duration() * 1000;
     const rate = Math.round((diff * 24) / durMs);
-    return this.setPenHeight(pm.finalPos, rate, durMs);  }
+    return this.setPenHeight(pm.finalPos, rate, durMs);
+  }
 
   public executeMotion(m: Motion): Promise<void> {
     if (m instanceof XYMotion) {
       return this.executeXYMotion(m);
-    } if (m instanceof PenMotion) {
+    }
+    if (m instanceof PenMotion) {
       return this.executePenMotion(m);
     }
     throw new Error(`Unknown motion type: ${m.constructor.name}`);
@@ -410,7 +422,7 @@ export class EBB {
       ra0Voltage / 1023.0 * 3.3,
       vPlusVoltage / 1023.0 * 3.3,
       vPlusVoltage / 1023.0 * 3.3 * 9.2 + 0.3
-    ];
+    ]; // biome-ignore format: readability
   }
 
   /**
@@ -489,7 +501,7 @@ export class EBB {
     if (steps === 0) return [0, 0];
     const initialRate = Math.round(initialStepsPerSec * (0x80000000 / 25000));
     const finalRate = Math.round(finalStepsPerSec * (0x80000000 / 25000));
-    const moveTime = 2 * Math.abs(steps) / (initialStepsPerSec + finalStepsPerSec);
+    const moveTime = (2 * Math.abs(steps)) / (initialStepsPerSec + finalStepsPerSec);
     const deltaR = Math.round((finalRate - initialRate) / (moveTime * 25000));
     return [initialRate, deltaR];
   }
@@ -497,7 +509,9 @@ export class EBB {
   private run<T>(g: (this: EBB) => Iterator<T>): Promise<T> {
     const cmd = g.call(this);
     const d = cmd.next();
-    if (d.done) { return Promise.resolve(d.value); }
+    if (d.done) {
+      return Promise.resolve(d.value);
+    }
     this.commandQueue.push(cmd);
     return new Promise((resolve, reject) => {
       cmd.resolve = resolve;

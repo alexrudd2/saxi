@@ -1,33 +1,20 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended",
-    ":automergeLinters",
-    "group:nodeJs",
-    "customManagers:biomeVersions"
-  ],
+  "extends": ["config:recommended", ":automergeLinters", "group:nodeJs", "customManagers:biomeVersions"],
   "rangeStrategy": "replace",
   "packageRules": [
     {
-      "matchManagers": [
-        "github-actions"
-      ],
+      "matchManagers": ["github-actions"],
       "automerge": true
     },
     {
       "groupName": "esbuild",
-      "matchPackageNames": [
-        "/esbuild/"
-      ]
+      "matchPackageNames": ["/esbuild/"]
     },
     {
       "groupName": "biome",
-      "matchPackageNames": [
-        "/biome/"
-      ],
-      "schedule": [
-        "* * 15 * *"
-      ]
+      "matchPackageNames": ["/biome/"],
+      "schedule": ["* * 15 * *"]
     }
   ]
 }
