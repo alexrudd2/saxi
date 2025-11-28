@@ -438,7 +438,7 @@ function SvgIoOptions({ state }: { state: State }) {
           <textarea
             value={prompt}
             onChange={(e) => dispatch({ type: "SET_SVGIO_OPTION", value: { prompt: e.target.value } })}
-          ></textarea>
+          />
         </label>
       </div>
       {prompt !== "" ? (
