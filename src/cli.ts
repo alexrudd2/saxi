@@ -225,9 +225,9 @@ export function cli(argv: string[]): void {
           process.exit(1);
         }
         console.log("plotting...");
-        const startTime = +new Date();
+        const startTime = Date.now();
         await ebb.executePlan(p);
-        console.log(`done! took ${formatDuration((+new Date() - startTime) / 1000)}`);
+        console.log(`done! took ${formatDuration((Date.now() - startTime) / 1000)}`);
         await ebb.close();
       },
     )
