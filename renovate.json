@@ -14,7 +14,8 @@
     {
       "groupName": "biome",
       "matchPackageNames": ["/biome/"],
-      "schedule": ["* * 15 * *"]
+      "schedule": ["* * 15 * *"],
+      "automerge": true
     }
   ]
 }
