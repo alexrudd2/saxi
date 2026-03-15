@@ -258,7 +258,7 @@ export class SaxiDriver extends BaseDriver {
     fetch("/plot", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: new Blob([JSON.stringify(plan.serialize())], { type: "application/json" }),
+      body: JSON.stringify(plan.serialize()),
     });
   }
 
