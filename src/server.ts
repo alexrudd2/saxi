@@ -225,7 +225,7 @@ export async function startServer(
       });
       // forward the api response
       const data = await apiResp.json();
-      res.status(apiResp.status).send(data).end();
+      res.status(apiResp.status).send(data);
     } catch (err) {
       console.error(err);
       res.status(500).end();
