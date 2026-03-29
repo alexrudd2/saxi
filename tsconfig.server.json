@@ -4,7 +4,6 @@
   "compilerOptions": {
     "sourceMap": true,
     "outDir": "dist/server",
-    "baseUrl": "."
   },
-  "files": ["src/cli.ts", "src/global.d.ts"]
+  "files": ["src/cli.ts", "src/global.d.ts"],
 }
