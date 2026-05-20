@@ -3,7 +3,8 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "sourceMap": true,
+    "rootDir": ".",
     "outDir": "dist/server",
   },
-  "files": ["src/cli.ts", "src/global.d.ts"],
+  "files": ["src/cli.ts", "src/global.d.ts", "types/serialport-binding-mock.d.ts"],
 }

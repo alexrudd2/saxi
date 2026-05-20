@@ -3,7 +3,7 @@
   "compilerOptions": {
     "target": "es2022",
     "module": "es2020",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "noImplicitAny": true,
     "jsx": "react"
