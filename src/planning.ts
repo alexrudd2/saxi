@@ -98,6 +98,7 @@ interface ToolingProfile {
 export const Device = (hardware = "v3"): Device => {
   if (hardware === "brushless") return AxidrawBrushless;
   if (hardware === "nextdraw-2234") return NextDraw2234;
+  if (hardware === "idraw-h-se") return Axidraw; // https://github.com/alexrudd2/saxi/issues/298
   return Axidraw;
 };
 
