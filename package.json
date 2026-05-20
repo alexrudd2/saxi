@@ -3,7 +3,10 @@
   "version": "0.17.1",
   "description": "Drive the AxiDraw pen plotter",
   "homepage": "https://github.com/alexrudd2/saxi",
-  "repository": "github:alexrudd2/saxi",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alexrudd2/saxi.git"
+  },
   "bugs": "https://github.com/alexrudd2/saxi/issues",
   "keywords": [
     "axidraw",
