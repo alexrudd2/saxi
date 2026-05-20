@@ -2,10 +2,15 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
     "target": "es2022",
-    "module": "es2020",
-    "moduleResolution": "node",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "esModuleInterop": true,
     "noImplicitAny": true,
-    "jsx": "react"
+    "jsx": "react",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node", "w3c-web-serial"],
+    "paths": {
+      "@serialport/bindings-interface": ["./node_modules/@serialport/bindings-interface/dist/index.d.ts"]
+    }
   }
 }

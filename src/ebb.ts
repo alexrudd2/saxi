@@ -65,14 +65,15 @@ export interface EBBPort {
   close(): Promise<void>;
 }
 
-type CommandGenerator<TReturn = unknown> = Iterator<unknown, TReturn, string> & {
-  resolve: (value: TReturn) => void;
+interface PendingCommand<T = unknown> {
+  iterator: Iterator<unknown, T, string>;
+  resolve: (value: T) => void;
   reject: (reason: Error) => void;
-};
+}
 
 export class EBB {
   public port: EBBPort;
-  private commandQueue: CommandGenerator[];
+  private commandQueue: PendingCommand[];
   private writer: WritableStreamDefaultWriter<Uint8Array>;
   public hardware: Hardware;
 
@@ -105,23 +106,23 @@ export class EBB {
 
             for (const part of parts) {
               if (part.trim() === "") continue; // empty line
-              if (this.commandQueue.length) {
-                if (part[0] === "!") {
-                  // error from EBB
-                  this.commandQueue.shift()?.reject(new Error(part));
-                  continue;
-                }
-
-                try {
-                  const d = this.commandQueue[0].next(part);
-                  if (d.done) {
-                    this.commandQueue.shift()?.resolve(d.value);
-                  }
-                } catch (e) {
-                  this.commandQueue.shift()?.reject(e as Error);
-                }
-              } else {
+              const cmd = this.commandQueue[0];
+              if (!cmd) {
                 console.log(`unexpected data: ${part}`);
+                continue;
+              }
+              if (part[0] === "!") {
+                // error from EBB
+                this.commandQueue.shift()?.reject(new Error(part));
+                continue;
+              }
+              try {
+                const d = cmd.iterator.next(part);
+                if (d.done) {
+                  this.commandQueue.shift()?.resolve(d.value);
+                }
+              } catch (e) {
+                this.commandQueue.shift()?.reject(e as Error);
               }
             }
           },
@@ -166,7 +167,7 @@ export class EBB {
   /** Send a raw command to the EBB and expect a single line in return, without an "OK" line to terminate. */
   public async query(cmd: EBBQuery): Promise<string> {
     try {
-      return await this.run(function* (this: EBB): Iterator<string, string, string> {
+      return await this.run(function* (this: EBB): Iterator<unknown, string, string> {
         this.write(`${cmd}\r`);
         const result = yield;
         return result;
@@ -179,7 +180,7 @@ export class EBB {
   /** Send a raw command to the EBB and expect multiple lines in return, with an "OK" line to terminate. */
   public async queryM(cmd: EBBQueryM): Promise<string[]> {
     try {
-      return await this.run(function* (this: EBB): Iterator<string[], string[], string> {
+      return await this.run(function* (this: EBB): Iterator<unknown, string[], string> {
         this.write(`${cmd}\r`);
         const result: string[] = [];
         while (true) {
@@ -573,16 +574,14 @@ export class EBB {
     return [initialRate, deltaR];
   }
 
-  private run<T>(g: (this: EBB) => Iterator<T>): Promise<T> {
-    const cmd = g.call(this);
-    const d = cmd.next();
+  private run<T>(g: (this: EBB) => Iterator<unknown, T, string>): Promise<T> {
+    const iterator = g.call(this);
+    const d = iterator.next();
     if (d.done) {
       return Promise.resolve(d.value);
     }
-    this.commandQueue.push(cmd);
     return new Promise((resolve, reject) => {
-      cmd.resolve = resolve;
-      cmd.reject = reject;
+      this.commandQueue.push({ iterator, resolve, reject } as PendingCommand);
     });
   }
 }

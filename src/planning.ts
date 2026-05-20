@@ -526,9 +526,9 @@ export class Plan {
         return {
           type: "xy" as const,
           length: m.length,
-          cols: m.cols.buffer,
-          ts: m.ts.buffer,
-          ss: m.ss.buffer,
+          cols: m.cols.buffer as ArrayBuffer,
+          ts: m.ts.buffer as ArrayBuffer,
+          ss: m.ss.buffer as ArrayBuffer,
         };
       }
       return { type: "pen" as const, initialPos: m.initialPos, finalPos: m.finalPos, duration: m.pDuration };
