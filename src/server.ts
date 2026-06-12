@@ -69,7 +69,10 @@ export async function startServer(
   let unpaused: Promise<void> | null = null;
   let signalUnpause: (() => void) | null = null;
   let motionIdx: number | null = null;
-  let currentPlan: Plan | null = null;
+  // The in-progress plan, kept as serialized JSON. Parsed, it is hundreds of
+  // thousands of small objects that every major GC must traverse for the whole
+  // duration of the plot; its only use is being re-sent to websocket clients.
+  let currentPlanJson: string | null = null;
   let plotting = false;
   let controller: AbortController | null = null;
 
@@ -112,8 +115,8 @@ export async function startServer(
     if (motionIdx != null) {
       ws.send(JSON.stringify({ c: "progress", p: { motionIdx } }));
     }
-    if (currentPlan != null) {
-      ws.send(JSON.stringify({ c: "plan", p: { plan: currentPlan } }));
+    if (currentPlanJson != null) {
+      ws.send(`{"c":"plan","p":{"plan":${currentPlanJson}}}`);
     }
 
     ws.on("close", () => {
@@ -135,7 +138,7 @@ export async function startServer(
     const { signal } = controller;
     try {
       const plan = Plan.deserialize(req.body);
-      currentPlan = req.body;
+      currentPlanJson = JSON.stringify(req.body); // once, before motion starts
       console.log(`Received plan of estimated duration ${formatDuration(plan.duration())}`);
       console.log(ebb != null ? "Beginning plot..." : "Simulating plot...");
       res.status(200).end();
@@ -327,7 +330,7 @@ export async function startServer(
       throw err; // propagate real errors
     } finally {
       motionIdx = null;
-      currentPlan = null;
+      currentPlanJson = null;
       await plotter.postPlot();
     }
   }
