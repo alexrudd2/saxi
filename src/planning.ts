@@ -34,7 +34,7 @@ export interface PlanOptions {
 
   minimumPathLength: number;
   hardware: Hardware;
-  penHome?: Vec2;
+  penHome: Vec2;
 }
 
 export const defaultPlanOptions: PlanOptions = {

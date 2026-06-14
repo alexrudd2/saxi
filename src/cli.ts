@@ -190,6 +190,7 @@ export function cli(argv: string[]): void {
           paperSize,
           marginMm: args.margin,
           hardware: args.hardware,
+          penHome: {"x": 0, "y": 0},
 
           selectedGroupLayers: new Set([]), // TODO
           selectedStrokeLayers: new Set([]), // TODO
