@@ -85,5 +85,11 @@
   "optionalDependencies": {
     "@esbuild/linux-arm": "^0.28.0",
     "wake-lock": "^0.2.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "esbuild@0.27.7": true,
+    "wake-lock@0.2.0": true,
+    "@serialport/bindings-cpp@13.0.0": true
   }
 }
