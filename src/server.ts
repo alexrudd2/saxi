@@ -48,7 +48,7 @@ const getDeviceInfo = (ebb: EBB | null, _com: Com) => {
 export async function startServer(
   port: number,
   hardware: Hardware = "v3",
-  com: Com = null,
+  com: Com = "",
   enableCors = false,
   maxPayloadSize = "200mb",
   svgIoApiKey = "",
@@ -181,7 +181,7 @@ export async function startServer(
     }
     ebb?.cancel();
     if (unpaused) {
-      signalUnpause();
+      signalUnpause?.();
       broadcast({ c: "pause", p: { paused: false } });
     }
     unpaused = signalUnpause = null;
@@ -387,7 +387,7 @@ export async function waitForEbb(): Promise<Com> {
 async function* ebbs(path?: string, hardware: Hardware = "v3") {
   while (true) {
     try {
-      const com: Com = path || (await _self.waitForEbb()); // use self-import for test mocking
+      const com: Com = path ?? (await _self.waitForEbb()); // use self-import for test mocking
       console.log(`Found EBB at ${com}`);
       const port = await tryOpen(com);
       const closed = new Promise((resolve) => {
@@ -398,7 +398,8 @@ async function* ebbs(path?: string, hardware: Hardware = "v3") {
       yield null;
       console.error("Lost connection to EBB, reconnecting...");
     } catch (e) {
-      console.error(`Error connecting to EBB: ${e.message}`);
+      const err = e instanceof Error ? e : new Error(String(e));
+      console.error(`Error connecting to EBB: ${err.message}`);
       console.error("Retrying in 5 seconds...");
       await sleep(5000);
     }
