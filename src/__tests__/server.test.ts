@@ -49,10 +49,10 @@ async function waitForPlottingComplete(server: Server, timeout = 10000): Promise
   }
 }
 
-async function waitForCommandsLogged(timeout = 5000): Promise<void> {
+async function waitForCommandsLogged(command = "EM,1,1", timeout = 5000): Promise<void> {
   const startTime = Date.now();
   while (Date.now() - startTime < timeout) {
-    if (mockSerialPortInstance.commands.length > 0) break;
+    if (mockSerialPortInstance.commands.includes(command)) break;
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
 }
