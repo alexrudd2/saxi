@@ -27,18 +27,18 @@ interface SerialPortOpenOptions extends Omit<OpenOptions, "parity"> {
 
 export class SerialPortSerialPort extends EventEmitter implements SerialPort {
   private _path: string;
-  private _port: NodeSerialPort;
+  private _port!: NodeSerialPort;
 
   public constructor(path: string) {
     super();
     this._path = path;
   }
 
-  public onconnect: (this: this, ev: Event) => void;
-  public ondisconnect: (this: this, ev: Event) => void;
-  public readable: ReadableStream<Uint8Array>;
-  public writable: WritableStream<Uint8Array>;
-  public connected: boolean;
+  public onconnect: ((this: this, ev: Event) => void) | null = null;
+  public ondisconnect: ((this: this, ev: Event) => void) | null = null;
+  public readable!: ReadableStream<Uint8Array>;
+  public writable!: WritableStream<Uint8Array>;
+  public connected = false;
 
   public forget(): Promise<void> {
     return Promise.resolve();
@@ -90,7 +90,7 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
           rts: signals.requestToSend,
           brk: signals.break,
         },
-        (err: Error) => {
+        (err) => {
           if (err) reject(err);
           else resolve();
         },
@@ -105,7 +105,7 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
   }
   public close(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this._port.close((err: Error) => {
+      this._port.close((err) => {
         if (err) reject(err);
         else resolve();
         this.connected = false;
