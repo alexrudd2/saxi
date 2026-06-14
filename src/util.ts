@@ -100,14 +100,14 @@ function contains(aabb: [Vec2, Vec2], point: Vec2): boolean {
  */
 function truncate(aabb: [Vec2, Vec2], seg: [Vec2, Vec2]): [Vec2, Vec2] | null {
   const [a, b] = seg;
-  const containsA = contains(aabb, a);
-  const containsB = contains(aabb, b);
-  if (containsA && containsB) return seg;
-  if (containsA && !containsB) return [seg[0], liangBarsky(aabb, [seg[1], seg[0]])];
-  if (!containsA && containsB) return [liangBarsky(aabb, seg), seg[1]];
-  const forwards = liangBarsky(aabb, seg);
-  const backwards = liangBarsky(aabb, [seg[1], seg[0]]);
-  return forwards && backwards ? [forwards, backwards] : null;
+
+  const start = contains(aabb, a) ? a : liangBarsky(aabb, seg);
+  if (start === null) return null;
+
+  const end = contains(aabb, b) ? b : liangBarsky(aabb, [b, a]);
+  if (end === null) return null;
+
+  return [start, end];
 }
 
 /**
