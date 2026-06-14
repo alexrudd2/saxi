@@ -405,13 +405,9 @@ async function* ebbs(path?: string, hardware: Hardware = "v3") {
   }
 }
 
-export async function connectEBB(hardware: Hardware, device: string | undefined): Promise<EBB | null> {
-  let dev = device;
-  if (!device) {
-    const ebbs = await listEBBs();
-    if (ebbs.length === 0) return null;
-    dev = ebbs[0];
-  }
+export async function connectEBB(hardware: Hardware, device?: string): Promise<EBB | null> {
+  const dev = device ?? (await listEBBs())[0];
+  if (!dev) return null;
 
   const port = await tryOpen(dev);
   return new EBB(port, hardware);
