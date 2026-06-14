@@ -14,9 +14,9 @@ function readableStreamFromAsyncIterable<T>(iterable: AsyncIterable<T>) {
           controller.enqueue(value);
         }
       },
-      async cancel(reason) {
-        await it.throw(reason);
-      },
+      async cancel() {
+        await it.return?.();
+      }
     },
     { highWaterMark: 0 },
   );
