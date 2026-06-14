@@ -387,7 +387,7 @@ export async function waitForEbb(): Promise<Com> {
 async function* ebbs(path?: string, hardware: Hardware = "v3") {
   while (true) {
     try {
-      const com: Com = path ?? (await _self.waitForEbb()); // use self-import for test mocking
+      const com: Com = path || (await _self.waitForEbb()); // use self-import for test mocking
       console.log(`Found EBB at ${com}`);
       const port = await tryOpen(com);
       const closed = new Promise((resolve) => {
