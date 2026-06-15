@@ -311,30 +311,12 @@ interface PenMotionData {
 }
 
 /**
- * Scan an array, applying an operation to each element - accumulating the result.
- * @param a - The array to scan.
- * @param z - The initial value (zero).
- * @param op - The binary operation to apply.
- * @returns An array of partially accumulated values - running total.
- */
-function scanLeft<A, B>(a: A[], z: B, op: (b: B, a: A) => B): B[] {
-  const b: B[] = [];
-  let acc = z;
-  b.push(acc);
-  for (const x of a) {
-    acc = op(acc, x);
-    b.push(acc);
-  }
-  return b;
-}
-
-/**
  * Find insertion point of en element on a sorted array, to keep the order.
  * @param array
  * @param obj
  * @returns
  */
-function sortedIndex<T>(array: T[], obj: T): number {
+function sortedIndex(array: ArrayLike<number>, obj: number): number {
   let low = 0;
   let high = array.length;
   // binary search
@@ -349,53 +331,198 @@ function sortedIndex<T>(array: T[], obj: T): number {
   return low;
 }
 
+// Flat column layout for an XYMotion's blocks: one interleaved Float64Array,
+// STRIDE numbers per block. Storing blocks as columns instead of ~3 heap
+// objects each (a Block plus two Vec2) collapses a 95k-block plan from ~500k
+// live objects to a handful of large typed arrays. This matters because V8's
+// major GCs must mark every live object, repeatedly, for the multi-hour
+// duration of a plot; large typed arrays are marked in O(1). See PERF_PLAN.md
+// (workstream A).
+const STRIDE = 7;
+const ACCEL = 0;
+const DURATION = 1;
+const V_INITIAL = 2;
+const P1X = 3;
+const P1Y = 4;
+const P2X = 5;
+const P2Y = 6;
+
 /**
- * XY Motion - across a 2 dimensioanl plane, represented as a list of blocks.
+ * Validate a block's velocities and write it into the column array at index i.
+ * Validation lives here (rather than in a Block constructor) so bad plans are
+ * still rejected when packing on deserialize.
+ */
+function packBlock(
+  cols: Float64Array,
+  i: number,
+  accel: number,
+  duration: number,
+  vInitial: number,
+  p1x: number,
+  p1y: number,
+  p2x: number,
+  p2y: number,
+): void {
+  if (!(vInitial >= 0)) {
+    throw new Error(`vInitial must be >= 0, but was ${vInitial}`);
+  }
+  if (!(vInitial + accel * duration >= -epsilon)) {
+    throw new Error(`vFinal must be >= 0, but vInitial=${vInitial}, duration=${duration}, accel=${accel}`);
+  }
+  const base = i * STRIDE;
+  cols[base + ACCEL] = accel;
+  cols[base + DURATION] = duration;
+  cols[base + V_INITIAL] = vInitial;
+  cols[base + P1X] = p1x;
+  cols[base + P1Y] = p1y;
+  cols[base + P2X] = p2x;
+  cols[base + P2Y] = p2y;
+}
+
+/**
+ * XY Motion - across a 2 dimensional plane, a sequence of constant-acceleration
+ * blocks stored as flat columns (see the STRIDE layout above).
  */
 export class XYMotion implements Motion {
-  public static deserialize(o: XYMotionData): XYMotion {
-    return new XYMotion(o.blocks.map(Block.deserialize));
+  /** Build from the short-lived Block objects the planner produces. */
+  public static fromBlocks(blocks: Block[]): XYMotion {
+    const cols = new Float64Array(blocks.length * STRIDE);
+    for (let i = 0; i < blocks.length; i++) {
+      const b = blocks[i];
+      packBlock(cols, i, b.accel, b.duration, b.vInitial, b.p1.x, b.p1.y, b.p2.x, b.p2.y);
+    }
+    return new XYMotion(cols, blocks.length);
   }
-  private ts: number[];
-  private ss: number[];
 
-  constructor(public blocks: Block[]) {
-    // time progression
-    this.ts = scanLeft(
-      blocks.map((b) => b.duration),
-      0,
-      (a, b) => a + b,
-    ).slice(0, -1);
-    // distance progression
-    this.ss = scanLeft(
-      blocks.map((b) => b.distance),
-      0,
-      (a, b) => a + b,
-    ).slice(0, -1);
+  public static deserialize(o: XYMotionData): XYMotion {
+    const cols = new Float64Array(o.blocks.length * STRIDE);
+    for (let i = 0; i < o.blocks.length; i++) {
+      const b = o.blocks[i];
+      packBlock(cols, i, b.accel, b.duration, b.vInitial, b.p1.x, b.p1.y, b.p2.x, b.p2.y);
+    }
+    return new XYMotion(cols, o.blocks.length);
+  }
+
+  /** Number of blocks. */
+  public readonly length: number;
+  private cols: Float64Array;
+  // Prefix sums: ts[i]/ss[i] are the elapsed time/distance at block i's start.
+  private ts: Float64Array;
+  private ss: Float64Array;
+
+  private constructor(cols: Float64Array, length: number) {
+    this.cols = cols;
+    this.length = length;
+    this.ts = new Float64Array(length);
+    this.ss = new Float64Array(length);
+    let t = 0;
+    let s = 0;
+    for (let i = 0; i < length; i++) {
+      const base = i * STRIDE;
+      this.ts[i] = t;
+      this.ss[i] = s;
+      t += cols[base + DURATION];
+      s += Math.hypot(cols[base + P2X] - cols[base + P1X], cols[base + P2Y] - cols[base + P1Y]);
+    }
+  }
+
+  // Per-block column accessors for the hot streaming loop (no Block allocation).
+  public p1x(i: number): number {
+    return this.cols[i * STRIDE + P1X];
+  }
+  public p1y(i: number): number {
+    return this.cols[i * STRIDE + P1Y];
+  }
+  public p2x(i: number): number {
+    return this.cols[i * STRIDE + P2X];
+  }
+  public p2y(i: number): number {
+    return this.cols[i * STRIDE + P2Y];
+  }
+  public vInitial(i: number): number {
+    return this.cols[i * STRIDE + V_INITIAL];
+  }
+  public blockDuration(i: number): number {
+    return this.cols[i * STRIDE + DURATION];
+  }
+  public vFinal(i: number): number {
+    const base = i * STRIDE;
+    return Math.max(0, this.cols[base + V_INITIAL] + this.cols[base + ACCEL] * this.cols[base + DURATION]);
   }
 
   public get p1(): Vec2 {
-    return this.blocks[0].p1;
+    return { x: this.cols[P1X], y: this.cols[P1Y] };
   }
   public get p2(): Vec2 {
-    return this.blocks[this.blocks.length - 1].p2;
+    const base = (this.length - 1) * STRIDE;
+    return { x: this.cols[base + P2X], y: this.cols[base + P2Y] };
   }
 
   public duration(): number {
-    return this.blocks.map((b) => b.duration).reduce((a, b) => a + b, 0);
+    if (this.length === 0) return 0;
+    return this.ts[this.length - 1] + this.cols[(this.length - 1) * STRIDE + DURATION];
+  }
+
+  /** Start point of every block plus the final end point (for the UI preview). */
+  public points(): Vec2[] {
+    const pts: Vec2[] = new Array(this.length + 1);
+    for (let i = 0; i < this.length; i++) {
+      pts[i] = { x: this.cols[i * STRIDE + P1X], y: this.cols[i * STRIDE + P1Y] };
+    }
+    pts[this.length] = this.p2;
+    return pts;
+  }
+
+  /**
+   * Allocate a throwaway Block view of block i. For tests and the UI only —
+   * must never be called from the streaming loop, which reads columns directly.
+   */
+  public block(i: number): Block {
+    const base = i * STRIDE;
+    return new Block(
+      this.cols[base + ACCEL],
+      this.cols[base + DURATION],
+      this.cols[base + V_INITIAL],
+      { x: this.cols[base + P1X], y: this.cols[base + P1Y] },
+      { x: this.cols[base + P2X], y: this.cols[base + P2Y] },
+    );
   }
 
   public instant(t: number): Instant {
     const idx = sortedIndex(this.ts, t);
     const blockIdx = this.ts[idx] === t ? idx : idx - 1;
-    const block = this.blocks[blockIdx];
-    return block.instant(t - this.ts[blockIdx], this.ts[blockIdx], this.ss[blockIdx]);
+    return this.blockInstant(blockIdx, t - this.ts[blockIdx], this.ts[blockIdx], this.ss[blockIdx]);
+  }
+
+  // Same math as Block.instant, computed over columns for block i.
+  private blockInstant(i: number, tU: number, dt: number, ds: number): Instant {
+    const base = i * STRIDE;
+    const accel = this.cols[base + ACCEL];
+    const duration = this.cols[base + DURATION];
+    const vInitial = this.cols[base + V_INITIAL];
+    const p1: Vec2 = { x: this.cols[base + P1X], y: this.cols[base + P1Y] };
+    const p2: Vec2 = { x: this.cols[base + P2X], y: this.cols[base + P2Y] };
+    const distance = vlen(vsub(p1, p2));
+    const t = Math.max(0, Math.min(duration, tU));
+    const v = vInitial + accel * t;
+    const s = Math.max(0, Math.min(distance, vInitial * t + (accel * t * t) / 2));
+    const p = vadd(p1, vmul(vnorm(vsub(p2, p1)), s));
+    return { t: t + dt, p, s: s + ds, v, a: accel };
   }
 
   public serialize(): XYMotionData {
-    return {
-      blocks: this.blocks.map((b) => b.serialize()),
-    };
+    const blocks: BlockData[] = new Array(this.length);
+    for (let i = 0; i < this.length; i++) {
+      const base = i * STRIDE;
+      blocks[i] = {
+        accel: this.cols[base + ACCEL],
+        duration: this.cols[base + DURATION],
+        vInitial: this.cols[base + V_INITIAL],
+        p1: { x: this.cols[base + P1X], y: this.cols[base + P1Y] },
+        p2: { x: this.cols[base + P2X], y: this.cols[base + P2Y] },
+      };
+    }
+    return { blocks };
   }
 }
 
@@ -646,7 +773,7 @@ function dedupPoints(points: Vec2[], epsilon: number): Vec2[] {
 function constantAccelerationPlan(points: Vec2[], profile: AccelerationProfile): XYMotion {
   const dedupedPoints = dedupPoints(points, epsilon);
   if (dedupedPoints.length === 1) {
-    return new XYMotion([new Block(0, 0, 0, dedupedPoints[0], dedupedPoints[0])]);
+    return XYMotion.fromBlocks([new Block(0, 0, 0, dedupedPoints[0], dedupedPoints[0])]);
   }
   const segments = dedupedPoints.slice(1).map((a, i) => new Segment(dedupedPoints[i], a));
 
@@ -716,7 +843,7 @@ function constantAccelerationPlan(points: Vec2[], profile: AccelerationProfile):
       }
     }
   }
-  return new XYMotion(blocks);
+  return XYMotion.fromBlocks(blocks);
 }
 
 /**

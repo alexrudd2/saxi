@@ -1,4 +1,4 @@
-import { type Block, type Motion, PenMotion, type Plan, XYMotion } from "./planning.js";
+import { type Motion, PenMotion, type Plan, XYMotion } from "./planning.js";
 import { type Vec2, vsub } from "./vec.js";
 
 enum MicrostepMode {
@@ -369,18 +369,20 @@ export class EBB {
     }
   }
 
-  public async executeBlockWithLM(block: Block): Promise<void> {
-    const [errX, stepsX] = modf((block.p2.x - block.p1.x) * this.stepMultiplier + this.error.x);
-    const [errY, stepsY] = modf((block.p2.y - block.p1.y) * this.stepMultiplier + this.error.y);
+  public async executeBlockWithLM(
+    p1x: number,
+    p1y: number,
+    p2x: number,
+    p2y: number,
+    vInitial: number,
+    vFinal: number,
+  ): Promise<void> {
+    const [errX, stepsX] = modf((p2x - p1x) * this.stepMultiplier + this.error.x);
+    const [errY, stepsY] = modf((p2y - p1y) * this.stepMultiplier + this.error.y);
     this.error.x = errX;
     this.error.y = errY;
     if (stepsX !== 0 || stepsY !== 0) {
-      await this.moveWithAcceleration(
-        stepsX,
-        stepsY,
-        block.vInitial * this.stepMultiplier,
-        block.vFinal * this.stepMultiplier,
-      );
+      await this.moveWithAcceleration(stepsX, stepsY, vInitial * this.stepMultiplier, vFinal * this.stepMultiplier);
     }
   }
   /**
@@ -389,8 +391,9 @@ export class EBB {
    * Note that the LM command is only available starting from EBB firmware version 2.5.3.
    */
   public async executeXYMotionWithLM(plan: XYMotion): Promise<void> {
-    for (const block of plan.blocks) {
-      await this.executeBlockWithLM(block);
+    const n = plan.length;
+    for (let i = 0; i < n; i++) {
+      await this.executeBlockWithLM(plan.p1x(i), plan.p1y(i), plan.p2x(i), plan.p2y(i), plan.vInitial(i), plan.vFinal(i));
     }
   }
 
