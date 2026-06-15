@@ -251,6 +251,8 @@ export async function startServer(
 
   const realPlotter: Plotter = {
     async prePlot(initialPenHeight: number): Promise<void> {
+      ebb.telemetry?.reset();
+      await ebb.setFifoLedIndicator(true);
       await ebb.configureFifoDepth();
       await ebb.enableMotors(1); // 16x microstepping, matches defaults from Axidraw
       await ebb.setPenHeight(initialPenHeight, 1000, 1000);
@@ -267,7 +269,9 @@ export async function startServer(
     },
     async postPlot(): Promise<void> {
       await ebb.waitUntilMotorsIdle();
+      await ebb.setFifoLedIndicator(false);
       await ebb.disableMotors();
+      ebb.telemetry?.logSummary();
     },
   };
 
