@@ -19,6 +19,8 @@ const buildOptions = {
   define: {
     IS_WEB: (process.env.IS_WEB === "1").toString(),
     "process.env.DEBUG_SAXI_COMMANDS": JSON.stringify(process.env.DEBUG_SAXI_COMMANDS ?? ""),
+    "process.env.SAXI_TELEMETRY": JSON.stringify(process.env.SAXI_TELEMETRY ?? ""),
+    "process.env.SAXI_TELEMETRY_QM": JSON.stringify(process.env.SAXI_TELEMETRY_QM ?? ""),
     "process.env.SAXI_FIFO_DEPTH": JSON.stringify(process.env.SAXI_FIFO_DEPTH ?? ""),
   },
   plugins: [
