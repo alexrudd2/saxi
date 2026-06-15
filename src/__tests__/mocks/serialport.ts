@@ -25,7 +25,9 @@ const getResponseForCommand = (command: string): string => {
 
 // Shared SerialPortSerialPort mock implementation
 export const createMockSerialPort = () => {
-  let responseController: ReadableStreamDefaultController | null = null;
+  let responseController: ReadableStreamDefaultController<Uint8Array> | null = null;
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
 
   return {
     readable: new ReadableStream({
@@ -35,7 +37,7 @@ export const createMockSerialPort = () => {
     }),
     writable: new WritableStream({
       write: async (chunk) => {
-        const command = new TextDecoder().decode(chunk).trim();
+        const command = decoder.decode(chunk).trim();
         if (command) {
           mockSerialPortInstance.commandCount++;
           mockSerialPortInstance.commands.push(command);
@@ -44,7 +46,7 @@ export const createMockSerialPort = () => {
           setTimeout(() => {
             if (responseController) {
               const response = getResponseForCommand(command);
-              responseController.enqueue(new TextEncoder().encode(response));
+              responseController.enqueue(encoder.encode(response));
             }
           }, 2);
         }

@@ -46,6 +46,7 @@ export function cli(argv: string[]): void {
           .positional("file", {
             type: "string",
             description: "File to plot",
+            demandOption: true,
           })
           .option("paper-size", {
             alias: "s",
@@ -62,7 +63,7 @@ export function cli(argv: string[]): void {
                 `Paper size should be a standard size (${Object.keys(PaperSize.standard).join(", ")}) or a custom size such as "100x100mm" or "16x10in"`,
               );
             },
-            required: true,
+            demandOption: true,
           })
           .option("landscape", {
             type: "boolean",
@@ -76,61 +77,51 @@ export function cli(argv: string[]): void {
             describe: "Margin (in mm)",
             type: "number",
             default: defaultPlanOptions.marginMm,
-            required: false,
           })
           .option("pen-down-height", {
             describe: "Pen down height (%)",
             type: "number",
             default: defaultPlanOptions.penDownHeight,
-            required: false,
           })
           .option("pen-up-height", {
             describe: "Pen up height (%)",
             type: "number",
             default: defaultPlanOptions.penUpHeight,
-            required: false,
           })
           .option("pen-down-acceleration", {
             describe: "Acceleration when the pen is down (in mm/s^2)",
             type: "number",
             default: defaultPlanOptions.penDownAcceleration,
-            required: false,
           })
           .option("pen-down-max-velocity", {
             describe: "Maximum velocity when the pen is down (in mm/s)",
             type: "number",
             default: defaultPlanOptions.penDownMaxVelocity,
-            required: false,
           })
           .option("pen-down-cornering-factor", {
             describe: "Cornering factor when the pen is down",
             type: "number",
             default: defaultPlanOptions.penDownCorneringFactor,
-            required: false,
           })
           .option("pen-up-acceleration", {
             describe: "Acceleration when the pen is up (in mm/s^2)",
             type: "number",
             default: defaultPlanOptions.penUpAcceleration,
-            required: false,
           })
           .option("pen-up-max-velocity", {
             describe: "Maximum velocity when the pen is up (in mm/s)",
             type: "number",
             default: defaultPlanOptions.penUpMaxVelocity,
-            required: false,
           })
           .option("pen-drop-duration", {
             describe: "How long the pen takes to drop (in seconds)",
             type: "number",
             default: defaultPlanOptions.penDropDuration,
-            required: false,
           })
           .option("pen-lift-duration", {
             describe: "How long the pen takes to lift (in seconds)",
             type: "number",
             default: defaultPlanOptions.penLiftDuration,
-            required: false,
           })
           .option("sort-paths", {
             describe: "Re-order paths to minimize pen-up travel time",
@@ -190,6 +181,7 @@ export function cli(argv: string[]): void {
           paperSize,
           marginMm: args.margin,
           hardware: args.hardware,
+          penHome: {"x": 0, "y": 0},
 
           selectedGroupLayers: new Set([]), // TODO
           selectedStrokeLayers: new Set([]), // TODO
@@ -236,7 +228,7 @@ export function cli(argv: string[]): void {
       "put the pen to [percent]",
       (yargs) =>
         yargs
-          .positional("percent", { type: "number", description: "percent height between 0 and 100", required: true })
+          .positional("percent", { type: "number", description: "percent height between 0 and 100", demandOption: true })
           .check((args) => args.percent >= 0 && args.percent <= 100),
       async (args) => {
         console.log("connecting to plotter...");
