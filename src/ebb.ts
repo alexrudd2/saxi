@@ -54,17 +54,26 @@ function modf(d: number): [number, number] {
 
 export type Hardware = "v3" | "brushless" | "nextdraw-2234";
 
+/**
+ * The minimal serial transport the EBB needs: a byte stream in each direction
+ * plus a close hook. A WebSerial/Node `SerialPort` satisfies this structurally,
+ * but so does any pair of intermediate streams (such as to/from a worker)
+ */
+export interface EBBPort {
+  readable: ReadableStream<Uint8Array>;
+  writable: WritableStream<Uint8Array>;
+  close(): Promise<void>;
+}
+
 type CommandGenerator<TReturn = unknown> = Iterator<unknown, TReturn, string> & {
   resolve: (value: TReturn) => void;
   reject: (reason: Error) => void;
 };
 
 export class EBB {
-  public port: SerialPort;
+  public port: EBBPort;
   private commandQueue: CommandGenerator[];
   private writer: WritableStreamDefaultWriter<Uint8Array>;
-  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: used in constructor
-  private readableClosed: Promise<void>;
   public hardware: Hardware;
 
   private microsteppingMode = MicrostepMode.DISABLED;
@@ -74,7 +83,7 @@ export class EBB {
 
   private cachedFirmwareVersion: [number, number, number] | undefined = undefined;
 
-  public constructor(port: SerialPort, hardware: Hardware = "v3") {
+  public constructor(port: EBBPort, hardware: Hardware = "v3") {
     this.hardware = hardware;
     this.port = port;
     this.writer = this.port.writable.getWriter();
@@ -82,7 +91,7 @@ export class EBB {
 
     let buffer = "";
 
-    this.readableClosed = port.readable
+    port.readable
       .pipeThrough(new TextDecoderStream() as TransformStream<Uint8Array, string>)
       .pipeTo(
         new WritableStream({
