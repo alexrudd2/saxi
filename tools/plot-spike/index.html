@@ -1,0 +1,40 @@
+<!doctype html>
+<!--
+  Full-plot spike for the unified serial worker. Runs a real plot through the
+  REAL EBB inside a Web Worker over transferred WebSerial streams, then tears
+  down. Build, then serve over http://localhost (navigator.serial needs it):
+
+      node tools/build-plot-spike.mjs
+      npx serve tools/plot-spike
+      # open the printed http://localhost:<port>/
+
+  WARNING: this MOVES THE CARRIAGE and draws a ~26 mm square. Use scrap paper,
+  or lift/remove the pen to just watch the motion. Keep within reach to power
+  off if needed.
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>saxi — full-plot worker spike</title>
+    <style>
+      body { font: 14px/1.5 system-ui, sans-serif; margin: 2rem; max-width: 50rem; }
+      button { font-size: 1rem; padding: 0.5rem 1rem; }
+      #log { white-space: pre-wrap; background: #111; color: #0f0; padding: 1rem; margin-top: 1rem; border-radius: 6px; min-height: 4rem; }
+      .err { color: #f55; }
+      .warn { background: #fee; border: 1px solid #f99; padding: 0.5rem 1rem; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <h1>saxi — full-plot worker spike</h1>
+    <p class="warn">
+      ⚠️ This moves the carriage and draws a ~26&nbsp;mm square. Use scrap paper or lift the pen.
+    </p>
+    <p>
+      Plans a tiny square, opens the EBB, transfers its serial streams into a Web Worker, and lets the worker
+      run the entire plot and tear down — the main thread does no serial I/O during the plot.
+    </p>
+    <button id="go">Plan &amp; plot via worker</button>
+    <div id="log"></div>
+    <script type="module" src="./dist/spike-main.js"></script>
+  </body>
+</html>
