@@ -54,13 +54,25 @@ function modf(d: number): [number, number] {
 
 export type Hardware = "v3" | "brushless" | "nextdraw-2234";
 
+/**
+ * The minimal serial transport the EBB needs: a byte stream in each direction
+ * plus a close hook. A WebSerial/Node `SerialPort` satisfies this structurally,
+ * and so does a pair of streams transferred into a worker (see ebb-worker),
+ * which is how the EBB runs off the main thread in the browser build.
+ */
+export interface SerialChannel {
+  readable: ReadableStream<Uint8Array>;
+  writable: WritableStream<Uint8Array>;
+  close(): Promise<void>;
+}
+
 type CommandGenerator<TReturn = unknown> = Iterator<unknown, TReturn, string> & {
   resolve: (value: TReturn) => void;
   reject: (reason: Error) => void;
 };
 
 export class EBB {
-  public port: SerialPort;
+  public port: SerialChannel;
   private commandQueue: CommandGenerator[];
   private writer: WritableStreamDefaultWriter<Uint8Array>;
   // biome-ignore lint/correctness/noUnusedPrivateClassMembers: used in constructor
@@ -74,7 +86,7 @@ export class EBB {
 
   private cachedFirmwareVersion: [number, number, number] | undefined = undefined;
 
-  public constructor(port: SerialPort, hardware: Hardware = "v3") {
+  public constructor(port: SerialChannel, hardware: Hardware = "v3") {
     this.hardware = hardware;
     this.port = port;
     this.writer = this.port.writable.getWriter();
