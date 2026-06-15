@@ -1271,7 +1271,7 @@ function Root() {
             <PortSelector
               driver={driver}
               setDriver={setDriver}
-              hardware={(driver as WebSerialDriver)?.ebb?.hardware ?? state.planOptions.hardware}
+              hardware={(driver as WebSerialDriver)?.hardware ?? state.planOptions.hardware}
             />
           )}
           <div className="section-header">pen</div>

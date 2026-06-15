@@ -5,7 +5,7 @@ import { build, context } from "esbuild";
 import inlineWorker from "esbuild-plugin-inline-worker";
 
 const buildOptions = {
-  entryPoints: ["src/ui.tsx", "src/background-planner.ts"],
+  entryPoints: ["src/ui.tsx", "src/background-planner.ts", "src/serial-worker.ts"],
   bundle: true,
   platform: "browser",
   target: "es2022",
