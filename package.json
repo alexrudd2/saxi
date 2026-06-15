@@ -60,7 +60,6 @@
     "vitest": "^4.0.0"
   },
   "dependencies": {
-    "@rehooks/component-size": "^1.0.3",
     "color-interpolate": "^2.0.0",
     "colormap": "^2.3.2",
     "cors": "^2.8.5",

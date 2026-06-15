@@ -1,7 +1,7 @@
 /**
  * Front-end for plotter app.
  */
-import useComponentSize from "@rehooks/component-size";
+
 import interpolator from "color-interpolate";
 import colormap from "colormap";
 import { flattenSVG, type Path } from "flatten-svg";
@@ -19,6 +19,7 @@ import React, {
 import { createRoot } from "react-dom/client";
 import { PaperSize } from "./paper-size";
 import { Device, defaultPlanOptions, type MotionData, Plan, type PlanOptions, XYMotion } from "./planning.js";
+import useComponentSize from "./useComponentSize.js";
 import { formatDuration } from "./util.js";
 
 import "./style.css";
