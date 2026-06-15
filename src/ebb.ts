@@ -75,7 +75,8 @@ export class EBB {
   public port: SerialChannel;
   private commandQueue: CommandGenerator[];
   private writer: WritableStreamDefaultWriter<Uint8Array>;
-  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: used in constructor
+  private reader: ReadableStreamDefaultReader<Uint8Array>;
+  /** Resolves when the read loop has stopped and released its lock. */
   private readableClosed: Promise<void>;
   public hardware: Hardware;
 
@@ -92,47 +93,64 @@ export class EBB {
     this.writer = this.port.writable.getWriter();
     this.commandQueue = [];
 
+    // Read with a raw reader + manual decode (rather than pipeThrough/pipeTo) so
+    // we own the lock on port.readable and can release it deterministically in
+    // close(): close() cancels this reader, the loop ends and releases the lock,
+    // then port.close() can proceed. pipeThrough hid the lock behind a second,
+    // un-awaited pipe, which left the stream locked at close (visible across a
+    // worker stream-transfer as "Cannot cancel a locked stream").
+    this.reader = port.readable.getReader();
+    const reader = this.reader;
+    const decoder = new TextDecoder();
     let buffer = "";
 
-    this.readableClosed = port.readable
-      .pipeThrough(new TextDecoderStream() as TransformStream<Uint8Array, string>)
-      .pipeTo(
-        new WritableStream({
-          write: (chunk) => {
-            buffer += chunk;
-            const parts = buffer.split(/[\r\n]+/); // each command is on a different line
-            buffer = parts.pop() || "";
+    this.readableClosed = (async () => {
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split(/[\r\n]+/); // each command is on a different line
+          buffer = parts.pop() || "";
 
-            for (const part of parts) {
-              if (part.trim() === "") continue; // empty line
-              if (this.commandQueue.length) {
-                if (part[0] === "!") {
-                  // error from EBB
-                  this.commandQueue.shift()?.reject(new Error(part));
-                  continue;
-                }
-
-                try {
-                  const d = this.commandQueue[0].next(part);
-                  if (d.done) {
-                    this.commandQueue.shift()?.resolve(d.value);
-                  }
-                } catch (e) {
-                  this.commandQueue.shift()?.reject(e as Error);
-                }
-              } else {
-                console.log(`unexpected data: ${part}`);
+          for (const part of parts) {
+            if (part.trim() === "") continue; // empty line
+            if (this.commandQueue.length) {
+              if (part[0] === "!") {
+                // error from EBB
+                this.commandQueue.shift()?.reject(new Error(part));
+                continue;
               }
+
+              try {
+                const d = this.commandQueue[0].next(part);
+                if (d.done) {
+                  this.commandQueue.shift()?.resolve(d.value);
+                }
+              } catch (e) {
+                this.commandQueue.shift()?.reject(e as Error);
+              }
+            } else {
+              console.log(`unexpected data: ${part}`);
             }
-          },
-        }),
-      )
-      .catch((error) => {
-        // Swallow premature close error; the disconnect handler takes care of it
-        if (error.code !== "ERR_STREAM_PREMATURE_CLOSE") {
-          throw error;
+          }
         }
-      });
+      } catch (error) {
+        // Premature close (disconnect) or cancel from close(); the disconnect
+        // handler / close() take it from here. Don't reject from this detached
+        // loop (it would surface as an unhandled rejection).
+        const e = error as { code?: string; name?: string };
+        if (e.code !== "ERR_STREAM_PREMATURE_CLOSE" && e.name !== "AbortError") {
+          console.log(`read loop ended: ${(error as Error).message}`);
+        }
+      } finally {
+        try {
+          reader.releaseLock();
+        } catch {
+          // already released
+        }
+      }
+    })();
   }
 
   private get stepMultiplier() {
@@ -148,7 +166,21 @@ export class EBB {
   }
 
   public async close(): Promise<void> {
-    return await this.port.close();
+    // Put both streams into a closed/cancelled state before closing the port,
+    // or port.close() throws on the still-locked streams — including across a
+    // worker stream-transfer, where only a propagating state change (cancel /
+    // abort), not a local releaseLock(), frees the stream for the other realm.
+    // Cancel the reader (the read loop then ends and releases the read lock),
+    // and abort the writer (the write side's analog of cancel).
+    await this.reader.cancel().catch(() => {});
+    await this.readableClosed.catch(() => {});
+    await this.writer.abort().catch(() => {});
+    try {
+      this.writer.releaseLock();
+    } catch {
+      // already released / errored
+    }
+    await this.port.close();
   }
 
   public changeHardware(hardware: Hardware) {
