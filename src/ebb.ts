@@ -1,4 +1,5 @@
 import { type Block, type Motion, PenMotion, type Plan, XYMotion } from "./planning.js";
+import { PlotTelemetry } from "./telemetry.js";
 import { type Vec2, vsub } from "./vec.js";
 
 enum MicrostepMode {
@@ -24,7 +25,7 @@ type EBBCommand =
   | `LM,${number},${number},${number},${number},${number},${number}` // low-level move
 
   // Configure commands
-  | `CU,${number},${number}` // configure user options (e.g. CU,4,n = motion FIFO depth, fw >= 3.0.0)
+  | `CU,${number},${number}` // configure user options (e.g. CU,3,1 = red LED as empty-FIFO indicator, fw >= 2.8.1)
 
   // Servo commands
   | `S2,${number},${number}` // basic servo position
@@ -66,6 +67,7 @@ export class EBB {
   // biome-ignore lint/correctness/noUnusedPrivateClassMembers: used in constructor
   private readableClosed: Promise<void>;
   public hardware: Hardware;
+  public telemetry: PlotTelemetry | null;
 
   private microsteppingMode = MicrostepMode.DISABLED;
 
@@ -79,6 +81,9 @@ export class EBB {
     this.port = port;
     this.writer = this.port.writable.getWriter();
     this.commandQueue = [];
+    this.telemetry = process.env.SAXI_TELEMETRY
+      ? new PlotTelemetry(Number(process.env.SAXI_TELEMETRY_QM || 0))
+      : null;
 
     let buffer = "";
 
@@ -148,6 +153,12 @@ export class EBB {
       console.log(`writing: ${str}`);
     }
     const encoder = new TextEncoder();
+    if (this.telemetry) {
+      const t0 = performance.now();
+      const written = this.writer.write(encoder.encode(str));
+      written.then(() => this.telemetry?.recordWrite(performance.now() - t0)).catch(() => {});
+      return written;
+    }
     return this.writer.write(encoder.encode(str));
   }
 
@@ -197,6 +208,29 @@ export class EBB {
     }
   }
 
+  /**
+   * When telemetry is enabled, make the EBB light its red USR LED whenever the
+   * motion FIFO is empty (firmware >= 2.8.1). During a pen-down path the FIFO
+   * should never be empty, so a flickering red LED is the machine itself
+   * reporting buffer underrun, independent of any host-side timing.
+   */
+  public async setFifoLedIndicator(on: boolean): Promise<void> {
+    if (!this.telemetry) return;
+    try {
+      if ((await this.firmwareVersionCompare(2, 8, 1)) >= 0) {
+        await this.command(`CU,3,${on ? 1 : 0}`);
+        if (on) {
+          console.log("[saxi-telemetry] red USR LED on the EBB = FIFO-empty indicator (flicker during a path = underrun)");
+        }
+      } else if (on) {
+        console.log("[saxi-telemetry] firmware < 2.8.1: FIFO LED indicator (CU,3) not available");
+      }
+    } catch (err) {
+      // Diagnostic nicety only; never let it abort a plot.
+      console.log(`[saxi-telemetry] FIFO LED indicator unavailable: ${(err as Error).message}`);
+    }
+  }
+
   /** The board's maximum motion FIFO depth (QU,2; firmware >= 3.0.0). */
   private async maxFifoDepth(): Promise<number> {
     try {
@@ -232,6 +266,7 @@ export class EBB {
       const depth = requested >= 1 ? requested : await this.maxFifoDepth();
       await this.command(`CU,4,${depth}`);
       console.log(`[saxi] EBB motion FIFO depth set to ${depth}`);
+      if (this.telemetry) this.telemetry.fifoDepth = depth;
     } catch (err) {
       console.log(`[saxi] failed to set FIFO depth: ${(err as Error).message}`);
     }
@@ -380,8 +415,27 @@ export class EBB {
    * Note that the LM command is only available starting from EBB firmware version 2.5.3.
    */
   public async executeXYMotionWithLM(plan: XYMotion): Promise<void> {
-    for (const block of plan.blocks) {
-      await this.executeBlockWithLM(block);
+    const telemetry = this.telemetry;
+    telemetry?.beginMotion();
+    const qmInterval = telemetry?.qmInterval ?? 0;
+    let blockIdx = 0;
+    try {
+      for (const block of plan.blocks) {
+        if (telemetry) {
+          const t0 = performance.now();
+          await this.executeBlockWithLM(block);
+          telemetry.recordBlock(block.duration * 1000, performance.now() - t0);
+          blockIdx++;
+          if (qmInterval > 0 && blockIdx % qmInterval === 0) {
+            telemetry.recordQM(await this.query("QM"), blockIdx);
+          }
+        } else {
+          await this.executeBlockWithLM(block);
+        }
+      }
+    } finally {
+      // On cancel the loop throws mid-motion; still report what was measured.
+      telemetry?.endMotion();
     }
   }
 
@@ -445,6 +499,8 @@ export class EBB {
   }
 
   public async executePlan(plan: Plan, microsteppingMode: RunningMicrostepMode = MicrostepMode.EIGHTH): Promise<void> {
+    this.telemetry?.reset();
+    await this.setFifoLedIndicator(true);
     await this.configureFifoDepth();
     await this.enableMotors(microsteppingMode);
 
@@ -453,7 +509,9 @@ export class EBB {
     }
 
     await this.waitUntilMotorsIdle();
+    await this.setFifoLedIndicator(false);
     await this.disableMotors();
+    this.telemetry?.logSummary();
   }
 
   /**
