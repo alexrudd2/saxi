@@ -251,6 +251,7 @@ export async function startServer(
 
   const realPlotter: Plotter = {
     async prePlot(initialPenHeight: number): Promise<void> {
+      await ebb.configureFifoDepth();
       await ebb.enableMotors(1); // 16x microstepping, matches defaults from Axidraw
       await ebb.setPenHeight(initialPenHeight, 1000, 1000);
     },
@@ -258,6 +259,9 @@ export async function startServer(
       await ebb.executeMotion(motion);
     },
     async postCancel(initialPenHeight: number): Promise<void> {
+      // The board may still be executing motion queued in its FIFO; issuing
+      // HM while moving makes the steppers grind against whatever they're doing.
+      await ebb.waitUntilMotorsIdle();
       await ebb.setPenHeight(initialPenHeight, 1000);
       await ebb.command("HM,4000"); // HM returns carriage home without 3rd and 4th arguments
     },

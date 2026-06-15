@@ -23,6 +23,9 @@ type EBBCommand =
   | `XM,${number},${number},${number}` // mixed-axis move
   | `LM,${number},${number},${number},${number},${number},${number}` // low-level move
 
+  // Configure commands
+  | `CU,${number},${number}` // configure user options (e.g. CU,4,n = motion FIFO depth, fw >= 3.0.0)
+
   // Servo commands
   | `S2,${number},${number}` // basic servo position
   | `S2,${number},${number},${number}` // with rate
@@ -39,7 +42,8 @@ type EBBQuery =
 type EBBQueryM =
   // queries that return multiple lines
   | "QB" // query button
-  | "QC"; // query configuration
+  | "QC" // query configuration
+  | `QU,${number}`; // query utility (fw >= 3.0.0), e.g. QU,2 = max FIFO depth
 
 /** Split d into its fractional and integral parts */
 function modf(d: number): [number, number] {
@@ -190,6 +194,46 @@ export class EBB {
       });
     } catch (err) {
       throw new Error(`Error in response to command '${cmd}': ${(err as Error).message}`);
+    }
+  }
+
+  /** The board's maximum motion FIFO depth (QU,2; firmware >= 3.0.0). */
+  private async maxFifoDepth(): Promise<number> {
+    try {
+      const lines = await this.queryM("QU,2");
+      const value = Number(lines[0]?.split(",").pop());
+      if (Number.isFinite(value) && value >= 1) return value;
+    } catch {
+      // fall through to a conservative depth known to be supported
+    }
+    return 32;
+  }
+
+  /**
+   * Deepen the EBB's motion FIFO (firmware >= 3.0.0).
+   *
+   * With the boot default of a 1-deep FIFO, any host stall longer than one
+   * block (GC pause, OS scheduling hiccup) starves the steppers and the
+   * carriage visibly stutters. A deeper FIFO keeps up to N commands buffered
+   * on the board, so the machine glides through host stalls. By default the
+   * FIFO is set as deep as the board supports; SAXI_FIFO_DEPTH=n overrides,
+   * and SAXI_FIFO_DEPTH=1 restores the boot default (the setting persists on
+   * the board until power-cycled, so an explicit 1 is the only reliable "off").
+   */
+  public async configureFifoDepth(): Promise<void> {
+    try {
+      const requested = Math.floor(Number(process.env.SAXI_FIFO_DEPTH || 0));
+      if ((await this.firmwareVersionCompare(3, 0, 0)) < 0) {
+        if (requested > 1) {
+          console.log("[saxi] SAXI_FIFO_DEPTH ignored: firmware < 3.0.0 has a fixed 1-deep FIFO");
+        }
+        return;
+      }
+      const depth = requested >= 1 ? requested : await this.maxFifoDepth();
+      await this.command(`CU,4,${depth}`);
+      console.log(`[saxi] EBB motion FIFO depth set to ${depth}`);
+    } catch (err) {
+      console.log(`[saxi] failed to set FIFO depth: ${(err as Error).message}`);
     }
   }
 
@@ -401,6 +445,7 @@ export class EBB {
   }
 
   public async executePlan(plan: Plan, microsteppingMode: RunningMicrostepMode = MicrostepMode.EIGHTH): Promise<void> {
+    await this.configureFifoDepth();
     await this.enableMotors(microsteppingMode);
 
     for (const m of plan.motions) {
