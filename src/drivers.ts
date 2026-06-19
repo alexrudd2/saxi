@@ -37,40 +37,39 @@ export abstract class BaseDriver {
 /**
  * WebSerial driver for the EBB. Connects directly to the Axi machine in the
  * browser (serverless config, IS_WEB set). The EBB and the whole plot loop run
- * on a dedicated Web Worker (serial-worker.js): the port is opened here on the
- * UI thread (navigator.serial requires it), its streams are transferred into
- * the worker, and from then on the UI thread only posts commands and receives
- * lifecycle events — so React/GC on the UI thread can't stall the serial loop.
+ * on a dedicated Web Worker (serial-worker.js): the UI thread only does the
+ * requestPort() picker (navigator.serial requires a Window gesture), then the
+ * worker re-acquires that port via getPorts() and opens it, so the serial byte
+ * pipe lives on the worker thread. From then on the UI thread only posts
+ * commands and receives lifecycle events — so React/GC on the UI thread can't
+ * stall the serial loop (not even its byte I/O, which transferring the streams
+ * left on the main thread).
  */
 export class WebSerialDriver extends BaseDriver {
   public hardware: Hardware;
   private _name: string;
-  private port: SerialPort;
   private worker: Worker;
-  private _disconnectHandler: ((event: Event) => void) | null = null;
+  /** Resolves when the worker has opened the port; rejects if it couldn't. */
+  private ready: Promise<void>;
+  private resolveReady!: () => void;
+  private rejectReady!: (e: Error) => void;
+  private settled = false;
 
   public static async connect(port?: SerialPort, hardware: Hardware = "v3") {
+    // requestPort() needs a user gesture and is Window-only, so the main thread
+    // does just the picker; the worker re-acquires the port via getPorts() and
+    // opens it, keeping the serial byte pipe on the worker thread.
     if (!port)
       // biome-ignore lint/style/noParameterAssign: trivial
       port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x04d8, usbProductId: 0xfd92 }] });
-    // baudRate ref: https://github.com/evil-mad/plotink/blob/a45739b7d41b74d35c1e933c18949ed44c72de0e/plotink/ebb_serial.py#L281
-    // (doesn't specify baud rate)
-    // and https://pyserial.readthedocs.io/en/latest/pyserial_api.html#serial.Serial.__init__
-    // (pyserial defaults to 9600)
-    await port.open({ baudRate: 9600 });
     const { usbVendorId, usbProductId } = port.getInfo();
 
     const vendorId = usbVendorId?.toString(16).padStart(4, "0");
     const productId = usbProductId?.toString(16).padStart(4, "0");
     const name = `${vendorId}:${productId}`;
 
-    const driver = new WebSerialDriver(port, name, hardware);
-    driver._disconnectHandler = (event: Event) => {
-      if (event.target === port) {
-        driver.handleDisconnection();
-      }
-    };
-    navigator.serial.addEventListener("disconnect", driver._disconnectHandler);
+    const driver = new WebSerialDriver(name, hardware, usbVendorId, usbProductId);
+    await driver.ready; // wait for the worker to open the port (throws on failure)
     driver.connected = true;
 
     return driver;
@@ -80,22 +79,37 @@ export class WebSerialDriver extends BaseDriver {
     return this._name;
   }
 
-  private constructor(port: SerialPort, name: string, hardware: Hardware) {
+  private constructor(name: string, hardware: Hardware, usbVendorId?: number, usbProductId?: number) {
     super();
-    this.port = port;
     this._name = name;
     this.hardware = hardware;
+    this.ready = new Promise<void>((resolve, reject) => {
+      this.resolveReady = resolve;
+      this.rejectReady = reject;
+    });
     this.worker = new Worker("serial-worker.js");
     this.worker.addEventListener("message", (e: MessageEvent<HostEvent>) => this.onEvent(e.data));
-    // Hand the port's streams to the worker; from here it owns the EBB.
-    this.worker.postMessage({ kind: "init", readable: port.readable, writable: port.writable, hardware }, [
-      port.readable,
-      port.writable,
-    ]);
+    this.worker.addEventListener("error", (e) => {
+      console.error(`[serial-worker] failed to load/run: ${e.message}`);
+      this.settle(() => this.rejectReady(new Error(e.message || "serial worker failed to start")));
+    });
+    this.worker.addEventListener("messageerror", (e) => console.error("[serial-worker] message clone error", e));
+    // The worker opens the port itself; we only tell it which device to find.
+    this.worker.postMessage({ kind: "init", hardware, usbVendorId, usbProductId });
+  }
+
+  /** Resolve/reject `ready` exactly once. */
+  private settle(action: () => void): void {
+    if (this.settled) return;
+    this.settled = true;
+    action();
   }
 
   private onEvent(event: HostEvent): void {
     switch (event.kind) {
+      case "ready":
+        this.settle(() => this.resolveReady());
+        break;
       case "progress":
         this.onprogress(event.motionIdx);
         break;
@@ -110,9 +124,11 @@ export class WebSerialDriver extends BaseDriver {
         break;
       case "error":
         console.error(`[serial-worker] ${event.message}`);
+        // A failure before "ready" means the port never opened — fail connect().
+        this.settle(() => this.rejectReady(new Error(event.message)));
         break;
-      case "closePort":
-        void this.closePort();
+      case "disconnected":
+        this.handleDisconnection();
         break;
     }
   }
@@ -122,28 +138,11 @@ export class WebSerialDriver extends BaseDriver {
     this.connected = false;
   }
 
-  /**
-   * The worker released its locks on the transferred streams and asked us to
-   * close the port. The unlock takes a moment to cross the thread boundary, so
-   * retry until close() is accepted.
-   */
-  private async closePort(): Promise<void> {
-    for (let i = 0; i < 100; i++) {
-      try {
-        await this.port.close();
-        return;
-      } catch {
-        await new Promise((resolve) => setTimeout(resolve, 20));
-      }
-    }
-  }
-
   public async close(): Promise<void> {
     this.handleDisconnection();
-    if (this._disconnectHandler) {
-      navigator.serial.removeEventListener("disconnect", this._disconnectHandler);
-    }
-    this.worker.postMessage({ kind: "close" }); // worker tears down the EBB, then emits closePort
+    // The worker owns the port now, so it tears down the EBB and closes the
+    // port itself — no main-thread close retry needed.
+    this.worker.postMessage({ kind: "close" });
   }
 
   public plot(plan: Plan): void {

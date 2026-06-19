@@ -8,12 +8,19 @@
 import type { Hardware } from "./ebb.js";
 import type { MotionData } from "./planning.js";
 
-/** Sent into the worker once, before any command, to hand over the port. */
+/**
+ * Sent into the worker once, before any command. The main thread only does the
+ * `requestPort()` user gesture (Window-only) and forwards the chosen device's
+ * USB id; the worker re-acquires the port with `navigator.serial.getPorts()`
+ * and opens it itself, so the serial byte pipe lives on the worker thread (not
+ * proxied back through the main thread, which is what transferring the streams
+ * silently did — main-thread jank then starved the board).
+ */
 export interface InitMsg {
   kind: "init";
-  readable: ReadableStream<Uint8Array>;
-  writable: WritableStream<Uint8Array>;
   hardware: Hardware;
+  usbVendorId?: number;
+  usbProductId?: number;
 }
 
 /** Commands from the main thread to the worker. */
@@ -29,11 +36,12 @@ export type HostCommand =
 
 /** Lifecycle events from the worker back to the main thread. */
 export type HostEvent =
+  // The worker found and opened the port; the driver can report "connected".
+  | { kind: "ready" }
   | { kind: "progress"; motionIdx: number }
   | { kind: "paused"; paused: boolean }
   | { kind: "finished" }
   | { kind: "cancelled" }
   | { kind: "error"; message: string }
-  // Browser only: the worker has torn the EBB down and released the transferred
-  // streams; the main thread (which owns the SerialPort) should close it.
-  | { kind: "closePort" };
+  // The port (owned by the worker) was physically unplugged.
+  | { kind: "disconnected" };
