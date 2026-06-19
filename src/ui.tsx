@@ -842,16 +842,16 @@ function PlotButtons({
   driver: BaseDriver;
 }) {
   function cancel() {
-    driver.cancel();
+    driver?.cancel();
   }
   function pause() {
-    driver.pause();
+    driver?.pause();
   }
   function resume() {
-    driver.resume();
+    driver?.resume();
   }
   function plot(plan: Plan) {
-    driver.plot(plan);
+    driver?.plot(plan);
   }
 
   return (
@@ -864,7 +864,7 @@ function PlotButtons({
         <button
           type="button"
           className={`plot-button ${state.progress != null ? "plot-button--plotting" : ""}`}
-          disabled={plan == null || state.progress != null}
+          disabled={plan == null || state.progress != null || !driver?.connected}
           onClick={() => plan && plot(plan)}
         >
           {plan && state.progress != null ? "Plotting..." : "Plot"}
@@ -1100,6 +1100,8 @@ function PortSelector({ driver, setDriver, hardware }: PortSelectorProps) {
           // get the first
           setDriver(await WebSerialDriver.connect(port, hardware));
         }
+      } catch (e) {
+        console.error("Auto-reconnect to serial device failed:", e);
       } finally {
         setInitializing(false);
       }
