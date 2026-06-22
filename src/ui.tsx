@@ -700,29 +700,47 @@ function PlanPreview({
       ? { width: (ps.size.x / ps.size.y) * previewSize.height, height: previewSize.height }
       : { height: (ps.size.y / ps.size.x) * previewSize.width, width: previewSize.width };
 
+  // Time spent in the current motion, used to interpolate the crosshair within
+  // it. Held in a ref so a pause can freeze it and a resume continue from the
+  // same point — otherwise the wall-clock would keep advancing while the
+  // machine is stopped and the preview would race ahead, desyncing on resume.
   const [microprogress, setMicroprogress] = useState(0);
+  const microprogressMs = useRef(0);
+
+  // Restart the within-motion clock at the start of each motion (and clear it
+  // when plotting ends). Keyed only on progress, so pausing doesn't reset it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: progress is a re-run trigger, not read in the body
   useLayoutEffect(() => {
+    microprogressMs.current = 0;
+    setMicroprogress(0);
+  }, [state.progress]);
+
+  // Advance the clock only while plotting and not paused; freeze on pause and
+  // continue from the frozen value on resume.
+  useLayoutEffect(() => {
+    if (state.progress == null || state.paused) {
+      return;
+    }
     let rafHandle: number;
     let cancelled = false;
-    if (state.progress != null) {
-      const startingTime = Date.now();
-      const updateProgress = () => {
-        if (cancelled) {
-          return;
-        }
-        setMicroprogress(Date.now() - startingTime);
-        rafHandle = requestAnimationFrame(updateProgress);
-      };
-      updateProgress();
-    }
+    const base = microprogressMs.current;
+    const startingTime = Date.now();
+    const updateProgress = () => {
+      if (cancelled) {
+        return;
+      }
+      microprogressMs.current = base + (Date.now() - startingTime);
+      setMicroprogress(microprogressMs.current);
+      rafHandle = requestAnimationFrame(updateProgress);
+    };
+    updateProgress();
     return () => {
       cancelled = true;
       if (rafHandle != null) {
         cancelAnimationFrame(rafHandle);
       }
-      setMicroprogress(0);
     };
-  }, [state.progress]);
+  }, [state.progress, state.paused]);
 
   let progressIndicator = <></>;
   if (state.progress != null && plan != null) {
