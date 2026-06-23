@@ -9,32 +9,20 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { autoDetect } from "@serialport/bindings-cpp";
-import type { PortInfo } from "@serialport/bindings-interface";
 import cors from "cors";
 import type { Request, Response } from "express";
 import express from "express";
 import type WebSocket from "ws";
 import { WebSocketServer } from "ws";
-import { EBB, type Hardware } from "./ebb.js";
+import { createEbbProxy } from "./ebb-proxy.js";
+import type { Hardware } from "./ebb.js";
 import { type Motion, PenMotion, Plan } from "./planning.js";
-import { SerialPortSerialPort } from "./serialport-serialport.js";
-import * as _self from "./server.js"; // use self-import for test mocking
+import { type Com, connectEBB, waitForEbb } from "./serial-device.js";
 import { formatDuration } from "./util.js";
 
-type Com = string;
-
-/**
- * Shorthand for getting the device info, either EBB or com port.
- * @param ebb
- * @param com
- * @returns
- */
-const getDeviceInfo = (ebb: EBB | null, _com: Com) => {
-  // biome-ignore lint/suspicious/noExplicitAny: private member access
-  const portPath = (ebb?.port as any)?._path ?? null;
-  return { path: portPath, hardware: ebb?.hardware };
-};
+// Re-exported for the CLI (saxi plot/pen) and tests, which still talk to the
+// EBB directly rather than through the worker.
+export { connectEBB, waitForEbb };
 
 /**
  * Start the express server.
@@ -64,14 +52,29 @@ export async function startServer(
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server });
 
-  let ebb: EBB | null;
+  // The EBB lives on its own worker thread; ebbProxy mirrors its API on the
+  // main thread. Starting it at boot (not per plot) keeps worker startup off
+  // the plotting path. See PERF_PLAN.md workstream B.
+  const ebbProxy = await createEbbProxy({ com: com ?? undefined, hardware });
+
   let clients: WebSocket[] = [];
   let unpaused: Promise<void> | null = null;
   let signalUnpause: (() => void) | null = null;
   let motionIdx: number | null = null;
-  let currentPlan: Plan | null = null;
+  // The in-progress plan, kept as serialized JSON. Parsed, it is hundreds of
+  // thousands of small objects that every major GC must traverse for the whole
+  // duration of the plot; its only use is being re-sent to websocket clients.
+  let currentPlanJson: string | null = null;
   let plotting = false;
   let controller: AbortController | null = null;
+
+  const getDeviceInfo = () => ({
+    path: ebbProxy.devicePath,
+    hardware: ebbProxy.connected ? ebbProxy.hardware : undefined,
+  });
+
+  // The worker reports connect/disconnect (and hardware changes) as `dev` events.
+  ebbProxy.on("dev", () => broadcast({ c: "dev", p: getDeviceInfo() }));
 
   wss.on("connection", (ws) => {
     clients.push(ws);
@@ -82,29 +85,29 @@ export async function startServer(
           ws.send(JSON.stringify({ c: "pong" }));
           break;
         case "limp":
-          if (ebb) {
-            ebb.disableMotors();
+          if (ebbProxy.connected) {
+            ebbProxy.disableMotors();
           }
           break;
         case "setPenHeight":
-          if (ebb) {
+          if (ebbProxy.connected) {
             (async () => {
-              if (await ebb.supportsSR()) {
-                await ebb.setServoPowerTimeout(10000, true);
+              if (await ebbProxy.supportsSR()) {
+                await ebbProxy.setServoPowerTimeout(10000, true);
               }
-              await ebb.setPenHeight(msg.p.height, msg.p.rate);
+              await ebbProxy.setPenHeight(msg.p.height, msg.p.rate);
             })();
           }
           break;
         case "changeHardware":
-          ebb?.changeHardware(msg.p.hardware);
-          broadcast({ c: "dev", p: getDeviceInfo(ebb, com) });
+          ebbProxy.changeHardware(msg.p.hardware);
+          broadcast({ c: "dev", p: getDeviceInfo() });
           break;
       }
     });
 
     // send starting params to clients
-    ws.send(JSON.stringify({ c: "dev", p: getDeviceInfo(ebb, com) }));
+    ws.send(JSON.stringify({ c: "dev", p: getDeviceInfo() }));
 
     ws.send(JSON.stringify({ c: "svgio-enabled", p: svgIoApiKey !== "" }));
 
@@ -112,8 +115,8 @@ export async function startServer(
     if (motionIdx != null) {
       ws.send(JSON.stringify({ c: "progress", p: { motionIdx } }));
     }
-    if (currentPlan != null) {
-      ws.send(JSON.stringify({ c: "plan", p: { plan: currentPlan } }));
+    if (currentPlanJson != null) {
+      ws.send(`{"c":"plan","p":{"plan":${currentPlanJson}}}`);
     }
 
     ws.on("close", () => {
@@ -135,9 +138,9 @@ export async function startServer(
     const { signal } = controller;
     try {
       const plan = Plan.deserialize(req.body);
-      currentPlan = req.body;
+      currentPlanJson = JSON.stringify(req.body); // once, before motion starts
       console.log(`Received plan of estimated duration ${formatDuration(plan.duration())}`);
-      console.log(ebb != null ? "Beginning plot..." : "Simulating plot...");
+      console.log(ebbProxy.connected ? "Beginning plot..." : "Simulating plot...");
       res.status(200).end();
 
       const begin = Date.now();
@@ -156,7 +159,7 @@ export async function startServer(
         console.log("Wake lock not available on this platform. Ensure your machine does not sleep during plotting");
       }
       try {
-        await doPlot(ebb != null ? realPlotter : simPlotter, plan, signal);
+        await doPlot(ebbProxy.connected ? realPlotter : simPlotter, plan, signal);
         const end = Date.now();
         console.log(`Plot took ${formatDuration((end - begin) / 1000)}`);
       } finally {
@@ -179,7 +182,7 @@ export async function startServer(
       controller.abort();
       controller = null;
     }
-    ebb?.cancel();
+    ebbProxy.cancel();
     if (unpaused) {
       signalUnpause?.();
       broadcast({ c: "pause", p: { paused: false } });
@@ -251,23 +254,27 @@ export async function startServer(
 
   const realPlotter: Plotter = {
     async prePlot(initialPenHeight: number): Promise<void> {
-      await ebb.configureFifoDepth();
-      await ebb.enableMotors(1); // 16x microstepping, matches defaults from Axidraw
-      await ebb.setPenHeight(initialPenHeight, 1000, 1000);
+      await ebbProxy.resetTelemetry();
+      await ebbProxy.setFifoLedIndicator(true);
+      await ebbProxy.configureFifoDepth();
+      await ebbProxy.enableMotors(1); // 16x microstepping, matches defaults from Axidraw
+      await ebbProxy.setPenHeight(initialPenHeight, 1000, 1000);
     },
     async executeMotion(motion: Motion, _progress: [number, number]): Promise<void> {
-      await ebb.executeMotion(motion);
+      await ebbProxy.executeMotion(motion);
     },
     async postCancel(initialPenHeight: number): Promise<void> {
       // The board may still be executing motion queued in its FIFO; issuing
       // HM while moving makes the steppers grind against whatever they're doing.
-      await ebb.waitUntilMotorsIdle();
-      await ebb.setPenHeight(initialPenHeight, 1000);
-      await ebb.command("HM,4000"); // HM returns carriage home without 3rd and 4th arguments
+      await ebbProxy.waitUntilMotorsIdle();
+      await ebbProxy.setPenHeight(initialPenHeight, 1000);
+      await ebbProxy.command("HM,4000"); // HM returns carriage home without 3rd and 4th arguments
     },
     async postPlot(): Promise<void> {
-      await ebb.waitUntilMotorsIdle();
-      await ebb.disableMotors();
+      await ebbProxy.waitUntilMotorsIdle();
+      await ebbProxy.setFifoLedIndicator(false);
+      await ebbProxy.disableMotors();
+      await ebbProxy.logTelemetrySummary();
     },
   };
 
@@ -323,7 +330,7 @@ export async function startServer(
       throw err; // propagate real errors
     } finally {
       motionIdx = null;
-      currentPlan = null;
+      currentPlanJson = null;
       await plotter.postPlot();
     }
   }
@@ -337,83 +344,12 @@ export async function startServer(
 
   return new Promise<http.Server>((resolve) => {
     server.listen(port, () => {
-      async function connect() {
-        const devices = ebbs(com, hardware);
-        for await (const device of devices) {
-          ebb = device;
-          broadcast({ c: "dev", p: getDeviceInfo(ebb, com) });
-        }
-      }
-      connect();
+      // The worker started connecting when ebbProxy was created above; its dev
+      // events drive the broadcast. Nothing more to start here.
       const { family, address, port } = server.address() as AddressInfo;
       const addr = `${family === "IPv6" ? `[${address}]` : address}:${port}`;
       console.log(`Server listening on http://${addr}`);
       resolve(server);
     });
   });
-}
-
-async function tryOpen(com: Com) {
-  const port = new SerialPortSerialPort(com);
-  await port.open({ baudRate: 9600 });
-  return port;
-}
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function isEBB(p: PortInfo): boolean {
-  return (
-    p.manufacturer === "SchmalzHaus" ||
-    p.manufacturer === "SchmalzHaus LLC" ||
-    (p.vendorId === "04D8" && p.productId === "FD92")
-  );
-}
-
-async function listEBBs() {
-  const Binding = autoDetect();
-  const ports = await Binding.list();
-  return ports.filter(isEBB).map((p: { path: string }) => p.path);
-}
-
-export async function waitForEbb(): Promise<Com> {
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const ebbs = await listEBBs();
-    if (ebbs.length) {
-      return ebbs[0];
-    }
-    await sleep(5000);
-  }
-}
-
-async function* ebbs(path?: string, hardware: Hardware = "v3") {
-  while (true) {
-    try {
-      const com: Com = path || (await _self.waitForEbb()); // use self-import for test mocking
-      console.log(`Found EBB at ${com}`);
-      const port = await tryOpen(com);
-      const closed = new Promise((resolve) => {
-        port.addEventListener("disconnect", resolve, { once: true });
-      });
-      yield new EBB(port, hardware);
-      await closed;
-      yield null;
-      console.error("Lost connection to EBB, reconnecting...");
-    } catch (e) {
-      const err = e instanceof Error ? e : new Error(String(e));
-      console.error(`Error connecting to EBB: ${err.message}`);
-      console.error("Retrying in 5 seconds...");
-      await sleep(5000);
-    }
-  }
-}
-
-export async function connectEBB(hardware: Hardware, device?: string): Promise<EBB | null> {
-  const dev = device ?? (await listEBBs())[0];
-  if (!dev) return null;
-
-  const port = await tryOpen(dev);
-  return new EBB(port, hardware);
 }
