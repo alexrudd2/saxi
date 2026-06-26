@@ -1,0 +1,146 @@
+<!doctype html>
+<!--
+  De-risking spike for the unified serial worker (browser half).
+
+  Proves the one thing the WebSerial worker design hinges on: that a port opened
+  with navigator.serial on the main thread can have its `readable`/`writable`
+  streams TRANSFERRED into a DOM Worker, and that the EBB command loop
+  (write "cmd\r", read a line back) can then run entirely inside that worker —
+  off the main thread, exactly like background-planner.js.
+
+  navigator.serial needs a secure context, so this must be served over
+  http://localhost (NOT opened as a file://) — localhost is a secure context,
+  so any static server works. From the repo root:
+
+      npx serve tools
+      # then open the printed http://localhost:<port>/webserial-worker-spike.html
+
+  Click "Connect & test", pick the EBB. It runs two read-only queries (V =
+  version, QM = motor/FIFO status) from inside the worker. No motion is sent.
+  If both round-trip, the transfer-streams-to-a-worker approach is sound.
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>saxi — WebSerial worker spike</title>
+    <style>
+      body { font: 14px/1.5 system-ui, sans-serif; margin: 2rem; max-width: 50rem; }
+      button { font-size: 1rem; padding: 0.5rem 1rem; }
+      #log { white-space: pre-wrap; background: #111; color: #0f0; padding: 1rem; margin-top: 1rem; border-radius: 6px; }
+      .err { color: #f55; }
+    </style>
+  </head>
+  <body>
+    <h1>saxi — WebSerial worker spike</h1>
+    <p>
+      Opens the EBB on the main thread, transfers its serial streams into a Web Worker,
+      and round-trips <code>V</code> and <code>QM</code> from inside the worker. Read-only — no motion.
+    </p>
+    <button id="go">Connect &amp; test</button>
+    <div id="log"></div>
+
+    <script type="text/worker" id="worker-src">
+      // Runs inside the DOM Worker. Receives the transferred WebSerial streams
+      // and drives the EBB command loop with no main-thread involvement.
+      let writer = null;
+      let reader = null;
+      let buf = "";
+
+      function post(step, value, isError) {
+        self.postMessage({ step, value, isError: !!isError });
+      }
+
+      // Read one CR/LF-delimited line, buffering any over-read for the next call
+      // (the same framing EBB uses).
+      async function readLine() {
+        while (true) {
+          const nl = buf.search(/[\r\n]/);
+          if (nl >= 0) {
+            const line = buf.slice(0, nl);
+            buf = buf.slice(nl).replace(/^[\r\n]+/, "");
+            if (line.length) return line;
+            continue;
+          }
+          const { value, done } = await reader.read();
+          if (done) throw new Error("serial stream closed");
+          buf += value;
+        }
+      }
+
+      async function query(cmd) {
+        await writer.write(new TextEncoder().encode(`${cmd}\r`));
+        return await readLine();
+      }
+
+      self.onmessage = async (e) => {
+        try {
+          const { readable, writable } = e.data;
+          post("transfer", "streams received in worker ✓");
+          writer = writable.getWriter();
+          reader = readable.pipeThrough(new TextDecoderStream()).getReader();
+
+          const version = await query("V");
+          post("V", version);
+
+          const qm = await query("QM");
+          post("QM", qm);
+
+          // Release locks so the main thread can close the port cleanly.
+          await reader.cancel().catch(() => {});
+          await writer.close().catch(() => {});
+          post("done", "worker round-trip complete ✓");
+        } catch (err) {
+          post("error", err && err.message ? err.message : String(err), true);
+        }
+      };
+    </script>
+
+    <script>
+      const logEl = document.getElementById("log");
+      function log(msg, isError) {
+        const line = document.createElement("div");
+        if (isError) line.className = "err";
+        line.textContent = msg;
+        logEl.appendChild(line);
+      }
+
+      document.getElementById("go").addEventListener("click", async () => {
+        logEl.textContent = "";
+        if (!("serial" in navigator)) {
+          log("navigator.serial unavailable — use Chrome/Edge over http://localhost (not file://).", true);
+          return;
+        }
+        try {
+          log("requesting port…");
+          const port = await navigator.serial.requestPort({
+            filters: [{ usbVendorId: 0x04d8, usbProductId: 0xfd92 }],
+          });
+          await port.open({ baudRate: 9600 });
+          log("port opened on main thread ✓");
+
+          const workerSrc = document.getElementById("worker-src").textContent;
+          const worker = new Worker(URL.createObjectURL(new Blob([workerSrc], { type: "text/javascript" })));
+
+          worker.onmessage = (e) => {
+            const { step, value, isError } = e.data;
+            log(`[${step}] ${value}`, isError);
+            if (step === "done" || step === "error") {
+              worker.terminate();
+              // The worker released the stream locks; close the underlying port.
+              port.close().then(
+                () => log("port closed ✓"),
+                (err) => log(`port close failed: ${err.message}`, true),
+              );
+            }
+          };
+          worker.onerror = (e) => log(`worker error: ${e.message}`, true);
+
+          log("transferring readable/writable into worker…");
+          worker.postMessage({ readable: port.readable, writable: port.writable }, [port.readable, port.writable]);
+        } catch (err) {
+          log(err && err.message ? err.message : String(err), true);
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,5 +1,6 @@
-import { EBB, type Hardware } from "./ebb";
-import { Device, PenMotion, Plan } from "./planning.js";
+import type { Hardware } from "./ebb";
+import { Plan } from "./planning.js";
+import type { HostEvent } from "./serial-worker-rpc.js";
 
 export interface DeviceInfo {
   path: string;
@@ -34,54 +35,102 @@ export abstract class BaseDriver {
 }
 
 /**
- * WebSerial driver for the EBB. Implement interface by connecting directly to the Axi
- * machine. Used on serverless configuration (IS_WEB is set), where the control is handled
- * directly on the browser.
+ * WebSerial driver for the EBB. Connects directly to the Axi machine in the
+ * browser (serverless config, IS_WEB set). The EBB and the whole plot loop run
+ * on a dedicated Web Worker (serial-worker.js): the UI thread only does the
+ * requestPort() picker (navigator.serial requires a Window gesture), then the
+ * worker re-acquires that port via getPorts() and opens it, so the serial byte
+ * pipe lives on the worker thread. From then on the UI thread only posts
+ * commands and receives lifecycle events — so React/GC on the UI thread can't
+ * stall the serial loop (not even its byte I/O, which transferring the streams
+ * left on the main thread).
  */
 export class WebSerialDriver extends BaseDriver {
-  private _unpaused: Promise<void> | null = null;
-  private _signalUnpause: (() => void) | null = null;
-  private _cancelRequested = false;
-  private _disconnectHandler: ((event: Event) => void) | null = null;
+  public hardware: Hardware;
+  private _name: string;
+  private worker: Worker;
+  /** Resolves when the worker has opened the port; rejects if it couldn't. */
+  private ready: Promise<void>;
+  private resolveReady!: () => void;
+  private rejectReady!: (e: Error) => void;
+  private settled = false;
 
   public static async connect(port?: SerialPort, hardware: Hardware = "v3") {
+    // requestPort() needs a user gesture and is Window-only, so the main thread
+    // does just the picker; the worker re-acquires the port via getPorts() and
+    // opens it, keeping the serial byte pipe on the worker thread.
     if (!port)
       // biome-ignore lint/style/noParameterAssign: trivial
       port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x04d8, usbProductId: 0xfd92 }] });
-    // baudRate ref: https://github.com/evil-mad/plotink/blob/a45739b7d41b74d35c1e933c18949ed44c72de0e/plotink/ebb_serial.py#L281
-    // (doesn't specify baud rate)
-    // and https://pyserial.readthedocs.io/en/latest/pyserial_api.html#serial.Serial.__init__
-    // (pyserial defaults to 9600)
-    await port.open({ baudRate: 9600 });
     const { usbVendorId, usbProductId } = port.getInfo();
-    const ebb = new EBB(port, hardware);
 
     const vendorId = usbVendorId?.toString(16).padStart(4, "0");
     const productId = usbProductId?.toString(16).padStart(4, "0");
     const name = `${vendorId}:${productId}`;
 
-    const driver = new WebSerialDriver(ebb, name);
-    driver._disconnectHandler = (event: Event) => {
-      if (event.target === port) {
-        driver.handleDisconnection();
-      }
-    };
-    navigator.serial.addEventListener("disconnect", driver._disconnectHandler);
+    const driver = new WebSerialDriver(name, hardware, usbVendorId, usbProductId);
+    await driver.ready; // wait for the worker to open the port (throws on failure)
     driver.connected = true;
 
     return driver;
   }
 
-  private _name: string;
   public name(): string {
     return this._name;
   }
 
-  public ebb: EBB;
-  private constructor(ebb: EBB, name: string) {
+  private constructor(name: string, hardware: Hardware, usbVendorId?: number, usbProductId?: number) {
     super();
-    this.ebb = ebb;
     this._name = name;
+    this.hardware = hardware;
+    this.ready = new Promise<void>((resolve, reject) => {
+      this.resolveReady = resolve;
+      this.rejectReady = reject;
+    });
+    this.worker = new Worker("serial-worker.js");
+    this.worker.addEventListener("message", (e: MessageEvent<HostEvent>) => this.onEvent(e.data));
+    this.worker.addEventListener("error", (e) => {
+      console.error(`[serial-worker] failed to load/run: ${e.message}`);
+      this.settle(() => this.rejectReady(new Error(e.message || "serial worker failed to start")));
+    });
+    this.worker.addEventListener("messageerror", (e) => console.error("[serial-worker] message clone error", e));
+    // The worker opens the port itself; we only tell it which device to find.
+    this.worker.postMessage({ kind: "init", hardware, usbVendorId, usbProductId });
+  }
+
+  /** Resolve/reject `ready` exactly once. */
+  private settle(action: () => void): void {
+    if (this.settled) return;
+    this.settled = true;
+    action();
+  }
+
+  private onEvent(event: HostEvent): void {
+    switch (event.kind) {
+      case "ready":
+        this.settle(() => this.resolveReady());
+        break;
+      case "progress":
+        this.onprogress(event.motionIdx);
+        break;
+      case "paused":
+        this.onpause(event.paused);
+        break;
+      case "finished":
+        this.onfinished();
+        break;
+      case "cancelled":
+        this.oncancelled();
+        break;
+      case "error":
+        console.error(`[serial-worker] ${event.message}`);
+        // A failure before "ready" means the port never opened — fail connect().
+        this.settle(() => this.rejectReady(new Error(event.message)));
+        break;
+      case "disconnected":
+        this.handleDisconnection();
+        break;
+    }
   }
 
   private handleDisconnection(): void {
@@ -91,86 +140,41 @@ export class WebSerialDriver extends BaseDriver {
 
   public async close(): Promise<void> {
     this.handleDisconnection();
-    if (this._disconnectHandler) {
-      navigator.serial.removeEventListener("disconnect", this._disconnectHandler);
-    }
-    return this.ebb.close();
+    // The worker owns the port now, so it tears down the EBB and closes the
+    // port itself — no main-thread close retry needed.
+    this.worker.postMessage({ kind: "close" });
   }
 
-  public async plot(plan: Plan): Promise<void> {
-    const microsteppingMode = 1; // 16x microstepping, matches defaults from Axidraw
-    this._unpaused = null;
-    this._cancelRequested = false;
-    await this.ebb.enableMotors(microsteppingMode);
-
-    let motionIdx = 0;
-    let penIsUp = true;
-    for (const motion of plan.motions) {
-      this.onprogress(motionIdx);
-      await this.ebb.executeMotion(motion);
-      if (motion instanceof PenMotion) {
-        penIsUp = motion.initialPos < motion.finalPos;
-      }
-      if (this._unpaused && penIsUp) {
-        await this._unpaused;
-        this.onpause(false);
-      }
-      if (this._cancelRequested) { break; } // biome-ignore format: compactness
-      motionIdx += 1;
-    }
-
-    if (this._cancelRequested) {
-      const device = Device(this.ebb.hardware);
-      if (!penIsUp) {
-        // Move to the pen up position, or 50% if no position was found
-        const penMotion = plan.motions.find((motion): motion is PenMotion => motion instanceof PenMotion);
-        const penUpPosition = penMotion ? Math.max(penMotion.initialPos, penMotion.finalPos) : device.penPctToPos(50);
-        await this.ebb.setPenHeight(penUpPosition, 1000);
-        await this.ebb.command("HM,4000"); // HM returns carriage home without 3rd and 4th arguments
-      }
-      this.oncancelled();
-    } else {
-      this.onfinished();
-    }
-
-    await this.ebb.waitUntilMotorsIdle();
-    await this.ebb.disableMotors();
+  public plot(plan: Plan): void {
+    this.worker.postMessage({ kind: "plot", plan: plan.serialize() });
   }
 
   public cancel(): void {
-    this._cancelRequested = true;
+    this.worker.postMessage({ kind: "cancel" });
   }
 
   public pause(): void {
-    this._unpaused = new Promise((resolve) => {
-      this._signalUnpause = resolve;
-    });
-    this.onpause(true);
+    this.worker.postMessage({ kind: "pause" });
   }
 
   public resume(): void {
-    const signal = this._signalUnpause;
-    this._unpaused = null;
-    this._signalUnpause = null;
-    signal?.();
+    this.worker.postMessage({ kind: "resume" });
   }
 
-  public async setPenHeight(height: number, rate: number): Promise<void> {
-    if (await this.ebb.supportsSR()) {
-      await this.ebb.setServoPowerTimeout(10000, true);
-    }
-    await this.ebb.setPenHeight(height, rate);
+  public setPenHeight(height: number, rate: number): void {
+    this.worker.postMessage({ kind: "setPenHeight", height, rate });
   }
 
   public limp(): void {
-    this.ebb.disableMotors();
+    this.worker.postMessage({ kind: "limp" });
   }
 
   public changeHardware(hardware: Hardware): void {
-    this.ebb.changeHardware(hardware);
+    this.hardware = hardware;
+    this.worker.postMessage({ kind: "changeHardware", hardware });
     this.ondevinfo({
       path: this._name,
-      hardware: hardware,
+      hardware,
       svgIoEnabled: false, // WebSerial doesn't support SVG I/O
     });
   }

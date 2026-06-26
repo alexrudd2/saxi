@@ -3,3 +3,6 @@ dist/
 .eslintcache
 .vscode
 .DS_Store
+
+# full-plot spike build output
+tools/plot-spike/dist/

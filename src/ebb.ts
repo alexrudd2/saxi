@@ -55,6 +55,86 @@ function modf(d: number): [number, number] {
 export type Hardware = "v3" | "brushless" | "nextdraw-2234";
 
 /**
+ * Opt-in (SAXI_TRACE_TIMING=1) per-block timing trace for the LM streaming loop.
+ *
+ * It separates the two sources of motion gaps so we can tell which one is
+ * stuttering: the host-side `gap` (time between one block's OK and sending the
+ * next — where a GC / event-loop / main-thread stall lands) versus the `rtt`
+ * (the LM command's send->OK round-trip, which is board+serial bound, and at a
+ * 1-deep FIFO also includes waiting for the single slot to free). At FIFO depth
+ * 1 a smooth plot needs gap≈0; any host gap directly starves the steppers.
+ */
+class BlockTimingTrace {
+  private static readonly STALL_MS = 4; // a host gap over this would empty a 1-deep FIFO
+  private static readonly WINDOW = 1000; // blocks per rolling summary line
+
+  static maybeStart(): BlockTimingTrace | null {
+    return process.env.SAXI_TRACE_TIMING ? new BlockTimingTrace() : null;
+  }
+
+  private count = 0;
+  private sumPlanned = 0;
+  private sumRtt = 0;
+  private sumGap = 0;
+  private maxGap = 0;
+  private maxRtt = 0;
+  private stalls = 0;
+  private windowStart = 0;
+  private windowGapSum = 0;
+  private windowMaxGap = 0;
+  private windowRttSum = 0;
+  private windowMaxRtt = 0;
+
+  record(index: number, plannedMs: number, rttMs: number, gapMs: number): void {
+    this.count += 1;
+    this.sumPlanned += plannedMs;
+    this.sumRtt += rttMs;
+    this.sumGap += gapMs;
+    if (gapMs > this.maxGap) this.maxGap = gapMs;
+    if (rttMs > this.maxRtt) this.maxRtt = rttMs;
+    this.windowGapSum += Math.max(0, gapMs);
+    if (gapMs > this.windowMaxGap) this.windowMaxGap = gapMs;
+    this.windowRttSum += rttMs;
+    if (rttMs > this.windowMaxRtt) this.windowMaxRtt = rttMs;
+
+    if (gapMs > BlockTimingTrace.STALL_MS) {
+      this.stalls += 1;
+      console.log(
+        `[timing] block ${index}: host gap ${gapMs.toFixed(1)}ms ` +
+          `(planned move ${plannedMs.toFixed(1)}ms, rtt ${rttMs.toFixed(1)}ms) — FIFO would run dry here`,
+      );
+    }
+    if (index - this.windowStart >= BlockTimingTrace.WINDOW) {
+      const n = index - this.windowStart;
+      console.log(
+        `[timing] blocks ${this.windowStart}-${index}: ` +
+          `host gap ${this.windowGapSum.toFixed(0)}ms total (max ${this.windowMaxGap.toFixed(1)}ms) | ` +
+          `rtt mean ${(this.windowRttSum / n).toFixed(1)}ms (max ${this.windowMaxRtt.toFixed(1)}ms)`,
+      );
+      this.windowStart = index;
+      this.windowGapSum = 0;
+      this.windowMaxGap = 0;
+      this.windowRttSum = 0;
+      this.windowMaxRtt = 0;
+    }
+  }
+
+  summarize(): void {
+    if (this.count === 0) return;
+    const wallS = (this.sumRtt + this.sumGap) / 1000;
+    const plannedS = this.sumPlanned / 1000;
+    const overheadS = this.sumGap / 1000;
+    console.log(
+      `[timing] XYMotion done: ${this.count} blocks | ` +
+        `planned ${plannedS.toFixed(1)}s, wall ${wallS.toFixed(1)}s, host overhead ${overheadS.toFixed(1)}s | ` +
+        `mean gap ${(this.sumGap / this.count).toFixed(2)}ms (max ${this.maxGap.toFixed(1)}ms), ` +
+        `mean rtt ${(this.sumRtt / this.count).toFixed(2)}ms (max ${this.maxRtt.toFixed(1)}ms) | ` +
+        `host stalls >${BlockTimingTrace.STALL_MS}ms: ${this.stalls}`,
+    );
+  }
+}
+
+/**
  * The minimal serial transport the EBB needs: a byte stream in each direction
  * plus a close hook. A WebSerial/Node `SerialPort` satisfies this structurally,
  * but so does any pair of intermediate streams (such as to/from a worker)
@@ -74,6 +154,9 @@ export class EBB {
   public port: EBBPort;
   private commandQueue: CommandGenerator[];
   private writer: WritableStreamDefaultWriter<Uint8Array>;
+  private reader: ReadableStreamDefaultReader<Uint8Array>;
+  /** Resolves when the read loop has stopped and released its lock. */
+  private readableClosed: Promise<void>;
   public hardware: Hardware;
 
   private microsteppingMode = MicrostepMode.DISABLED;
@@ -83,53 +166,83 @@ export class EBB {
 
   private cachedFirmwareVersion: [number, number, number] | undefined = undefined;
 
+  /** Set by requestStop() to cooperatively end the LM streaming loop between blocks. */
+  private stopRequested = false;
+
+  /** Set by requestPause() to make the LM streaming loop run the pause hook before the next block. */
+  private pauseRequested = false;
+  /**
+   * Host-provided gate the LM streaming loop awaits between blocks when a pause
+   * has been requested. The host uses it to let the motion FIFO drain, lift the
+   * pen, wait for resume, then lower the pen — it owns the pen state, which EBB
+   * doesn't track.
+   */
+  private pauseHook: (() => Promise<void>) | null = null;
+
   public constructor(port: EBBPort, hardware: Hardware = "v3") {
     this.hardware = hardware;
     this.port = port;
     this.writer = this.port.writable.getWriter();
     this.commandQueue = [];
 
+    // Read with a raw reader + manual decode (rather than pipeThrough/pipeTo) so
+    // we own the lock on port.readable and can release it deterministically in
+    // close(): close() cancels this reader, the loop ends and releases the lock,
+    // then port.close() can proceed. pipeThrough hid the lock behind a second,
+    // un-awaited pipe, which left the stream locked at close (visible across a
+    // worker stream-transfer as "Cannot cancel a locked stream").
+    this.reader = port.readable.getReader();
+    const reader = this.reader;
+    const decoder = new TextDecoder();
     let buffer = "";
 
-    port.readable
-      .pipeThrough(new TextDecoderStream() as TransformStream<Uint8Array, string>)
-      .pipeTo(
-        new WritableStream({
-          write: (chunk) => {
-            buffer += chunk;
-            const parts = buffer.split(/[\r\n]+/); // each command is on a different line
-            buffer = parts.pop() || "";
+    this.readableClosed = (async () => {
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split(/[\r\n]+/); // each command is on a different line
+          buffer = parts.pop() || "";
 
-            for (const part of parts) {
-              if (part.trim() === "") continue; // empty line
-              if (this.commandQueue.length) {
-                if (part[0] === "!") {
-                  // error from EBB
-                  this.commandQueue.shift()?.reject(new Error(part));
-                  continue;
-                }
-
-                try {
-                  const d = this.commandQueue[0].next(part);
-                  if (d.done) {
-                    this.commandQueue.shift()?.resolve(d.value);
-                  }
-                } catch (e) {
-                  this.commandQueue.shift()?.reject(e as Error);
-                }
-              } else {
-                console.log(`unexpected data: ${part}`);
+          for (const part of parts) {
+            if (part.trim() === "") continue; // empty line
+            if (this.commandQueue.length) {
+              if (part[0] === "!") {
+                // error from EBB
+                this.commandQueue.shift()?.reject(new Error(part));
+                continue;
               }
+
+              try {
+                const d = this.commandQueue[0].next(part);
+                if (d.done) {
+                  this.commandQueue.shift()?.resolve(d.value);
+                }
+              } catch (e) {
+                this.commandQueue.shift()?.reject(e as Error);
+              }
+            } else {
+              console.log(`unexpected data: ${part}`);
             }
-          },
-        }),
-      )
-      .catch((error) => {
-        // Swallow premature close error; the disconnect handler takes care of it
-        if (error.code !== "ERR_STREAM_PREMATURE_CLOSE") {
-          throw error;
+          }
         }
-      });
+      } catch (error) {
+        // Premature close (disconnect) or cancel from close(); the disconnect
+        // handler / close() take it from here. Don't reject from this detached
+        // loop (it would surface as an unhandled rejection).
+        const e = error as { code?: string; name?: string };
+        if (e.code !== "ERR_STREAM_PREMATURE_CLOSE" && e.name !== "AbortError") {
+          console.log(`read loop ended: ${(error as Error).message}`);
+        }
+      } finally {
+        try {
+          reader.releaseLock();
+        } catch {
+          // already released
+        }
+      }
+    })();
   }
 
   private get stepMultiplier() {
@@ -145,7 +258,21 @@ export class EBB {
   }
 
   public async close(): Promise<void> {
-    return await this.port.close();
+    // Put both streams into a closed/cancelled state before closing the port,
+    // or port.close() throws on the still-locked streams — including across a
+    // worker stream-transfer, where only a propagating state change (cancel /
+    // abort), not a local releaseLock(), frees the stream for the other realm.
+    // Cancel the reader (the read loop then ends and releases the read lock),
+    // and abort the writer (the write side's analog of cancel).
+    await this.reader.cancel().catch(() => {});
+    await this.readableClosed.catch(() => {});
+    await this.writer.abort().catch(() => {});
+    try {
+      this.writer.releaseLock();
+    } catch {
+      // already released / errored
+    }
+    await this.port.close();
   }
 
   public changeHardware(hardware: Hardware) {
@@ -251,6 +378,40 @@ export class EBB {
     while (this.commandQueue.length > 0) {
       this.commandQueue.shift()?.reject(new Error("Cancelled"));
     }
+  }
+
+  /**
+   * Cooperatively stop the LM streaming loop (executeXYMotionWithLM) after the
+   * current block, leaving the command/response stream in sync. Use this to
+   * abort a plot mid-motion; cancel() rejects in-flight commands and desyncs.
+   */
+  public requestStop(): void {
+    this.stopRequested = true;
+  }
+
+  /** Clear a prior requestStop() before starting a new plot. */
+  public resetStop(): void {
+    this.stopRequested = false;
+  }
+
+  /**
+   * Cooperatively pause the LM streaming loop before the next block (so a pause
+   * takes effect mid-motion, not just at motion boundaries). The loop runs the
+   * registered pause hook, which drains the FIFO, lifts the pen, waits for
+   * resume and lowers the pen — keeping the command/response stream in sync.
+   */
+  public requestPause(): void {
+    this.pauseRequested = true;
+  }
+
+  /** Clear a pending pause request (e.g. before starting a new plot). */
+  public clearPause(): void {
+    this.pauseRequested = false;
+  }
+
+  /** Register the gate the LM streaming loop awaits between blocks when paused. */
+  public setPauseHook(hook: (() => Promise<void>) | null): void {
+    this.pauseHook = hook;
   }
   public async enableMotors(microsteppingMode: RunningMicrostepMode): Promise<void> {
     this.microsteppingMode = microsteppingMode;
@@ -389,9 +550,38 @@ export class EBB {
    * Note that the LM command is only available starting from EBB firmware version 2.5.3.
    */
   public async executeXYMotionWithLM(plan: XYMotion): Promise<void> {
+    const trace = BlockTimingTrace.maybeStart();
+    let prevOkAt = trace ? performance.now() : 0;
+    let index = 0;
     for (const block of plan.blocks) {
-      await this.executeBlockWithLM(block);
+      // Cooperative stop: bail out between blocks (after the in-flight command's
+      // OK has been consumed) so response matching stays in sync — unlike
+      // cancel(), which rejects mid-command and desyncs the next reply.
+      if (this.stopRequested) return;
+      // Cooperative pause: same between-block checkpoint, but the host gate
+      // waits for resume (and manages the pen) instead of bailing.
+      if (this.pauseRequested) {
+        this.pauseRequested = false;
+        if (this.pauseHook) await this.pauseHook();
+        if (trace) prevOkAt = performance.now(); // don't count the pause as a host gap
+      }
+      if (trace) {
+        // gap = host-side time between the previous block's OK and sending this
+        // one (where a GC / event-loop stall would starve a 1-deep FIFO);
+        // rtt = the LM command's send->OK round-trip (board + serial bound,
+        // and at FIFO depth 1 it also includes waiting for the slot to free).
+        const sendAt = performance.now();
+        const gap = sendAt - prevOkAt;
+        await this.executeBlockWithLM(block);
+        const okAt = performance.now();
+        trace.record(index, block.duration * 1000, okAt - sendAt, gap);
+        prevOkAt = okAt;
+      } else {
+        await this.executeBlockWithLM(block);
+      }
+      index += 1;
     }
+    trace?.summarize();
   }
 
   /**

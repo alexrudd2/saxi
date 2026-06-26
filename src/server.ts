@@ -17,24 +17,14 @@ import express from "express";
 import type WebSocket from "ws";
 import { WebSocketServer } from "ws";
 import { EBB, type Hardware } from "./ebb.js";
-import { type Motion, PenMotion, Plan } from "./planning.js";
+import { createInProcessTransport, type HostTransport } from "./node-ebb-host.js";
+import { type MotionData, PenMotion, Plan } from "./planning.js";
+import type { HostEvent } from "./serial-worker-rpc.js";
 import { SerialPortSerialPort } from "./serialport-serialport.js";
 import * as _self from "./server.js"; // use self-import for test mocking
 import { formatDuration } from "./util.js";
 
 type Com = string;
-
-/**
- * Shorthand for getting the device info, either EBB or com port.
- * @param ebb
- * @param com
- * @returns
- */
-const getDeviceInfo = (ebb: EBB | null, _com: Com) => {
-  // biome-ignore lint/suspicious/noExplicitAny: private member access
-  const portPath = (ebb?.port as any)?._path ?? null;
-  return { path: portPath, hardware: ebb?.hardware };
-};
 
 /**
  * Start the express server.
@@ -64,14 +54,29 @@ export async function startServer(
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server });
 
-  let ebb: EBB | null;
+  // The EBB + plot loop now runs off the server's main thread, in the shared
+  // host (see node-ebb-host.ts / serial-worker-node.ts). The server only tracks
+  // device + plot state, forwards commands to the host, and relays its events to
+  // the ws clients. `transport` is null when no device is connected (sim mode).
+  let transport: HostTransport | null = null;
+  let deviceInfo: { path: string | null; hardware: Hardware } = { path: null, hardware };
+  let connected = false;
   let clients: WebSocket[] = [];
-  let unpaused: Promise<void> | null = null;
-  let signalUnpause: (() => void) | null = null;
   let motionIdx: number | null = null;
-  let currentPlan: Plan | null = null;
+  let currentPlan: MotionData[] | null = null;
   let plotting = false;
-  let controller: AbortController | null = null;
+  let paused = false;
+  let plotBegin = 0;
+  let wakeLock: { release(): void } | null = null;
+  let resolveDisconnect: (() => void) | null = null;
+
+  // Simulation-mode plot state (no device): kept entirely in-process. The real
+  // path drives the host instead and never touches these.
+  let simUnpaused: Promise<void> | null = null;
+  let simSignalUnpause: (() => void) | null = null;
+  let simController: AbortController | null = null;
+
+  const devInfo = () => ({ path: deviceInfo.path, hardware: deviceInfo.hardware });
 
   wss.on("connection", (ws) => {
     clients.push(ws);
@@ -82,33 +87,25 @@ export async function startServer(
           ws.send(JSON.stringify({ c: "pong" }));
           break;
         case "limp":
-          if (ebb) {
-            ebb.disableMotors();
-          }
+          transport?.handle({ kind: "limp" });
           break;
         case "setPenHeight":
-          if (ebb) {
-            (async () => {
-              if (await ebb.supportsSR()) {
-                await ebb.setServoPowerTimeout(10000, true);
-              }
-              await ebb.setPenHeight(msg.p.height, msg.p.rate);
-            })();
-          }
+          transport?.handle({ kind: "setPenHeight", height: msg.p.height, rate: msg.p.rate });
           break;
         case "changeHardware":
-          ebb?.changeHardware(msg.p.hardware);
-          broadcast({ c: "dev", p: getDeviceInfo(ebb, com) });
+          deviceInfo = { ...deviceInfo, hardware: msg.p.hardware };
+          transport?.handle({ kind: "changeHardware", hardware: msg.p.hardware });
+          broadcast({ c: "dev", p: devInfo() });
           break;
       }
     });
 
     // send starting params to clients
-    ws.send(JSON.stringify({ c: "dev", p: getDeviceInfo(ebb, com) }));
+    ws.send(JSON.stringify({ c: "dev", p: devInfo() }));
 
     ws.send(JSON.stringify({ c: "svgio-enabled", p: svgIoApiKey !== "" }));
 
-    ws.send(JSON.stringify({ c: "pause", p: { paused: !!unpaused } }));
+    ws.send(JSON.stringify({ c: "pause", p: { paused } }));
     if (motionIdx != null) {
       ws.send(JSON.stringify({ c: "progress", p: { motionIdx } }));
     }
@@ -121,6 +118,78 @@ export async function startServer(
     });
   });
 
+  /** Relay host lifecycle events to the ws clients and track server-side state. */
+  function handleHostEvent(event: HostEvent): void {
+    switch (event.kind) {
+      case "ready":
+        connected = true;
+        broadcast({ c: "dev", p: devInfo() });
+        break;
+      case "progress":
+        motionIdx = event.motionIdx;
+        broadcast({ c: "progress", p: { motionIdx } });
+        break;
+      case "paused":
+        paused = event.paused;
+        broadcast({ c: "pause", p: { paused } });
+        break;
+      case "finished":
+        broadcast({ c: "finished" });
+        endPlot();
+        break;
+      case "cancelled":
+        broadcast({ c: "cancelled" });
+        endPlot();
+        break;
+      case "error":
+        console.error(`[serial-host] ${event.message}`);
+        // Before "ready" this means the port never opened — drop the connection
+        // so the connect loop retries. During a plot, end it so the server unsticks.
+        if (!connected) resolveDisconnect?.();
+        else if (plotting) endPlot();
+        break;
+      case "disconnected":
+        connected = false;
+        // A disconnect mid-plot won't produce finished/cancelled, so end it here
+        // (frees the wake lock and clears `plotting`) before reconnecting.
+        if (plotting) {
+          broadcast({ c: "cancelled" });
+          endPlot();
+        }
+        resolveDisconnect?.();
+        break;
+    }
+  }
+
+  /** Clear plot state once a plot ends (finished / cancelled / failed). */
+  function endPlot(): void {
+    if (plotting) {
+      console.log(`Plot took ${formatDuration((Date.now() - plotBegin) / 1000)}`);
+    }
+    plotting = false;
+    paused = false;
+    motionIdx = null;
+    currentPlan = null;
+    if (wakeLock) {
+      wakeLock.release();
+      wakeLock = null;
+    }
+  }
+
+  async function acquireWakeLock(): Promise<void> {
+    // The wake-lock module is macOS-only.
+    if (process.platform === "darwin") {
+      try {
+        const { WakeLock } = await import("wake-lock");
+        wakeLock = new WakeLock("saxi plotting");
+      } catch (_error) {
+        console.warn("Couldn't acquire wake lock. Ensure your machine does not sleep during plotting");
+      }
+    } else {
+      console.log("Wake lock not available on this platform. Ensure your machine does not sleep during plotting");
+    }
+  }
+
   /**
    * /plot POST endpoint. Receive a plan on the POST body, and execute it.
    */
@@ -130,43 +199,36 @@ export async function startServer(
       res.status(400).send("Plot in progress");
       return;
     }
-    plotting = true;
-    controller = new AbortController();
-    const { signal } = controller;
+    let plan: Plan;
     try {
-      const plan = Plan.deserialize(req.body);
-      currentPlan = req.body;
-      console.log(`Received plan of estimated duration ${formatDuration(plan.duration())}`);
-      console.log(ebb != null ? "Beginning plot..." : "Simulating plot...");
-      res.status(200).end();
+      plan = Plan.deserialize(req.body);
+    } catch (_e) {
+      res.status(500).send("Malformed plan");
+      return;
+    }
 
-      const begin = Date.now();
-      let wakeLock: { release(): void } | null = null;
+    plotting = true;
+    paused = false;
+    motionIdx = 0;
+    currentPlan = req.body;
+    plotBegin = Date.now();
+    console.log(`Received plan of estimated duration ${formatDuration(plan.duration())}`);
+    console.log(transport != null ? "Beginning plot..." : "Simulating plot...");
+    res.status(200).end();
 
-      // The wake-lock module is macOS-only.
-      if (process.platform === "darwin") {
-        try {
-          // Dynamically import wake-lock only on macOS
-          const { WakeLock } = await import("wake-lock");
-          wakeLock = new WakeLock("saxi plotting");
-        } catch (_error) {
-          console.warn("Couldn't acquire wake lock. Ensure your machine does not sleep during plotting");
-        }
-      } else {
-        console.log("Wake lock not available on this platform. Ensure your machine does not sleep during plotting");
-      }
-      try {
-        await doPlot(ebb != null ? realPlotter : simPlotter, plan, signal);
-        const end = Date.now();
-        console.log(`Plot took ${formatDuration((end - begin) / 1000)}`);
-      } finally {
-        if (wakeLock) {
-          wakeLock.release();
-        }
-      }
-    } finally {
-      plotting = false;
-      controller = null;
+    await acquireWakeLock();
+
+    if (transport) {
+      // The worker host runs the whole plot loop and reports back via events
+      // (progress / paused / finished / cancelled), which endPlot()s the server.
+      transport.handle({ kind: "plot", plan: req.body });
+    } else {
+      // No device: simulate the plot in-process so the UI preview still animates.
+      simulatePlot(plan).catch((err) => {
+        console.error("Simulated plot failed:", err);
+        broadcast({ c: "cancelled" });
+        endPlot();
+      });
     }
   });
 
@@ -175,23 +237,28 @@ export async function startServer(
   });
 
   app.post("/cancel", (_req: Request, res: Response) => {
-    if (controller) {
-      controller.abort();
-      controller = null;
+    if (transport) {
+      transport.handle({ kind: "cancel" });
+    } else {
+      // Sim mode: abort the in-process loop and release any pause gate.
+      simController?.abort();
+      simController = null;
+      if (simSignalUnpause) {
+        simSignalUnpause();
+        simSignalUnpause = simUnpaused = null;
+      }
     }
-    ebb?.cancel();
-    if (unpaused) {
-      signalUnpause?.();
-      broadcast({ c: "pause", p: { paused: false } });
-    }
-    unpaused = signalUnpause = null;
     res.status(200).end();
   });
 
   app.post("/pause", (_req: Request, res: Response) => {
-    if (!unpaused) {
-      unpaused = new Promise((resolve) => {
-        signalUnpause = resolve;
+    if (transport) {
+      // The host emits a "paused" event, which broadcasts to the clients.
+      transport.handle({ kind: "pause" });
+    } else if (!simUnpaused) {
+      paused = true;
+      simUnpaused = new Promise((resolve) => {
+        simSignalUnpause = resolve;
       });
       broadcast({ c: "pause", p: { paused: true } });
     }
@@ -199,9 +266,13 @@ export async function startServer(
   });
 
   app.post("/resume", (_req: Request, res: Response) => {
-    if (signalUnpause) {
-      signalUnpause();
-      signalUnpause = unpaused = null;
+    if (transport) {
+      transport.handle({ kind: "resume" });
+    } else if (simSignalUnpause) {
+      paused = false;
+      simSignalUnpause();
+      simSignalUnpause = simUnpaused = null;
+      broadcast({ c: "pause", p: { paused: false } });
     }
     res.status(200).end();
   });
@@ -242,89 +313,45 @@ export async function startServer(
     }
   }
 
-  interface Plotter {
-    prePlot: (initialPenHeight: number) => Promise<void>;
-    executeMotion: (m: Motion, progress: [number, number]) => Promise<void>;
-    postCancel: (initialPenHeight: number) => Promise<void>;
-    postPlot: () => Promise<void>;
-  }
-
-  const realPlotter: Plotter = {
-    async prePlot(initialPenHeight: number): Promise<void> {
-      await ebb.configureFifoDepth();
-      await ebb.enableMotors(1); // 16x microstepping, matches defaults from Axidraw
-      await ebb.setPenHeight(initialPenHeight, 1000, 1000);
-    },
-    async executeMotion(motion: Motion, _progress: [number, number]): Promise<void> {
-      await ebb.executeMotion(motion);
-    },
-    async postCancel(initialPenHeight: number): Promise<void> {
-      // The board may still be executing motion queued in its FIFO; issuing
-      // HM while moving makes the steppers grind against whatever they're doing.
-      await ebb.waitUntilMotorsIdle();
-      await ebb.setPenHeight(initialPenHeight, 1000);
-      await ebb.command("HM,4000"); // HM returns carriage home without 3rd and 4th arguments
-    },
-    async postPlot(): Promise<void> {
-      await ebb.waitUntilMotorsIdle();
-      await ebb.disableMotors();
-    },
-  };
-
-  const simPlotter: Plotter = {
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    async prePlot(_initialPenHeight: number): Promise<void> {},
-    async executeMotion(motion: Motion, progress: [number, number]): Promise<void> {
-      console.log(`Motion ${progress[0] + 1}/${progress[1]}`);
-      await new Promise((resolve) => setTimeout(resolve, motion.duration() * 1000));
-    },
-    async postCancel(_initialPenHeight: number): Promise<void> {
-      console.log("Plot cancelled");
-    },
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    async postPlot(): Promise<void> {},
-  };
-
-  async function doPlot(plotter: Plotter, plan: Plan, signal: AbortSignal): Promise<void> {
-    const abortPromise = onceAbort(signal); // reuse abort promise
-    unpaused = null;
-    signalUnpause = null;
-    motionIdx = 0;
-
-    const firstPenMotion = plan.motions.find((x) => x instanceof PenMotion) as PenMotion;
-    await plotter.prePlot(firstPenMotion.initialPos);
+  /**
+   * In-process plot simulation, used only when no device is connected, so the
+   * UI preview still animates. The real path runs the whole loop in the host.
+   */
+  async function simulatePlot(plan: Plan): Promise<void> {
+    const controller = new AbortController();
+    simController = controller;
+    const { signal } = controller;
+    const abort = onceAbort(signal);
 
     let penIsUp = true;
     try {
-      for (const motion of plan.motions) {
+      for (const [i, motion] of plan.motions.entries()) {
+        motionIdx = i;
         broadcast({ c: "progress", p: { motionIdx } });
-
-        await Promise.race([plotter.executeMotion(motion, [motionIdx, plan.motions.length]), abortPromise]);
+        console.log(`Motion ${i + 1}/${plan.motions.length}`);
+        await Promise.race([sleep(motion.duration() * 1000), abort]);
 
         if (motion instanceof PenMotion) {
           penIsUp = motion.initialPos < motion.finalPos;
         }
-
-        if (unpaused && penIsUp) {
-          await Promise.race([unpaused, abortPromise]);
-          broadcast({ c: "pause", p: { paused: false } });
+        // Hold at motion boundaries while paused (only with the pen up, so we
+        // never stop mid-stroke), matching the host's pause behavior.
+        if (simUnpaused && penIsUp) {
+          await Promise.race([simUnpaused, abort]);
         }
-
-        motionIdx += 1;
       }
-
       broadcast({ c: "finished" });
     } catch (err) {
       if (signal.aborted) {
-        await plotter.postCancel(firstPenMotion.initialPos);
+        console.log("Plot cancelled");
         broadcast({ c: "cancelled" });
-        return;
+      } else {
+        throw err;
       }
-      throw err; // propagate real errors
     } finally {
-      motionIdx = null;
-      currentPlan = null;
-      await plotter.postPlot();
+      simController = null;
+      simUnpaused = simSignalUnpause = null;
+      endPlot();
     }
   }
 
@@ -335,16 +362,53 @@ export async function startServer(
     });
   }
 
+  /**
+   * Discover the EBB, hand its serial path to the off-thread host, and keep the
+   * connection alive — reconnecting when the device drops (mirroring the old
+   * ebbs() generator). The host owns the port: a worker_thread in production, or
+   * an in-process host under vitest so the mocked serialport applies.
+   */
+  async function connectLoop(): Promise<void> {
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      // Did this attempt reach a live connection? If not (open failed, which the
+      // worker reports as an event rather than a throw), back off before retrying
+      // so a bad/busy port doesn't hot-loop.
+      let everConnected = false;
+      const disconnected = new Promise<void>((resolve) => {
+        resolveDisconnect = resolve;
+      });
+      try {
+        const dev: Com = com || (await _self.waitForEbb()); // self-import for test mocking
+        console.log(`Found EBB at ${dev}`);
+        deviceInfo = { path: dev, hardware: deviceInfo.hardware };
+        // Runs the shared host in-process: serialport's native binding faults
+        // ("HandleScope without locking") when driven from a worker_thread, so
+        // unlike the browser (WebSerial worker) the Node loop stays on the main
+        // thread. The deep FIFO (#309) is what keeps it stutter-free here.
+        transport = await createInProcessTransport(dev, deviceInfo.hardware, handleHostEvent);
+        await disconnected;
+        everConnected = connected;
+        console.error(everConnected ? "Lost connection to EBB, reconnecting..." : "Couldn't open EBB, retrying...");
+      } catch (e) {
+        const err = e instanceof Error ? e : new Error(String(e));
+        console.error(`Error connecting to EBB: ${err.message}`);
+      } finally {
+        resolveDisconnect = null;
+        connected = false;
+        const t = transport;
+        transport = null;
+        await t?.close().catch(() => {});
+        deviceInfo = { path: null, hardware: deviceInfo.hardware };
+        broadcast({ c: "dev", p: devInfo() });
+      }
+      if (!everConnected) await sleep(5000);
+    }
+  }
+
   return new Promise<http.Server>((resolve) => {
     server.listen(port, () => {
-      async function connect() {
-        const devices = ebbs(com, hardware);
-        for await (const device of devices) {
-          ebb = device;
-          broadcast({ c: "dev", p: getDeviceInfo(ebb, com) });
-        }
-      }
-      connect();
+      connectLoop();
       const { family, address, port } = server.address() as AddressInfo;
       const addr = `${family === "IPv6" ? `[${address}]` : address}:${port}`;
       console.log(`Server listening on http://${addr}`);
@@ -385,28 +449,6 @@ export async function waitForEbb(): Promise<Com> {
       return ebbs[0];
     }
     await sleep(5000);
-  }
-}
-
-async function* ebbs(path?: string, hardware: Hardware = "v3") {
-  while (true) {
-    try {
-      const com: Com = path || (await _self.waitForEbb()); // use self-import for test mocking
-      console.log(`Found EBB at ${com}`);
-      const port = await tryOpen(com);
-      const closed = new Promise((resolve) => {
-        port.addEventListener("disconnect", resolve, { once: true });
-      });
-      yield new EBB(port, hardware);
-      await closed;
-      yield null;
-      console.error("Lost connection to EBB, reconnecting...");
-    } catch (e) {
-      const err = e instanceof Error ? e : new Error(String(e));
-      console.error(`Error connecting to EBB: ${err.message}`);
-      console.error("Retrying in 5 seconds...");
-      await sleep(5000);
-    }
   }
 }
 
