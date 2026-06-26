@@ -338,7 +338,7 @@ function sortedIndex(array: ArrayLike<number>, obj: number): number {
 // major GCs must mark every live object, repeatedly, for the multi-hour
 // duration of a plot; large typed arrays are marked in O(1). See PERF_PLAN.md
 // (workstream A).
-const STRIDE = 7;
+const STRIDE = 8;
 const ACCEL = 0;
 const DURATION = 1;
 const V_INITIAL = 2;
@@ -346,6 +346,7 @@ const P1X = 3;
 const P1Y = 4;
 const P2X = 5;
 const P2Y = 6;
+const DIST = 7;
 
 /**
  * Validate a block's velocities and write it into the column array at index i.
@@ -377,6 +378,7 @@ function packBlock(
   cols[base + P1Y] = p1y;
   cols[base + P2X] = p2x;
   cols[base + P2Y] = p2y;
+  cols[base + DIST] = Math.hypot(p2x - p1x, p2y - p1y);
 }
 
 /**
@@ -500,14 +502,22 @@ export class XYMotion implements Motion {
     const accel = this.cols[base + ACCEL];
     const duration = this.cols[base + DURATION];
     const vInitial = this.cols[base + V_INITIAL];
-    const p1: Vec2 = { x: this.cols[base + P1X], y: this.cols[base + P1Y] };
-    const p2: Vec2 = { x: this.cols[base + P2X], y: this.cols[base + P2Y] };
-    const distance = vlen(vsub(p1, p2));
+    const p1x = this.cols[base + P1X];
+    const p1y = this.cols[base + P1Y];
+    const p2x = this.cols[base + P2X];
+    const p2y = this.cols[base + P2Y];
+    const distance = this.cols[base + DIST];
     const t = Math.max(0, Math.min(duration, tU));
     const v = vInitial + accel * t;
-    const s = Math.max(0, Math.min(distance, vInitial * t + (accel * t * t) / 2));
-    const p = vadd(p1, vmul(vnorm(vsub(p2, p1)), s));
-    return { t: t + dt, p, s: s + ds, v, a: accel };
+    const s = distance > 0
+      ? Math.max(0, Math.min(distance, vInitial * t + (accel * t * t) / 2))
+      : 0;
+    const frac = distance > 0 ? s / distance : 0;
+    return {
+      t: t + dt,
+      p: { x: p1x + (p2x - p1x) * frac, y: p1y + (p2y - p1y) * frac },
+      s: s + ds, v, a: accel,
+    };
   }
 
   public serialize(): XYMotionData {
