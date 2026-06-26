@@ -137,10 +137,9 @@ class BlockTimingTrace {
 /**
  * The minimal serial transport the EBB needs: a byte stream in each direction
  * plus a close hook. A WebSerial/Node `SerialPort` satisfies this structurally,
- * and so does a pair of streams transferred into a worker (see ebb-worker),
- * which is how the EBB runs off the main thread in the browser build.
+ * but so does any pair of intermediate streams (such as to/from a worker)
  */
-export interface SerialChannel {
+export interface EBBPort {
   readable: ReadableStream<Uint8Array>;
   writable: WritableStream<Uint8Array>;
   close(): Promise<void>;
@@ -152,7 +151,7 @@ type CommandGenerator<TReturn = unknown> = Iterator<unknown, TReturn, string> & 
 };
 
 export class EBB {
-  public port: SerialChannel;
+  public port: EBBPort;
   private commandQueue: CommandGenerator[];
   private writer: WritableStreamDefaultWriter<Uint8Array>;
   private reader: ReadableStreamDefaultReader<Uint8Array>;
@@ -180,7 +179,7 @@ export class EBB {
    */
   private pauseHook: (() => Promise<void>) | null = null;
 
-  public constructor(port: SerialChannel, hardware: Hardware = "v3") {
+  public constructor(port: EBBPort, hardware: Hardware = "v3") {
     this.hardware = hardware;
     this.port = port;
     this.writer = this.port.writable.getWriter();
