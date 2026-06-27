@@ -235,7 +235,7 @@ export class SaxiDriver extends BaseDriver {
           this.onpause(msg.p.paused);
         } break;
         case "plan": {
-          this.onplan(Plan.deserialize(msg.p.plan));
+          this.onplan(Plan.fromTransferable(msg.p.motions));
         } break;
         default: {
           console.log("Unknown message from server:", msg);
@@ -255,6 +255,8 @@ export class SaxiDriver extends BaseDriver {
   }
 
   public plot(plan: Plan) {
+    // const motions = plan.toTransferable();
+    // this.send({ c: "plot", p: { motions } });
     fetch("/plot", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
