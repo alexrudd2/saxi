@@ -181,7 +181,7 @@ export function cli(argv: string[]): void {
           paperSize,
           marginMm: args.margin,
           hardware: args.hardware,
-          penHome: {"x": 0, "y": 0},
+          penHome: { x: 0, y: 0 },
 
           selectedGroupLayers: new Set([]), // TODO
           selectedStrokeLayers: new Set([]), // TODO
@@ -228,7 +228,11 @@ export function cli(argv: string[]): void {
       "put the pen to [percent]",
       (yargs) =>
         yargs
-          .positional("percent", { type: "number", description: "percent height between 0 and 100", demandOption: true })
+          .positional("percent", {
+            type: "number",
+            description: "percent height between 0 and 100",
+            demandOption: true,
+          })
           .check((args) => args.percent >= 0 && args.percent <= 100),
       async (args) => {
         console.log("connecting to plotter...");

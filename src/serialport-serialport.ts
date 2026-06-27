@@ -16,7 +16,7 @@ function readableStreamFromAsyncIterable<T>(iterable: AsyncIterable<T>) {
       },
       async cancel() {
         await it.return?.();
-      }
+      },
     },
     { highWaterMark: 0 },
   );

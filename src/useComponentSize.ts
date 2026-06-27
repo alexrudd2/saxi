@@ -4,7 +4,6 @@ https://github.com/rehooks/component-size
 Minor edits made to port to TS
 */
 
-
 import { useCallback, useLayoutEffect, useState } from "react";
 
 interface ComponentSize {
@@ -60,7 +59,8 @@ export default function useComponentSize<T extends HTMLElement = HTMLElement>(re
 
     return () => {
       window.removeEventListener("resize", handleResize);
-    };  }, [ref.current]);
+    };
+  }, [ref.current]);
 
   return componentSize;
 }
