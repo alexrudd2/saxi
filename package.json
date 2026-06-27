@@ -24,6 +24,7 @@
   "scripts": {
     "prebuild": "npm run lint",
     "lint": "biome lint src",
+    "format": "biome format --write",
     "build": "npm run build:server && npm run build:ui",
     "build:server": "tsc --project tsconfig.server.json",
     "build:ui": "node --experimental-modules build.mjs",
@@ -53,7 +54,7 @@
     "esbuild": "^0.28.0",
     "esbuild-plugin-inline-worker": "^0.1.1",
     "gh-pages": "^6.0.0",
-    "rimraf": "^5.0.0 || ^6.0.0",
+    "rimraf": "^6.0.0",
     "semver": "^7.5.2",
     "supertest": "^7.0.0",
     "typescript": "^5.0",
@@ -87,7 +88,6 @@
   },
   "allowScripts": {
     "esbuild@0.28.1": true,
-    "esbuild@0.27.7": true,
     "wake-lock@0.2.0": true,
     "@serialport/bindings-cpp@13.0.0": true
   }
