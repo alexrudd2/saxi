@@ -135,7 +135,7 @@ export async function startServer(
     const { signal } = controller;
     try {
       const plan = Plan.deserialize(req.body);
-      currentPlan = req.body;
+      currentPlan = plan;
       console.log(`Received plan of estimated duration ${formatDuration(plan.duration())}`);
       console.log(ebb != null ? "Beginning plot..." : "Simulating plot...");
       res.status(200).end();
