@@ -478,6 +478,12 @@ export class XYMotion implements Motion {
   }
 }
 
+// can be serialized to JSON for POST in the SaxiDriver
+export type SerializedMotion =
+  | { type: "xy"; length: number; cols: number[]; ts: number[]; ss: number[] }
+  | { type: "pen"; initialPos: number; finalPos: number; duration: number };
+
+// for efficient transfers with the worker
 export type TransferredMotion =
   | { type: "xy"; length: number; cols: ArrayBuffer; ts: ArrayBuffer; ss: ArrayBuffer }
   | { type: "pen"; initialPos: number; finalPos: number; duration: number };
@@ -489,40 +495,55 @@ export type TransferredMotion =
 export class Plan {
   constructor(public motions: (XYMotion | PenMotion)[]) {}
 
-  public serialize(): TransferredMotion[] {
+  public serialize(): SerializedMotion[] {
     return this.motions.map((m) => {
       if (m instanceof XYMotion) {
         return {
-          type: "xy",
+          type: "xy" as const,
           length: m.length,
           cols: Array.from(m.cols),
           ts: Array.from(m.ts),
           ss: Array.from(m.ss),
-        } as unknown as TransferredMotion;
+        };
       }
-      return {
-        type: "pen",
-        initialPos: m.initialPos,
-        finalPos: m.finalPos,
-        duration: m.pDuration,
-      } as TransferredMotion;
+      return { type: "pen" as const, initialPos: m.initialPos, finalPos: m.finalPos, duration: m.pDuration };
     });
   }
 
-  public static deserialize(data: TransferredMotion[]): Plan {
+  public static deserialize(data: SerializedMotion[]): Plan {
     return new Plan(
       data.map((m) =>
         m.type === "xy"
-          ? XYMotion.fromBuffers(
-              new Float64Array(m.cols as unknown as ArrayLike<number>),
-              new Float64Array(m.ts as unknown as ArrayLike<number>),
-              new Float64Array(m.ss as unknown as ArrayLike<number>),
-              m.length,
-            )
+          ? XYMotion.fromBuffers(new Float64Array(m.cols), new Float64Array(m.ts), new Float64Array(m.ss), m.length)
           : new PenMotion(m.initialPos, m.finalPos, m.duration),
       ),
     );
   }
+
+  public toTransferable(): TransferredMotion[] {
+    return this.motions.map((m) => {
+      if (m instanceof XYMotion) {
+        return {
+          type: "xy" as const,
+          length: m.length,
+          cols: m.cols.buffer,
+          ts: m.ts.buffer,
+          ss: m.ss.buffer,
+        };
+      }
+      return { type: "pen" as const, initialPos: m.initialPos, finalPos: m.finalPos, duration: m.pDuration };
+    });
+  }
+  public static fromTransferable(data: TransferredMotion[]): Plan {
+    return new Plan(
+      data.map((m) =>
+        m.type === "xy"
+          ? XYMotion.fromBuffers(new Float64Array(m.cols), new Float64Array(m.ts), new Float64Array(m.ss), m.length)
+          : new PenMotion(m.initialPos, m.finalPos, m.duration),
+      ),
+    );
+  }
+
   /**
    * Calculate duration of the plan from a given start index.
    * @param start - the index of the first motion to consider (default: 0)
@@ -557,24 +578,6 @@ export class Plan {
         }
         throw new Error(`Wrong motion ${motion}`);
       }),
-    );
-  }
-
-  public toTransferable(): TransferredMotion[] {
-    return this.motions.map((m) => {
-      if (m instanceof XYMotion) {
-        return { type: "xy", length: m.length, cols: m.cols.buffer, ts: m.ts.buffer, ss: m.ss.buffer };
-      }
-      return { type: "pen", initialPos: m.initialPos, finalPos: m.finalPos, duration: m.pDuration };
-    });
-  }
-  public static fromTransferable(data: TransferredMotion[]): Plan {
-    return new Plan(
-      data.map((m) =>
-        m.type === "xy"
-          ? XYMotion.fromBuffers(new Float64Array(m.cols), new Float64Array(m.ts), new Float64Array(m.ss), m.length)
-          : new PenMotion(m.initialPos, m.finalPos, m.duration),
-      ),
     );
   }
 }
