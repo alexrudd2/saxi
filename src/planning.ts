@@ -306,11 +306,7 @@ function sortedIndex(array: ArrayLike<number>, obj: number): number {
 
 // Flat column layout for an XYMotion's blocks: one interleaved Float64Array,
 // STRIDE numbers per block. Storing blocks as columns instead of ~3 heap
-// objects each (a Block plus two Vec2) collapses a 95k-block plan from ~500k
-// live objects to a handful of large typed arrays. This matters because V8's
-// major GCs must mark every live object, repeatedly, for the multi-hour
-// duration of a plot; large typed arrays are marked in O(1). See PERF_PLAN.md
-// (workstream A).
+// objects each (a Block plus two Vec2) saves significant memory and GC pressure
 const STRIDE = 8;
 const ACCEL = 0;
 const DURATION = 1;
@@ -449,21 +445,6 @@ export class XYMotion implements Motion {
     }
     pts[this.length] = this.p2;
     return pts;
-  }
-
-  /**
-   * Allocate a throwaway Block view of block i. For tests and the UI only —
-   * must never be called from the streaming loop, which reads columns directly.
-   */
-  public block(i: number): Block {
-    const base = i * STRIDE;
-    return new Block(
-      this.cols[base + ACCEL],
-      this.cols[base + DURATION],
-      this.cols[base + V_INITIAL],
-      { x: this.cols[base + P1X], y: this.cols[base + P1Y] },
-      { x: this.cols[base + P2X], y: this.cols[base + P2Y] },
-    );
   }
 
   public instant(t: number): Instant {

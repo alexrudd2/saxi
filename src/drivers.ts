@@ -255,8 +255,13 @@ export class SaxiDriver extends BaseDriver {
   }
 
   public plot(plan: Plan) {
-    const motions = plan.toTransferable();
-    this.send({ c: "plot", p: { motions } });
+    // const motions = plan.toTransferable();
+    // this.send({ c: "plot", p: { motions } });
+    fetch("/plot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(plan.serialize()),
+    });
   }
 
   public cancel() {
