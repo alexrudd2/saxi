@@ -86,7 +86,10 @@ export class EBB {
   public constructor(port: EBBPort, hardware: Hardware = "v3") {
     this.hardware = hardware;
     this.port = port;
-    this.writer = this.port.writable.getWriter();
+    if (!port.readable || !port.writable) {
+      throw new Error("Serial port opened but readable/writable streams are unavailable");
+    }
+    this.writer = port.writable.getWriter();
     this.commandQueue = [];
 
     let buffer = "";
@@ -124,9 +127,9 @@ export class EBB {
           },
         }),
       )
-      .catch((error) => {
+      .catch((error: unknown) => {
         // Swallow premature close error; the disconnect handler takes care of it
-        if (error.code !== "ERR_STREAM_PREMATURE_CLOSE") {
+        if ((error as NodeJS.ErrnoException).code !== "ERR_STREAM_PREMATURE_CLOSE") {
           throw error;
         }
       });
@@ -163,7 +166,7 @@ export class EBB {
   /** Send a raw command to the EBB and expect a single line in return, without an "OK" line to terminate. */
   public async query(cmd: EBBQuery): Promise<string> {
     try {
-      return await this.run(function* (): Iterator<string, string, string> {
+      return await this.run(function* (this: EBB): Iterator<string, string, string> {
         this.write(`${cmd}\r`);
         const result = yield;
         return result;
@@ -176,7 +179,7 @@ export class EBB {
   /** Send a raw command to the EBB and expect multiple lines in return, with an "OK" line to terminate. */
   public async queryM(cmd: EBBQueryM): Promise<string[]> {
     try {
-      return await this.run(function* (): Iterator<string[], string[], string> {
+      return await this.run(function* (this: EBB): Iterator<string[], string[], string> {
         this.write(`${cmd}\r`);
         const result: string[] = [];
         while (true) {

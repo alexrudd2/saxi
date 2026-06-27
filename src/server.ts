@@ -356,6 +356,9 @@ export async function startServer(
 async function tryOpen(com: Com) {
   const port = new SerialPortSerialPort(com);
   await port.open({ baudRate: 9600 });
+  if (!port.readable || !port.writable) {
+    throw new Error("Serial port opened but readable/writable streams are unavailable");
+  }
   return port;
 }
 

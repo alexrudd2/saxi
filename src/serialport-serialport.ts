@@ -34,8 +34,8 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
     this._path = path;
   }
 
-  public onconnect: ((this: this, ev: Event) => void) | null = null;
-  public ondisconnect: ((this: this, ev: Event) => void) | null = null;
+  public onconnect: ((this: SerialPort, ev: Event) => void) | null = null;
+  public ondisconnect: ((this: SerialPort, ev: Event) => void) | null = null;
   public readable!: ReadableStream<Uint8Array>;
   public writable!: WritableStream<Uint8Array>;
   public connected = false;
@@ -115,7 +115,7 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
 
   public addEventListener(
     type: "connect" | "disconnect",
-    listener: (this: this, ev: Event) => void,
+    listener: (this: SerialPort, ev: Event) => void,
     useCapture?: boolean,
   ): void;
   public addEventListener(
@@ -134,7 +134,7 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
 
   public removeEventListener(
     type: "connect" | "disconnect",
-    callback: (this: this, ev: Event) => void,
+    callback: (this: SerialPort, ev: Event) => void,
     useCapture?: boolean,
   ): void;
   public removeEventListener(
