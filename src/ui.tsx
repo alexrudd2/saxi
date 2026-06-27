@@ -18,7 +18,7 @@ import React, {
 } from "react";
 import { createRoot } from "react-dom/client";
 import { PaperSize } from "./paper-size";
-import { Device, defaultPlanOptions, type MotionData, Plan, type PlanOptions, XYMotion } from "./planning.js";
+import { Device, defaultPlanOptions, Plan, type PlanOptions, type TransferredMotion, XYMotion } from "./planning.js";
 import useComponentSize from "./useComponentSize.js";
 
 import { formatDuration } from "./util.js";
@@ -185,12 +185,12 @@ const usePlan = (paths: Path[] | null, planOptions: PlanOptions) => {
     // during structured cloning. Should use: { paths, planOptions: JSON.parse(serialize(planOptions)) }
     worker.postMessage({ paths, planOptions });
     console.timeEnd("posting to worker");
-    const listener = (m: Record<"data", MotionData[]>) => {
+    const listener = (m: MessageEvent<TransferredMotion[]>) => {
       console.time("deserializing");
-      const deserialized = Plan.deserialize(m.data);
+      const plan = Plan.fromTransferable(m.data);
       console.timeEnd("deserializing");
-      setPlan(deserialized);
-      lastPlan.current = deserialized;
+      setPlan(plan);
+      lastPlan.current = plan;
       lastPlanOptions.current = planOptions;
       setIsPlanning(false);
     };

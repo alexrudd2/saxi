@@ -201,23 +201,7 @@ export const NextDraw2234Fast: ToolingProfile = {
   penLiftDuration: 0.08,
 };
 
-/**
- * A Motion Block, where the pen moves with a constant acceleration, from
- * a start to an end point, and initial to final velocity.
- */
-interface BlockData {
-  accel: number;
-  duration: number;
-  vInitial: number;
-  p1: Vec2;
-  p2: Vec2;
-}
-
 export class Block {
-  public static deserialize(o: BlockData): Block {
-    return new Block(o.accel, o.duration, o.vInitial, o.p1, o.p2);
-  }
-
   public distance: number;
 
   constructor(
@@ -260,21 +244,10 @@ export class Block {
     const p = vadd(this.p1, vmul(vnorm(vsub(this.p2, this.p1)), s));
     return { t: t + dt, p, s: s + ds, v, a };
   }
-
-  public serialize(): BlockData {
-    return {
-      accel: this.accel,
-      duration: this.duration,
-      vInitial: this.vInitial,
-      p1: this.p1,
-      p2: this.p2,
-    };
-  }
 }
 
 export interface Motion {
   duration(): number;
-  serialize(): MotionData;
 }
 
 /**
@@ -396,36 +369,39 @@ export class XYMotion implements Motion {
     return new XYMotion(cols, blocks.length);
   }
 
-  public static deserialize(o: XYMotionData): XYMotion {
-    const cols = new Float64Array(o.blocks.length * STRIDE);
-    for (let i = 0; i < o.blocks.length; i++) {
-      const b = o.blocks[i];
-      packBlock(cols, i, b.accel, b.duration, b.vInitial, b.p1.x, b.p1.y, b.p2.x, b.p2.y);
-    }
-    return new XYMotion(cols, o.blocks.length);
-  }
-
   /** Number of blocks. */
   public readonly length: number;
-  private cols: Float64Array;
+  public cols: Float64Array;
   // Prefix sums: ts[i]/ss[i] are the elapsed time/distance at block i's start.
-  private ts: Float64Array;
-  private ss: Float64Array;
+  public ts: Float64Array;
+  public ss: Float64Array;
 
-  private constructor(cols: Float64Array, length: number) {
+  private constructor(cols: Float64Array, length: number, ts?: Float64Array, ss?: Float64Array) {
     this.cols = cols;
     this.length = length;
-    this.ts = new Float64Array(length);
-    this.ss = new Float64Array(length);
-    let t = 0;
-    let s = 0;
-    for (let i = 0; i < length; i++) {
-      const base = i * STRIDE;
-      this.ts[i] = t;
-      this.ss[i] = s;
-      t += cols[base + DURATION];
-      s += Math.hypot(cols[base + P2X] - cols[base + P1X], cols[base + P2Y] - cols[base + P1Y]);
+
+    if (ts && ss) {
+      // transferred from worker
+      this.ts = ts;
+      this.ss = ss;
+    } else {
+      // computed locally
+      this.ts = new Float64Array(length);
+      this.ss = new Float64Array(length);
+      let t = 0;
+      let s = 0;
+      for (let i = 0; i < length; i++) {
+        const base = i * STRIDE;
+        this.ts[i] = t;
+        this.ss[i] = s;
+        t += cols[base + DURATION];
+        s += Math.hypot(cols[base + P2X] - cols[base + P1X], cols[base + P2Y] - cols[base + P1Y]);
+      }
     }
+  }
+
+  public static fromBuffers(cols: Float64Array, ts: Float64Array, ss: Float64Array, length: number): XYMotion {
+    return new XYMotion(cols, length, ts, ss);
   }
 
   // Per-block column accessors for the hot streaming loop (no Block allocation).
@@ -509,55 +485,63 @@ export class XYMotion implements Motion {
     const distance = this.cols[base + DIST];
     const t = Math.max(0, Math.min(duration, tU));
     const v = vInitial + accel * t;
-    const s = distance > 0
-      ? Math.max(0, Math.min(distance, vInitial * t + (accel * t * t) / 2))
-      : 0;
+    const s = distance > 0 ? Math.max(0, Math.min(distance, vInitial * t + (accel * t * t) / 2)) : 0;
     const frac = distance > 0 ? s / distance : 0;
     return {
       t: t + dt,
       p: { x: p1x + (p2x - p1x) * frac, y: p1y + (p2y - p1y) * frac },
-      s: s + ds, v, a: accel,
+      s: s + ds,
+      v,
+      a: accel,
     };
   }
-
-  public serialize(): XYMotionData {
-    const blocks: BlockData[] = new Array(this.length);
-    for (let i = 0; i < this.length; i++) {
-      const base = i * STRIDE;
-      blocks[i] = {
-        accel: this.cols[base + ACCEL],
-        duration: this.cols[base + DURATION],
-        vInitial: this.cols[base + V_INITIAL],
-        p1: { x: this.cols[base + P1X], y: this.cols[base + P1Y] },
-        p2: { x: this.cols[base + P2X], y: this.cols[base + P2Y] },
-      };
-    }
-    return { blocks };
-  }
 }
 
-interface XYMotionData {
-  blocks: BlockData[];
-}
+export type TransferredMotion =
+  | { type: "xy"; length: number; cols: ArrayBuffer; ts: ArrayBuffer; ss: ArrayBuffer }
+  | { type: "pen"; initialPos: number; finalPos: number; duration: number };
 
-export type MotionData = XYMotionData | PenMotionData;
 /**
  * Plotting Plan.
  * Contains a list of pen motions.
  */
 export class Plan {
-  public static deserialize(o: MotionData[]): Plan {
-    return new Plan(
-      o.map((m) => {
-        if ("blocks" in m) return XYMotion.deserialize(m);
-        if ("initialPos" in m) return PenMotion.deserialize(m);
-        throw new Error(`Wrong parameter: ${m}`);
-      }),
-    );
+  constructor(public motions: (XYMotion | PenMotion)[]) {}
+
+  public serialize(): TransferredMotion[] {
+    return this.motions.map((m) => {
+      if (m instanceof XYMotion) {
+        return {
+          type: "xy",
+          length: m.length,
+          cols: Array.from(m.cols),
+          ts: Array.from(m.ts),
+          ss: Array.from(m.ss),
+        } as unknown as TransferredMotion;
+      }
+      return {
+        type: "pen",
+        initialPos: m.initialPos,
+        finalPos: m.finalPos,
+        duration: m.pDuration,
+      } as TransferredMotion;
+    });
   }
 
-  constructor(public motions: Motion[]) {}
-
+  public static deserialize(data: TransferredMotion[]): Plan {
+    return new Plan(
+      data.map((m) =>
+        m.type === "xy"
+          ? XYMotion.fromBuffers(
+              new Float64Array(m.cols as unknown as ArrayLike<number>),
+              new Float64Array(m.ts as unknown as ArrayLike<number>),
+              new Float64Array(m.ss as unknown as ArrayLike<number>),
+              m.length,
+            )
+          : new PenMotion(m.initialPos, m.finalPos, m.duration),
+      ),
+    );
+  }
   /**
    * Calculate duration of the plan from a given start index.
    * @param start - the index of the first motion to consider (default: 0)
@@ -595,8 +579,22 @@ export class Plan {
     );
   }
 
-  public serialize(): MotionData[] {
-    return this.motions.map((m) => m.serialize());
+  public toTransferable(): TransferredMotion[] {
+    return this.motions.map((m) => {
+      if (m instanceof XYMotion) {
+        return { type: "xy", length: m.length, cols: m.cols.buffer, ts: m.ts.buffer, ss: m.ss.buffer };
+      }
+      return { type: "pen", initialPos: m.initialPos, finalPos: m.finalPos, duration: m.pDuration };
+    });
+  }
+  public static fromTransferable(data: TransferredMotion[]): Plan {
+    return new Plan(
+      data.map((m) =>
+        m.type === "xy"
+          ? XYMotion.fromBuffers(new Float64Array(m.cols), new Float64Array(m.ts), new Float64Array(m.ss), m.length)
+          : new PenMotion(m.initialPos, m.finalPos, m.duration),
+      ),
+    );
   }
 }
 
@@ -864,7 +862,7 @@ function constantAccelerationPlan(points: Vec2[], profile: AccelerationProfile):
  * @returns A full Plan
  */
 export function plan(paths: Vec2[][], profile: ToolingProfile, penHome: Vec2 = { x: 0, y: 0 }): Plan {
-  const motions: Motion[] = [];
+  const motions: (XYMotion | PenMotion)[] = [];
   let curPos = penHome;
 
   const penMotions = {

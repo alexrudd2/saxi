@@ -393,7 +393,14 @@ export class EBB {
   public async executeXYMotionWithLM(plan: XYMotion): Promise<void> {
     const n = plan.length;
     for (let i = 0; i < n; i++) {
-      await this.executeBlockWithLM(plan.p1x(i), plan.p1y(i), plan.p2x(i), plan.p2y(i), plan.vInitial(i), plan.vFinal(i));
+      await this.executeBlockWithLM(
+        plan.p1x(i),
+        plan.p1y(i),
+        plan.p2x(i),
+        plan.p2y(i),
+        plan.vInitial(i),
+        plan.vFinal(i),
+      );
     }
   }
 

@@ -113,7 +113,7 @@ export async function startServer(
       ws.send(JSON.stringify({ c: "progress", p: { motionIdx } }));
     }
     if (currentPlan != null) {
-      ws.send(JSON.stringify({ c: "plan", p: { plan: currentPlan } }));
+      ws.send(JSON.stringify({ c: "plan", p: { plan: currentPlan.toTransferable() } }));
     }
 
     ws.on("close", () => {
