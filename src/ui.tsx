@@ -17,15 +17,15 @@ import React, {
   useState,
 } from "react";
 import { createRoot } from "react-dom/client";
-import { PaperSize } from "./paper-size";
+import { PaperSize } from "./paper-size.js";
 import { Device, defaultPlanOptions, Plan, type PlanOptions, type TransferredMotion, XYMotion } from "./planning.js";
 import useComponentSize from "./useComponentSize.js";
 
 import { formatDuration } from "./util.js";
 
 import "./style.css";
-import { type BaseDriver, type DeviceInfo, SaxiDriver, WebSerialDriver } from "./drivers";
-import type { Hardware } from "./ebb";
+import { type BaseDriver, type DeviceInfo, SaxiDriver, WebSerialDriver } from "./drivers.js";
+import type { Hardware } from "./ebb.js";
 import pathJoinRadiusIcon from "./icons/path-joining radius.svg";
 import pointJoinRadiusIcon from "./icons/point-joining radius.svg";
 import rotateDrawingIcon from "./icons/rotate-drawing.svg";

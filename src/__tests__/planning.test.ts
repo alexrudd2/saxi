@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { AxidrawFast, PenMotion, Plan, plan, XYMotion } from "../planning";
-import type { Vec2 } from "../vec";
+import { AxidrawFast, PenMotion, Plan, plan, XYMotion } from "../planning.js";
+import type { Vec2 } from "../vec.js";
 
 describe("plan", () => {
   const positions = {

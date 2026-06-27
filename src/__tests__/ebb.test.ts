@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { EBB } from "../ebb";
-import { SerialPortSerialPort } from "../serialport-serialport";
-import { createMockSerialPort, mockSerialPortInstance } from "./mocks/serialport";
+import { EBB } from "../ebb.js";
+import { SerialPortSerialPort } from "../serialport-serialport.js";
+import { createMockSerialPort, mockSerialPortInstance } from "./mocks/serialport.js";
 
 vi.mock("../serialport-serialport", () => ({
   SerialPortSerialPort: vi.fn(function SerialPortSerialPort() {

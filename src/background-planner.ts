@@ -2,8 +2,8 @@
  * Worker for serializing a plan.
  * Meant to be invoked through the Worker interface.
  */
-import { replan } from "./massager";
-import { XYMotion } from "./planning";
+import { replan } from "./massager.js";
+import { XYMotion } from "./planning.js";
 
 self.addEventListener("message", (m) => {
   const { paths, planOptions } = m.data;

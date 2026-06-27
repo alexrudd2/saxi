@@ -3,6 +3,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "sourceMap": true,
+    "rootDir": "./src",
     "outDir": "dist/server"
   },
   "files": ["src/cli.ts", "src/global.d.ts"]

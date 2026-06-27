@@ -1,8 +1,8 @@
 import type { Server } from "node:http";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
-import { AxidrawFast, plan } from "../planning";
-import { createMockSerialPort, mockSerialPortInstance } from "./mocks/serialport";
+import { AxidrawFast, plan } from "../planning.js";
+import { createMockSerialPort, mockSerialPortInstance } from "./mocks/serialport.js";
 
 // Mock SerialPortSerialPort using shared implementation
 vi.mock("../serialport-serialport", () => ({
@@ -22,7 +22,7 @@ vi.mock("../server", async () => {
   };
 });
 
-import { startServer } from "../server";
+import { startServer } from "../server.js";
 
 const SIMPLE_PATHS = [
   [{x: 10, y: 10}, {x: 20, y: 10}],

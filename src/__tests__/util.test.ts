@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { PaperSize } from "../paper-size";
-import { cropToMargins } from "../util";
-import type { Vec2 } from "../vec";
+import { PaperSize } from "../paper-size.js";
+import { cropToMargins } from "../util.js";
+import type { Vec2 } from "../vec.js";
 
 describe("crop to margins", () => {
   const paper = new PaperSize({ x: 100, y: 100 });
