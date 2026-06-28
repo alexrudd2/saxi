@@ -7,8 +7,6 @@
     "esModuleInterop": true,
     "noImplicitAny": true,
     "jsx": "react",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["node", "w3c-web-serial"],
     "paths": {
       "@serialport/bindings-interface": ["./node_modules/@serialport/bindings-interface/dist/index.d.ts"]
     }
