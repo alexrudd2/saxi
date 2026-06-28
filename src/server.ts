@@ -16,7 +16,8 @@ import type { Request, Response } from "express";
 import express from "express";
 import type WebSocket from "ws";
 import { WebSocketServer } from "ws";
-import { EBB, type Hardware } from "./ebb.js";
+import { createMockSerialPort } from "./__tests__/mocks/serialport.js";
+import { EBB, type EBBPort, type Hardware } from "./ebb.js";
 import { type Motion, PenMotion, Plan } from "./planning.js";
 import { SerialPortSerialPort } from "./serialport-serialport.js";
 import * as _self from "./server.js"; // use self-import for test mocking
@@ -113,7 +114,7 @@ export async function startServer(
       ws.send(JSON.stringify({ c: "progress", p: { motionIdx } }));
     }
     if (currentPlan != null) {
-      ws.send(JSON.stringify({ c: "plan", p: { plan: currentPlan.toTransferable() } }));
+      ws.send(JSON.stringify({ c: "plan", p: { motions: currentPlan.toTransferable() } }));
     }
 
     ws.on("close", () => {
@@ -156,7 +157,8 @@ export async function startServer(
         console.log("Wake lock not available on this platform. Ensure your machine does not sleep during plotting");
       }
       try {
-        await doPlot(ebb != null ? realPlotter : simPlotter, plan, signal);
+        const plotEbb = ebb ?? new EBB(createMockSerialPort() as unknown as EBBPort);
+        await doPlot(createPlotter(plotEbb), plan, signal);
         const end = Date.now();
         console.log(`Plot took ${formatDuration((end - begin) / 1000)}`);
       } finally {
@@ -249,41 +251,29 @@ export async function startServer(
     postPlot: () => Promise<void>;
   }
 
-  const realPlotter: Plotter = {
-    async prePlot(initialPenHeight: number): Promise<void> {
-      await ebb.configureFifoDepth();
-      await ebb.enableMotors(1); // 16x microstepping, matches defaults from Axidraw
-      await ebb.setPenHeight(initialPenHeight, 1000, 1000);
-    },
-    async executeMotion(motion: Motion, _progress: [number, number]): Promise<void> {
-      await ebb.executeMotion(motion);
-    },
-    async postCancel(initialPenHeight: number): Promise<void> {
-      // The board may still be executing motion queued in its FIFO; issuing
-      // HM while moving makes the steppers grind against whatever they're doing.
-      await ebb.waitUntilMotorsIdle();
-      await ebb.setPenHeight(initialPenHeight, 1000);
-      await ebb.command("HM,4000"); // HM returns carriage home without 3rd and 4th arguments
-    },
-    async postPlot(): Promise<void> {
-      await ebb.waitUntilMotorsIdle();
-      await ebb.disableMotors();
-    },
-  };
-
-  const simPlotter: Plotter = {
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    async prePlot(_initialPenHeight: number): Promise<void> {},
-    async executeMotion(motion: Motion, progress: [number, number]): Promise<void> {
-      console.log(`Motion ${progress[0] + 1}/${progress[1]}`);
-      await new Promise((resolve) => setTimeout(resolve, motion.duration() * 1000));
-    },
-    async postCancel(_initialPenHeight: number): Promise<void> {
-      console.log("Plot cancelled");
-    },
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    async postPlot(): Promise<void> {},
-  };
+  function createPlotter(ebb: EBB): Plotter {
+    return {
+      async prePlot(initialPenHeight: number): Promise<void> {
+        await ebb.configureFifoDepth();
+        await ebb.enableMotors(1); // 16x microstepping, matches defaults from Axidraw
+        await ebb.setPenHeight(initialPenHeight, 1000, 1000);
+      },
+      async executeMotion(motion: Motion, _progress: [number, number]): Promise<void> {
+        await ebb.executeMotion(motion);
+      },
+      async postCancel(initialPenHeight: number): Promise<void> {
+        await ebb.setPenHeight(initialPenHeight, 1000);
+        await ebb.command("HM,4000"); // HM returns carriage home without 3rd and 4th arguments
+        // The board may still be executing motion queued in its FIFO; issuing
+        // HM while moving makes the steppers grind against whatever they're doing.
+        await ebb.waitUntilMotorsIdle();
+      },
+      async postPlot(): Promise<void> {
+        await ebb.waitUntilMotorsIdle();
+        await ebb.disableMotors();
+      },
+    };
+  }
 
   async function doPlot(plotter: Plotter, plan: Plan, signal: AbortSignal): Promise<void> {
     const abortPromise = onceAbort(signal); // reuse abort promise
