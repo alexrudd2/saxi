@@ -9,6 +9,7 @@
     "jsx": "react",
     "paths": {
       "@serialport/bindings-interface": ["./node_modules/@serialport/bindings-interface/dist/index.d.ts"]
-    }
+    },
+    "types": ["node", "w3c-web-serial"]
   }
 }
