@@ -1377,5 +1377,18 @@ function readSvg(svgString: string): Path[] {
   const doc = parser.parseFromString(svgString, "image/svg+xml");
 
   const svg = doc.querySelector("svg");
-  return flattenSVG(svg);
+  // flattenSVG relies on getCTM(), which returns null on elements that aren't
+  // part of a rendered document. Without it, the viewBox -> width/height
+  // scaling is lost and drawings with a viewBox come out the wrong size, so
+  // temporarily attach the SVG off-screen while flattening.
+  const container = document.createElement("div");
+  container.style.position = "absolute";
+  container.style.left = "99999px";
+  document.body.appendChild(container);
+  try {
+    container.appendChild(document.importNode(svg, true));
+    return flattenSVG(container.querySelector("svg"));
+  } finally {
+    container.remove();
+  }
 }
