@@ -28,7 +28,12 @@
         "noInferrableTypes": "error",
         "noUselessElse": "error"
       },
-      "security": { "noBlankTarget": "error" }
+      "security": { "noBlankTarget": "error" },
+      "suspicious": { "noEqualsToNull": "warn", "noUnknownAttribute": "error" },
+      "nursery": {
+        "noUndeclaredClasses": "warn",
+        "noRestrictedDependencies": "warn"
+      }
     }
   },
   "overrides": [
