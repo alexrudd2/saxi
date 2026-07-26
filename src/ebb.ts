@@ -69,6 +69,7 @@ interface PendingCommand<T = unknown> {
   iterator: Iterator<unknown, T, string>;
   resolve: (value: T) => void;
   reject: (reason: Error) => void;
+  cancelled: boolean;
 }
 
 export class EBB {
@@ -109,6 +110,10 @@ export class EBB {
               const cmd = this.commandQueue[0];
               if (!cmd) {
                 console.log(`unexpected data: ${part}`);
+                continue;
+              }
+              if (cmd.cancelled) {
+                this.commandQueue.shift(); // silently drain an orphaned response
                 continue;
               }
               if (part[0] === "!") {
@@ -250,12 +255,16 @@ export class EBB {
     }
   }
 
-  /** Reject all pending commands immediately **/
+  /** Cancel all pending commands. Commands already sent to the board are
+   *  marked and left as sentinels so their in-flight responses are received
+   *  by the reader (which will discard them) */
   public cancel(): void {
-    while (this.commandQueue.length > 0) {
-      this.commandQueue.shift()?.reject(new Error("Cancelled"));
+    for (const cmd of this.commandQueue) {
+      cmd.cancelled = true;
+      cmd.reject(new Error("Cancelled"));
     }
   }
+
   public async enableMotors(microsteppingMode: RunningMicrostepMode): Promise<void> {
     this.microsteppingMode = microsteppingMode;
     await this.command(`EM,${microsteppingMode},${microsteppingMode}`);
