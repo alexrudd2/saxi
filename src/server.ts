@@ -110,10 +110,10 @@ export async function startServer(
     ws.send(JSON.stringify({ c: "svgio-enabled", p: svgIoApiKey !== "" }));
 
     ws.send(JSON.stringify({ c: "pause", p: { paused: !!unpaused } }));
-    if (motionIdx != null) {
+    if (motionIdx !== null) {
       ws.send(JSON.stringify({ c: "progress", p: { motionIdx } }));
     }
-    if (currentPlan != null) {
+    if (currentPlan !== null) {
       ws.send(JSON.stringify({ c: "plan", p: { motions: currentPlan.toTransferable() } }));
     }
 
@@ -138,7 +138,7 @@ export async function startServer(
       const plan = Plan.deserialize(req.body);
       currentPlan = plan;
       console.log(`Received plan of estimated duration ${formatDuration(plan.duration())}`);
-      console.log(ebb != null ? "Beginning plot..." : "Simulating plot...");
+      console.log(ebb !== null ? "Beginning plot..." : "Simulating plot...");
       res.status(200).end();
 
       const begin = Date.now();

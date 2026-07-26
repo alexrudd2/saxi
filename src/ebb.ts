@@ -291,7 +291,7 @@ export class EBB {
    */
   public async setServoPowerTimeout(timeout: number, power?: boolean) {
     const timeoutMs = (timeout * 1000) | 0;
-    if (power != null) {
+    if (power !== undefined) {
       const powerState: PowerState = power ? 1 : 0;
       await this.command(`SR,${timeoutMs},${powerState}`);
     } else {

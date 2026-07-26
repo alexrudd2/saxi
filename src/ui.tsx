@@ -168,7 +168,7 @@ const usePlan = (paths: Path[] | null, planOptions: PlanOptions) => {
     if (!paths) {
       return () => {};
     }
-    if (lastPlan.current != null && lastPaths.current === paths) {
+    if (lastPlan.current !== null && lastPaths.current === paths) {
       const rejiggered = attemptRejigger(lastPlanOptions.current ?? defaultPlanOptions, planOptions, lastPlan.current);
       if (rejiggered) {
         setPlan(rejiggered);
@@ -705,7 +705,7 @@ function PlanPreview({
   useLayoutEffect(() => {
     let rafHandle: number;
     let cancelled = false;
-    if (state.progress != null) {
+    if (state.progress !== null) {
       const startingTime = Date.now();
       const updateProgress = () => {
         if (cancelled) {
@@ -718,7 +718,7 @@ function PlanPreview({
     }
     return () => {
       cancelled = true;
-      if (rafHandle != null) {
+      if (rafHandle !== null) {
         cancelAnimationFrame(rafHandle);
       }
       setMicroprogress(0);
@@ -726,7 +726,7 @@ function PlanPreview({
   }, [state.progress]);
 
   let progressIndicator = <></>;
-  if (state.progress != null && plan != null) {
+  if (state.progress !== null && plan !== null) {
     const motion = plan.motion(state.progress);
     const pos =
       motion instanceof XYMotion
@@ -820,7 +820,7 @@ function LayerSelector({ state }: { state: State }) {
           value={[...selectedLayers]}
           onChange={layersChanged}
           size={3}
-          disabled={state.progress != null}
+          disabled={state.progress !== null}
         >
           {layers.map((layer) => (
             <option key={layer}>{layer}</option>
@@ -864,27 +864,27 @@ function PlotButtons({
       ) : (
         <button
           type="button"
-          className={`plot-button ${state.progress != null ? "plot-button--plotting" : ""}`}
-          disabled={plan == null || state.progress != null}
+          className={`plot-button ${state.progress !== null ? "plot-button--plotting" : ""}`}
+          disabled={plan === null || state.progress !== null}
           onClick={() => plan && plot(plan)}
         >
-          {plan && state.progress != null ? "Plotting..." : "Plot"}
+          {plan && state.progress !== null ? "Plotting..." : "Plot"}
         </button>
       )}
       <div className={"button-row"}>
         <button
           type="button"
-          className={`cancel-button ${state.progress != null ? "cancel-button--active" : ""}`}
+          className={`cancel-button ${state.progress !== null ? "cancel-button--active" : ""}`}
           onClick={state.paused ? resume : pause}
-          disabled={plan == null || state.progress == null}
+          disabled={plan === null || state.progress === null}
         >
           {state.paused ? "Resume" : "Pause"}
         </button>
         <button
           type="button"
-          className={`cancel-button ${state.progress != null ? "cancel-button--active" : ""}`}
+          className={`cancel-button ${state.progress !== null ? "cancel-button--active" : ""}`}
           onClick={cancel}
-          disabled={plan == null || state.progress == null}
+          disabled={plan === null || state.progress === null}
         >
           Cancel
         </button>
@@ -1155,7 +1155,7 @@ function Root() {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies(setPlan): React setters are stable
   useEffect(() => {
-    if (driver == null) return;
+    if (driver === null) return;
     driver.onprogress = (motionIdx: number) => {
       dispatch({ type: "SET_PROGRESS", motionIdx });
     };
