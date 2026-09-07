@@ -57,7 +57,7 @@
     "semver": "^7.5.2",
     "supertest": "^7.0.0",
     "typescript": "^7.0.0",
-    "vitest": "^4.0.0"
+    "vitest": "^5.0.0"
   },
   "dependencies": {
     "color-interpolate": "^2.0.0",
