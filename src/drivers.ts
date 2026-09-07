@@ -4,7 +4,6 @@ import { Device, PenMotion, Plan } from "./planning.js";
 export interface DeviceInfo {
   path: string;
   hardware: Hardware;
-  svgIoEnabled: boolean;
 }
 
 /**
@@ -171,7 +170,6 @@ export class WebSerialDriver extends BaseDriver {
     this.ondevinfo({
       path: this._name,
       hardware: hardware,
-      svgIoEnabled: false, // WebSerial doesn't support SVG I/O
     });
   }
 }
@@ -184,7 +182,6 @@ export class WebSerialDriver extends BaseDriver {
 export class SaxiDriver extends BaseDriver {
   private socket: WebSocket;
   private pingInterval: number | undefined;
-  svgioEnabled: (enabled: boolean) => void;
 
   public name() {
     return "Saxi Server";
@@ -227,9 +224,6 @@ export class SaxiDriver extends BaseDriver {
         } break;
         case "dev": {
           this.ondevinfo(msg.p);
-        } break;
-        case "svgio-enabled": {
-          this.svgioEnabled(msg.p);
         } break;
         case "pause": {
           this.onpause(msg.p.paused);
