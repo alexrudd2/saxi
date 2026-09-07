@@ -141,8 +141,8 @@ const AxidrawBrushless: Device = {
 const NextDraw2234: Device = {
   stepsPerMm: 5,
 
-  penServoMin: 19600, // pen down - 70% of range
-  penServoMax: 28000, // pen up - full range
+  penServoMin: 5400, // pen down
+  penServoMax: 12600, // pen up
 
   penPctToPos(pct: number): number {
     const t = pct / 100.0;
