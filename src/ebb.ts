@@ -205,9 +205,10 @@ export class EBB {
     try {
       return await this.run(function* (): Iterator<void, void, string> {
         this.write(`${cmd}\r`);
-        const ok = yield;
-        if (ok !== "OK") {
-          throw new Error(`Expected OK, got ${ok}`);
+        const response = yield;
+        const command = cmd.slice(0, 2);
+        if (response !== command) {
+          throw new Error(`Expected ${command}, got ${response}`);
         }
       });
     } catch (err) {
