@@ -187,10 +187,12 @@ export class EBB {
     try {
       return await this.run(function* (this: EBB): Iterator<unknown, string[], string> {
         this.write(`${cmd}\r`);
+        const command = cmd.slice(0, 2);
         const result: string[] = [];
         while (true) {
           const line = yield;
-          if (line === "OK") { break; } // biome-ignore format: compactness
+          const response = line.slice(0, 2);
+          if (response === command) { break; } // biome-ignore format: compactness
           result.push(line);
         }
         return result;
