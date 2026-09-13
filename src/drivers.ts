@@ -158,7 +158,7 @@ export class WebSerialDriver extends BaseDriver {
   }
 
   public async setPenHeight(height: number, rate: number): Promise<void> {
-    if (await this.ebb.supportsSR()) {
+    if (this.ebb.supportsSR()) {
       await this.ebb.setServoPowerTimeout(10000, true);
     }
     await this.ebb.setPenHeight(height, rate);
