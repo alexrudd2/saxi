@@ -59,16 +59,19 @@ export type Hardware = "v3" | "brushless" | "nextdraw-2234";
  * plus a close hook. A WebSerial/Node `SerialPort` satisfies this structurally,
  * but so does any pair of intermediate streams (such as to/from a worker)
  */
+
+const PENDING = Symbol("PENDING");
+
 export interface EBBPort {
   readable: ReadableStream<Uint8Array>;
   writable: WritableStream<Uint8Array>;
   close(): Promise<void>;
 }
 
-interface PendingCommand<T = unknown> {
-  iterator: Iterator<unknown, T, string>;
-  resolve: (value: T) => void;
-  reject: (reason: Error) => void;
+interface PendingCommand {
+  handle: (line: string) => unknown | typeof PENDING;
+  resolve: (value: unknown) => void;
+  reject: (error: Error) => void;
   cancelled: boolean;
 }
 
@@ -122,9 +125,9 @@ export class EBB {
                 continue;
               }
               try {
-                const d = cmd.iterator.next(part);
-                if (d.done) {
-                  this.commandQueue.shift()?.resolve(d.value);
+                const result = cmd.handle(part);
+                if (result !== PENDING) {
+                  this.commandQueue.shift()?.resolve(result);
                 }
               } catch (e) {
                 this.commandQueue.shift()?.reject(e as Error);
@@ -176,17 +179,14 @@ export class EBB {
       console.log(`writing: ${str}`);
     }
     const encoder = new TextEncoder();
-    return this.writer.write(encoder.encode(str));
+    // biome-ignore lint/style/useTemplate: clarity
+    return this.writer.write(encoder.encode(str + "\r"));
   }
 
   /** Send a raw command to the EBB and expect a single line in return, without an "OK" line to terminate. */
   public async query(cmd: EBBQuery): Promise<string> {
     try {
-      return await this.run(function* (this: EBB): Iterator<unknown, string, string> {
-        this.write(`${cmd}\r`);
-        const result = yield;
-        return result;
-      });
+      return await this.run(cmd, (line) => line);
     } catch (err) {
       throw new Error(`Error in response to query '${cmd}': ${(err as Error).message}`);
     }
@@ -195,15 +195,11 @@ export class EBB {
   /** Send a raw command to the EBB and expect multiple lines in return, with an "OK" line to terminate. */
   public async queryM(cmd: EBBQueryM): Promise<string[]> {
     try {
-      return await this.run(function* (this: EBB): Iterator<unknown, string[], string> {
-        this.write(`${cmd}\r`);
-        const result: string[] = [];
-        while (true) {
-          const line = yield;
-          if (line === "OK") { break; } // biome-ignore format: compactness
-          result.push(line);
-        }
-        return result;
+      const result: string[] = [];
+      return await this.run(cmd, (line) => {
+        if (line === "OK") return result;
+        result.push(line);
+        return PENDING;
       });
     } catch (err) {
       throw new Error(`Error in response to queryM '${cmd}': ${(err as Error).message}`);
@@ -213,19 +209,16 @@ export class EBB {
   /** Send a raw command to the EBB and expect a single "OK" line in return. */
   public async command(cmd: EBBCommand): Promise<void> {
     try {
-      return await this.run(function* (): Iterator<void, void, string> {
-        this.write(`${cmd}\r`);
-        const ok = yield;
-        if (ok !== "OK") {
-          if (ok === cmd.slice(0, 2)) {
-            throw new Error(
-              "Your EBB appears to be using 'future mode', which saxi does not currently support.\n" +
-                "Until support is added, please switch to 'legacy mode' by sending CU,10,0.\n" +
-                "See https://evil-mad.github.io/EggBot/ebb.html#CU",
-            );
-          }
-          throw new Error(`Expected OK, got ${ok}`);
+      return await this.run(cmd, (line) => {
+        if (line === "OK") return;
+        if (line === cmd.slice(0, 2)) {
+          throw new Error(
+            "Your EBB appears to be using 'future mode', which saxi does not currently support.\n" +
+              "Until support is added, please switch to 'legacy mode' by sending CU,10,0.\n" +
+              "See https://evil-mad.github.io/EggBot/ebb.html#CU",
+          );
         }
+        throw new Error(`Expected OK, got ${line}`);
       });
     } catch (err) {
       throw new Error(`Error in response to command '${cmd}': ${(err as Error).message}`);
@@ -578,14 +571,16 @@ export class EBB {
     return [initialRate, deltaR];
   }
 
-  private run<T>(g: (this: EBB) => Iterator<unknown, T, string>): Promise<T> {
-    const iterator = g.call(this);
-    const d = iterator.next();
-    if (d.done) {
-      return Promise.resolve(d.value);
-    }
+  private run<T>(cmd: string, handle: (line: string) => T | typeof PENDING): Promise<T> {
     return new Promise((resolve, reject) => {
-      this.commandQueue.push({ iterator, resolve, reject } as PendingCommand);
+      this.commandQueue.push({
+        handle,
+        resolve: (value) => resolve(value as T),
+        reject,
+        cancelled: false,
+      });
+
+      void this.write(cmd);
     });
   }
 }
