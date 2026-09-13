@@ -110,6 +110,9 @@ export class EBB {
 
             for (const part of parts) {
               if (part.trim() === "") continue; // empty line
+
+              if (part === "!8 Err: Unknown command 'OK:4F4B'") continue; // initial startup
+
               const cmd = this.commandQueue[0];
               if (!cmd) {
                 console.log(`unexpected data: ${part}`);
