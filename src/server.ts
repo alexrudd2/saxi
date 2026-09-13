@@ -154,7 +154,7 @@ export async function startServer(
         console.log("Wake lock not available on this platform. Ensure your machine does not sleep during plotting");
       }
       try {
-        const plotEbb = ebb ?? new EBB(createMockSerialPort() as unknown as EBBPort);
+        const plotEbb = ebb ?? (await EBB.create(createMockSerialPort() as unknown as EBBPort));
         await doPlot(createPlotter(plotEbb), plan, signal);
         const end = Date.now();
         console.log(`Plot took ${formatDuration((end - begin) / 1000)}`);
@@ -361,7 +361,7 @@ async function* ebbs(path?: string, hardware: Hardware = "v3") {
       const closed = new Promise((resolve) => {
         port.addEventListener("disconnect", resolve, { once: true });
       });
-      yield new EBB(port, hardware);
+      yield await EBB.create(port, hardware);
       await closed;
       yield null;
       console.error("Lost connection to EBB, reconnecting...");
@@ -379,5 +379,5 @@ export async function connectEBB(hardware: Hardware, device?: string): Promise<E
   if (!dev) return null;
 
   const port = await tryOpen(dev);
-  return new EBB(port, hardware);
+  return await EBB.create(port, hardware);
 }

@@ -83,9 +83,9 @@ export class EBB {
   /** Accumulated XY error, used to correct for movements with sub-step resolution */
   private error: Vec2 = { x: 0, y: 0 };
 
-  private cachedFirmwareVersion: [number, number, number] | undefined = undefined;
+  public firmwareVersion!: [number, number, number];
 
-  public constructor(port: EBBPort, hardware: Hardware = "v3") {
+  private constructor(port: EBBPort, hardware: Hardware = "v3") {
     this.hardware = hardware;
     this.port = port;
     if (!port.readable || !port.writable) {
@@ -139,6 +139,16 @@ export class EBB {
           throw error;
         }
       });
+  }
+
+  public static async create(port: EBBPort, hardware: Hardware = "v3"): Promise<EBB> {
+    const ebb = new EBB(port, hardware);
+    const versionString = await ebb.query("V");
+    console.log(`Firmware version: ${versionString}`);
+    const versionWords = versionString.split(" ");
+    const [major, minor, patch] = versionWords[versionWords.length - 1].split(".").map(Number);
+    ebb.firmwareVersion = [major, minor, patch];
+    return ebb;
   }
 
   private get stepMultiplier() {
@@ -207,6 +217,13 @@ export class EBB {
         this.write(`${cmd}\r`);
         const ok = yield;
         if (ok !== "OK") {
+          if (ok === cmd.slice(0, 2)) {
+            throw new Error(
+              "Your EBB appears to be using 'future mode', which saxi does not currently support.\n" +
+                "Until support is added, please switch to 'legacy mode' by sending CU,10,0.\n" +
+                "See https://evil-mad.github.io/EggBot/ebb.html#CU",
+            );
+          }
           throw new Error(`Expected OK, got ${ok}`);
         }
       });
@@ -241,7 +258,7 @@ export class EBB {
   public async configureFifoDepth(): Promise<void> {
     try {
       const requested = Math.floor(Number(process.env.SAXI_FIFO_DEPTH || 0));
-      if ((await this.firmwareVersionCompare(3, 0, 0)) < 0) {
+      if (this.firmwareVersionCompare(3, 0, 0) < 0) {
         if (requested > 1) {
           console.log("[saxi] SAXI_FIFO_DEPTH ignored: firmware < 3.0.0 has a fixed 1-deep FIFO");
         }
@@ -503,35 +520,13 @@ export class EBB {
   }
 
   /**
-   * Query the firmware version running on the EBB.
-   *
-   * @return The version string, e.g. "EBBv13_and_above EB Firmware Version 2.5.3"
-   */
-  public async firmwareVersion(): Promise<string> {
-    return await this.query("V");
-  }
-
-  /**
-   * @return The firmware version as a parsed version triple, e.g. [2, 5, 3]
-   */
-  public async firmwareVersionNumber(): Promise<[number, number, number]> {
-    if (this.cachedFirmwareVersion === undefined) {
-      const versionString = await this.firmwareVersion();
-      const versionWords = versionString.split(" ");
-      const [major, minor, patch] = versionWords[versionWords.length - 1].split(".").map(Number);
-      this.cachedFirmwareVersion = [major, minor, patch];
-    }
-    return this.cachedFirmwareVersion;
-  }
-
-  /**
    * Compare the firmware version of the EBB with the given version.
    *
    * @return -1 if the firmware is older than the given version, 0 if it's
    * identical, and 1 if it's newer.
    */
-  public async firmwareVersionCompare(major: number, minor: number, patch: number): Promise<number> {
-    const [fwMajor, fwMinor, fwPatch] = await this.firmwareVersionNumber();
+  public firmwareVersionCompare(major: number, minor: number, patch: number): number {
+    const [fwMajor, fwMinor, fwPatch] = this.firmwareVersion;
     if (fwMajor < major) return -1;
     if (fwMajor > major) return 1;
     if (fwMinor < minor) return -1;
@@ -553,15 +548,15 @@ export class EBB {
   /**
    * @return true iff the EBB firmware supports the LM command.
    */
-  public async supportsLM(): Promise<boolean> {
-    return (await this.firmwareVersionCompare(2, 5, 3)) >= 0;
+  public supportsLM(): boolean {
+    return this.firmwareVersionCompare(2, 5, 3) >= 0;
   }
 
   /**
    * @return true iff the EBB firmware supports the SR command.
    */
-  public async supportsSR(): Promise<boolean> {
-    return (await this.firmwareVersionCompare(2, 6, 0)) >= 0;
+  public supportsSR(): boolean {
+    return this.firmwareVersionCompare(2, 6, 0) >= 0;
   }
 
   /**
