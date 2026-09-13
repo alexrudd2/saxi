@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/suspicious/noEqualsToNull: better than !== null & !== undefined */
 import { EventEmitter } from "node:events";
 import type { OpenOptions } from "@serialport/bindings-interface";
 import { SerialPort as NodeSerialPort } from "serialport";
