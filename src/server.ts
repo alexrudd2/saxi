@@ -52,7 +52,6 @@ export async function startServer(
   com: Com = "",
   enableCors = false,
   maxPayloadSize = "200mb",
-  svgIoApiKey = "",
 ) {
   const app = express();
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -106,8 +105,6 @@ export async function startServer(
 
     // send starting params to clients
     ws.send(JSON.stringify({ c: "dev", p: getDeviceInfo(ebb, com) }));
-
-    ws.send(JSON.stringify({ c: "svgio-enabled", p: svgIoApiKey !== "" }));
 
     ws.send(JSON.stringify({ c: "pause", p: { paused: !!unpaused } }));
     if (motionIdx !== null) {
@@ -206,32 +203,6 @@ export async function startServer(
       signalUnpause = unpaused = null;
     }
     res.status(200).end();
-  });
-
-  app.post("/generate", async (req: Request, res: Response) => {
-    if (plotting) {
-      console.log("Received generate request, but a plot is already in progress!");
-      res.status(400).end("Plot in progress");
-      return;
-    }
-    const { prompt, vecType } = req.body;
-    try {
-      // call the api and return the svg
-      const apiResp = await fetch("https://api.svg.io/v1/generate-image", {
-        method: "post",
-        headers: {
-          Authorization: `Bearer ${svgIoApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ prompt, style: vecType, negativePrompt: "" }),
-      });
-      // forward the api response
-      const data = await apiResp.json();
-      res.status(apiResp.status).send(data);
-    } catch (err) {
-      console.error(err);
-      res.status(500).end();
-    }
   });
 
   function broadcast(msg: Record<string, unknown>) {

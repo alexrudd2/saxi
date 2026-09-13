@@ -35,13 +35,6 @@ const defaultVisualizationOptions = {
   colorPathsByStrokeOrder: false,
 };
 
-const defaultSvgIoOptions = {
-  enabled: false,
-  prompt: "",
-  status: "",
-  vecType: "FLAT_VECTOR",
-};
-
 const initialState = {
   connected: true,
 
@@ -52,7 +45,6 @@ const initialState = {
   // UI state
   planOptions: defaultPlanOptions,
   visualizationOptions: defaultVisualizationOptions,
-  svgIoOptions: defaultSvgIoOptions,
 
   // Options used to produce the current value of |plan|.
   plannedOptions: null as PlanOptions | null,
@@ -77,7 +69,6 @@ type State = typeof initialState;
 type Action =
   | { type: "SET_PLAN_OPTION"; value: Partial<State["planOptions"]> }
   | { type: "SET_VISUALIZATION_OPTION"; value: Partial<State["visualizationOptions"]> }
-  | { type: "SET_SVGIO_OPTION"; value: Partial<State["svgIoOptions"]> }
   | { type: "SET_DEVICE_INFO"; value: State["deviceInfo"] }
   | { type: "SET_PAUSED"; value: boolean }
   | { type: "SET_PROGRESS"; motionIdx: number | null }
@@ -108,8 +99,6 @@ function reducer(state: State, action: Action): State {
       return { ...state, planOptions: { ...state.planOptions, ...action.value } };
     case "SET_VISUALIZATION_OPTION":
       return { ...state, visualizationOptions: { ...state.visualizationOptions, ...action.value } };
-    case "SET_SVGIO_OPTION":
-      return { ...state, svgIoOptions: { ...state.svgIoOptions, ...action.value } };
     case "SET_DEVICE_INFO":
       return { ...state, deviceInfo: action.value };
     case "SET_PAUSED":
@@ -383,81 +372,6 @@ function OriginOptions({ state }: { state: State }) {
         />
       </label>
     </div>
-  );
-}
-/**
- * Options to get an AI-Generated SVG image.
- * Use svg.io API: https://api.svg.io/v1/docs
- */
-function SvgIoOptions({ state }: { state: State }) {
-  const { prompt, vecType, status } = state.svgIoOptions;
-  const dispatch = useContext(DispatchContext);
-  // call server
-  const generateImage = async () => {
-    dispatch({ type: "SET_SVGIO_OPTION", value: { status: "Generating ..." } });
-    try {
-      const resp = await fetch("/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: new Blob([JSON.stringify({ prompt, vecType })], { type: "application/json" }),
-      });
-      const data = await resp.json();
-      if (resp.ok) {
-        dispatch({ type: "SET_SVGIO_OPTION", value: { status: "Loading ..." } });
-        // retrieve image
-        const imgUrl = data.data[0].svgUrl;
-        const imgResp = await fetch(imgUrl);
-        const imgData = await imgResp.text();
-        // set image contents
-        dispatch(setPaths(readSvg(imgData)));
-      } else {
-        alert(`Error generating image: ${data.message ? data.message : resp.statusText}`);
-      }
-    } catch (error) {
-      console.error(error);
-      alert(`Error generating image ${error}`);
-    } finally {
-      dispatch({ type: "SET_SVGIO_OPTION", value: { status: "" } });
-    }
-  };
-  return (
-    <>
-      <div>
-        <label>
-          Type
-          <select
-            value={vecType}
-            onChange={(e) => dispatch({ type: "SET_SVGIO_OPTION", value: { vecType: e.target.value } })}
-          >
-            <option value={"FLAT_VECTOR"}>Flat</option>
-            <option value={"FLAT_VECTOR_OUTLINE"}>Outline</option>
-            <option value={"FLAT_VECTOR_SILHOUETTE"}>Silhouette</option>
-            <option value={"FLAT_VECTOR_ONE_LINE_ART"}>One Line Art</option>
-            <option value={"FLAT_VECTOR_LINE_ART"}>Line Art</option>
-          </select>
-        </label>
-        <label title="prompt">
-          Prompt
-          <textarea
-            value={prompt}
-            onChange={(e) => dispatch({ type: "SET_SVGIO_OPTION", value: { prompt: e.target.value } })}
-          />
-        </label>
-      </div>
-      {prompt !== "" ? (
-        <div>
-          {status ? (
-            <span>{status}</span>
-          ) : (
-            <button type="button" onClick={generateImage}>
-              Generate!
-            </button>
-          )}
-        </div>
-      ) : (
-        ""
-      )}
-    </>
   );
 }
 
@@ -1172,11 +1086,6 @@ function Root() {
     driver.onplan = (plan: Plan) => {
       setPlan(plan);
     };
-    if (driver instanceof SaxiDriver) {
-      driver.svgioEnabled = (enabled: boolean) => {
-        dispatch({ type: "SET_SVGIO_OPTION", value: { enabled } });
-      };
-    }
   }, [driver, state.planOptions]);
 
   useEffect(() => {
@@ -1295,14 +1204,6 @@ function Root() {
               <VisualizationOptions state={state} />
             </div>
           </details>
-          {state.svgIoOptions.enabled && (
-            <details>
-              <summary className="section-header">AI</summary>
-              <div className="section-body">
-                <SvgIoOptions state={state} />
-              </div>
-            </details>
-          )}
           <div className="spacer" />
           <div className="control-panel-bottom">
             <div className="section-header">plot</div>
