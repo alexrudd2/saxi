@@ -55,19 +55,14 @@ export class SerialPortSerialPort extends EventEmitter implements SerialPort {
     if (options.parity != null) opts.parity = options.parity;
 
     return new Promise((resolve, reject) => {
-      this._port = new NodeSerialPort(opts, (closeErr) => {
+      this._port = new NodeSerialPort(opts, (openErr) => {
         this._port.once("close", () => this.emit("disconnect"));
-        if (closeErr) reject(closeErr);
-        else {
-          // Flush RX buffer before considering the port "ready"
-          this._port.flush((flushErr) => {
-            if (flushErr) reject(flushErr);
-            else {
-              this.connected = true;
-              resolve();
-            }
-          });
+        if (openErr) {
+          reject(openErr);
+          return;
         }
+        this.connected = true;
+        resolve();
       });
       this.readable = readableStreamFromAsyncIterable(this._port);
       this.writable = new WritableStream({
