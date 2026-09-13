@@ -358,13 +358,19 @@ async function* ebbs(path?: string, hardware: Hardware = "v3") {
       const com: Com = path || (await _self.waitForEbb()); // use self-import for test mocking
       console.log(`Found EBB at ${com}`);
       const port = await tryOpen(com);
-      const closed = new Promise((resolve) => {
-        port.addEventListener("disconnect", resolve, { once: true });
-      });
-      yield await EBB.create(port, hardware);
-      await closed;
-      yield null;
-      console.error("Lost connection to EBB, reconnecting...");
+      try {
+        const closed = new Promise((resolve) => {
+          port.addEventListener("disconnect", resolve, { once: true });
+        });
+        yield await EBB.create(port, hardware);
+        await closed;
+        yield null;
+        console.error("Lost connection to EBB, reconnecting...");
+      } finally {
+        if (port.connected) {
+          await port.close();
+        }
+      }
     } catch (e) {
       const err = e instanceof Error ? e : new Error(String(e));
       console.error(`Error connecting to EBB: ${err.message}`);
