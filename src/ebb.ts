@@ -282,13 +282,13 @@ export class EBB {
     this.microsteppingMode = microsteppingMode;
     await this.command(`EM,${microsteppingMode},${microsteppingMode}`);
     // if the board supports SR, we should also enable the servo motors.
-    if (await this.supportsSR()) await this.setServoPowerTimeout(0, true);
+    if (this.supportsSR()) await this.setServoPowerTimeout(0, true);
   }
 
   public async disableMotors(): Promise<void> {
     await this.command("EM,0,0");
     // if the board supports SR, we should also disable the servo motors.
-    if (await this.supportsSR())
+    if (this.supportsSR())
       // 60 seconds is the default boot-time servo power timeout.
       await this.setServoPowerTimeout(60000, false);
   }
@@ -454,7 +454,7 @@ export class EBB {
 
   /** Execute a constant-acceleration motion plan, starting and ending with zero velocity. */
   public async executeXYMotion(plan: XYMotion): Promise<void> {
-    if (await this.supportsLM()) {
+    if (this.supportsLM()) {
       await this.executeXYMotionWithLM(plan);
     } else {
       await this.executeXYMotionWithXM(plan);

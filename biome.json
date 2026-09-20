@@ -32,7 +32,8 @@
       "suspicious": { "noEqualsToNull": "warn", "noUnknownAttribute": "error" },
       "nursery": {
         "noUndeclaredClasses": "warn",
-        "noRestrictedDependencies": "warn"
+        "noRestrictedDependencies": "warn",
+        "useAwaitThenable": "error"
       }
     }
   },
