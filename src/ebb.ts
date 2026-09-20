@@ -42,8 +42,7 @@ type EBBQuery =
 type EBBQueryM =
   // queries that return multiple lines
   | "QB" // query button
-  | "QC" // query configuration
-  | `QU,${number}`; // query utility (fw >= 3.0.0), e.g. QU,2 = max FIFO depth
+  | "QC"; // query configuration
 
 /** Split d into its fractional and integral parts */
 function modf(d: number): [number, number] {
@@ -227,18 +226,6 @@ export class EBB {
     }
   }
 
-  /** The board's maximum motion FIFO depth (QU,2; firmware >= 3.0.0). */
-  private async maxFifoDepth(): Promise<number> {
-    try {
-      const lines = await this.queryM("QU,2");
-      const value = Number(lines[0]?.split(",").pop());
-      if (Number.isFinite(value) && value >= 1) return value;
-    } catch {
-      // fall through to a conservative depth known to be supported
-    }
-    return 32;
-  }
-
   /**
    * Deepen the EBB's motion FIFO (firmware >= 3.0.0).
    *
@@ -246,7 +233,7 @@ export class EBB {
    * block (GC pause, OS scheduling hiccup) starves the steppers and the
    * carriage visibly stutters. A deeper FIFO keeps up to N commands buffered
    * on the board, so the machine glides through host stalls. By default the
-   * FIFO is set as deep as the board supports; SAXI_FIFO_DEPTH=n overrides,
+   * FIFO is to 255 so the board will clamp to its max; SAXI_FIFO_DEPTH=n overrides,
    * and SAXI_FIFO_DEPTH=1 restores the boot default (the setting persists on
    * the board until power-cycled, so an explicit 1 is the only reliable "off").
    */
@@ -259,7 +246,7 @@ export class EBB {
         }
         return;
       }
-      const depth = requested >= 1 ? requested : await this.maxFifoDepth();
+      const depth = requested >= 1 ? requested : 255; // firmware will clamp to max possible
       await this.command(`CU,4,${depth}`);
       console.log(`[saxi] EBB motion FIFO depth set to ${depth}`);
     } catch (err) {
