@@ -64,7 +64,7 @@ export async function startServer(
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server });
 
-  let ebb: EBB | null;
+  let ebb: EBB | null = null;
   let clients: WebSocket[] = [];
   let unpaused: Promise<void> | null = null;
   let signalUnpause: (() => void) | null = null;
@@ -89,7 +89,7 @@ export async function startServer(
         case "setPenHeight":
           if (ebb) {
             (async () => {
-              if (await ebb.supportsSR()) {
+              if (ebb.supportsSR()) {
                 await ebb.setServoPowerTimeout(10000, true);
               }
               await ebb.setPenHeight(msg.p.height, msg.p.rate);
