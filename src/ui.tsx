@@ -553,7 +553,7 @@ function TimeLeft({
   const duration = plan.duration(progress);
   return (
     <div className="duration">
-      <div className="time-remaining-label">Time remaining</div>
+      <div>Time remaining</div>
       <div>
         <strong>{formatDuration(duration - currentMotionTimeSpent)}</strong>
       </div>
@@ -772,7 +772,7 @@ function PlotButtons({
   return (
     <div>
       {isPlanning ? (
-        <button type="button" className="replan-button" disabled={true}>
+        <button type="button" disabled={true}>
           Replanning...
         </button>
       ) : (
