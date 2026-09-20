@@ -200,7 +200,7 @@ export class EBB {
     try {
       const result: string[] = [];
       return await this.run(cmd, (line) => {
-        if (line === "OK") return result;
+        if (line === "OK") return result; // legacy mode
         result.push(line);
         return PENDING;
       });
@@ -209,17 +209,16 @@ export class EBB {
     }
   }
 
-  /** Send a raw command to the EBB and expect a single "OK" line in return. */
+  /** Send a raw command to the EBB and expect a single "OK" or echoed command line in return. */
   public async command(cmd: EBBCommand): Promise<void> {
     try {
       return await this.run(cmd, (line) => {
-        if (line === "OK") return;
-        if (line === cmd.slice(0, 2)) {
-          throw new Error(
-            "Your EBB appears to be using 'future mode', which saxi does not currently support.\n" +
-              "Until support is added, please switch to 'legacy mode' by sending CU,10,0.\n" +
-              "See https://evil-mad.github.io/EggBot/ebb.html#CU",
-          );
+        if (line === "OK") return; // legacy mode
+
+        const command = cmd.split(",", 1)[0];
+        if (line === command) return; // future mode
+        if (line.startsWith(`${command},!`)) {
+          throw new Error(line);
         }
         throw new Error(`Expected OK, got ${line}`);
       });
