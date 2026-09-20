@@ -75,26 +75,21 @@ export async function startServer(
 
   wss.on("connection", (ws) => {
     clients.push(ws);
-    ws.on("message", (message) => {
+    ws.on("message", async (message) => {
       const msg = JSON.parse(message.toString());
       switch (msg.c) {
         case "ping":
           ws.send(JSON.stringify({ c: "pong" }));
           break;
         case "limp":
-          if (ebb) {
-            ebb.disableMotors();
-          }
+          await ebb?.disableMotors();
           break;
         case "setPenHeight":
-          if (ebb) {
-            (async () => {
-              if (ebb.supportsSR()) {
-                await ebb.setServoPowerTimeout(10000, true);
-              }
-              await ebb.setPenHeight(msg.p.height, msg.p.rate);
-            })();
+          if (!ebb) break;
+          if (ebb.supportsSR()) {
+            await ebb.setServoPowerTimeout(10000, true);
           }
+          await ebb.setPenHeight(msg.p.height, msg.p.rate);
           break;
         case "changeHardware":
           ebb?.changeHardware(msg.p.hardware);
