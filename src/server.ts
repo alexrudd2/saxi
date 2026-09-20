@@ -235,8 +235,6 @@ export async function startServer(
       async postCancel(initialPenHeight: number): Promise<void> {
         await ebb.setPenHeight(initialPenHeight, 1000);
         await ebb.command("HM,4000"); // HM returns carriage home without 3rd and 4th arguments
-        // The board may still be executing motion queued in its FIFO; issuing
-        // HM while moving makes the steppers grind against whatever they're doing.
         await ebb.waitUntilMotorsIdle();
       },
       async postPlot(): Promise<void> {
