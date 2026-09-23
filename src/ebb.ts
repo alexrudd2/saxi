@@ -35,15 +35,14 @@ type EBBCommand =
   | `SR,${number},${PowerState}`; // servo power timeout with immediate state
 
 type EBBQuery =
-  // queries that return a single line
+  // queries that don't return OK in legacy mode
   | "V" // version
   | "QM"; // query motors
 
 type EBBQueryM =
-  // queries that return multiple lines
+  // queries that return OK in legacy mode
   | "QB" // query button
-  | "QC" // query configuration
-  | `QU,${number}`; // query utility (fw >= 3.0.0), e.g. QU,2 = max FIFO depth
+  | "QC"; // query configuration
 
 /** Split d into its fractional and integral parts */
 function modf(d: number): [number, number] {
@@ -53,14 +52,13 @@ function modf(d: number): [number, number] {
 }
 
 export type Hardware = "v3" | "brushless" | "nextdraw-2234";
+const PENDING = Symbol("PENDING");
 
 /**
  * The minimal serial transport the EBB needs: a byte stream in each direction
  * plus a close hook. A WebSerial/Node `SerialPort` satisfies this structurally,
  * but so does any pair of intermediate streams (such as to/from a worker)
  */
-
-const PENDING = Symbol("PENDING");
 
 export interface EBBPort {
   readable: ReadableStream<Uint8Array>;
@@ -195,13 +193,15 @@ export class EBB {
     }
   }
 
-  /** Send a raw command to the EBB and expect multiple lines in return, with an "OK" line to terminate. */
-  public async queryM(cmd: EBBQueryM): Promise<string[]> {
+  /** Send a raw command to the EBB and expect a response with a single "OK", or echoed command and then response. */
+  public async queryM(cmd: EBBQueryM): Promise<string> {
+    const prefix = `${cmd},`;
+    let data = "";
     try {
-      const result: string[] = [];
       return await this.run(cmd, (line) => {
-        if (line === "OK") return result;
-        result.push(line);
+        if (line.startsWith(prefix)) return line.slice(prefix.length); // future: complete reply
+        if (line === "OK") return data; // legacy: terminator
+        data = line; // legacy: data line
         return PENDING;
       });
     } catch (err) {
@@ -209,35 +209,22 @@ export class EBB {
     }
   }
 
-  /** Send a raw command to the EBB and expect a single "OK" line in return. */
+  /** Send a raw command to the EBB and expect a single "OK" or echoed command line in return. */
   public async command(cmd: EBBCommand): Promise<void> {
     try {
       return await this.run(cmd, (line) => {
-        if (line === "OK") return;
-        if (line === cmd.slice(0, 2)) {
-          throw new Error(
-            "Your EBB appears to be using 'future mode', which saxi does not currently support.\n" +
-              "Until support is added, please switch to 'legacy mode' by sending CU,10,0.\n" +
-              "See https://evil-mad.github.io/EggBot/ebb.html#CU",
-          );
+        if (line === "OK") return; // legacy mode
+
+        const command = cmd.split(",", 1)[0];
+        if (line === command) return; // future mode
+        if (line.startsWith(`${command},!`)) {
+          throw new Error(line);
         }
         throw new Error(`Expected OK, got ${line}`);
       });
     } catch (err) {
       throw new Error(`Error in response to command '${cmd}': ${(err as Error).message}`);
     }
-  }
-
-  /** The board's maximum motion FIFO depth (QU,2; firmware >= 3.0.0). */
-  private async maxFifoDepth(): Promise<number> {
-    try {
-      const lines = await this.queryM("QU,2");
-      const value = Number(lines[0]?.split(",").pop());
-      if (Number.isFinite(value) && value >= 1) return value;
-    } catch {
-      // fall through to a conservative depth known to be supported
-    }
-    return 32;
   }
 
   /**
@@ -247,7 +234,7 @@ export class EBB {
    * block (GC pause, OS scheduling hiccup) starves the steppers and the
    * carriage visibly stutters. A deeper FIFO keeps up to N commands buffered
    * on the board, so the machine glides through host stalls. By default the
-   * FIFO is set as deep as the board supports; SAXI_FIFO_DEPTH=n overrides,
+   * FIFO is set to 255 so the board will clamp to its max; SAXI_FIFO_DEPTH=n overrides,
    * and SAXI_FIFO_DEPTH=1 restores the boot default (the setting persists on
    * the board until power-cycled, so an explicit 1 is the only reliable "off").
    */
@@ -260,9 +247,9 @@ export class EBB {
         }
         return;
       }
-      const depth = requested >= 1 ? requested : await this.maxFifoDepth();
+      const depth = requested >= 1 ? requested : 255; // firmware will clamp to max possible
       await this.command(`CU,4,${depth}`);
-      console.log(`[saxi] EBB motion FIFO depth set to ${depth}`);
+      console.log(`[saxi] EBB motion FIFO depth set to ${depth} (firmware clamps to max)`);
     } catch (err) {
       console.log(`[saxi] failed to set FIFO depth: ${(err as Error).message}`);
     }
@@ -507,7 +494,7 @@ export class EBB {
    * @return Tuple of (RA0_VOLTAGE, V+_VOLTAGE, VIN_VOLTAGE)
    */
   public async queryVoltages(): Promise<[number, number, number]> {
-    const [ra0Voltage, vPlusVoltage] = (await this.queryM("QC"))[0].split(/,/).map(Number);
+    const [ra0Voltage, vPlusVoltage] = (await this.queryM("QC")).split(",").map(Number);
     return [
       ra0Voltage / 1023.0 * 3.3,
       vPlusVoltage / 1023.0 * 3.3,
@@ -538,7 +525,7 @@ export class EBB {
   }
 
   public async queryButton(): Promise<boolean> {
-    return (await this.queryM("QB"))[0] === "1";
+    return (await this.queryM("QB")) === "1";
   }
 
   /**
