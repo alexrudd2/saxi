@@ -1,6 +1,8 @@
 import type { Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
+import WebSocket from "ws";
 import { AxidrawFast, plan } from "../planning.js";
 import { createMockSerialPort, mockSerialPortInstance } from "./mocks/serialport.js";
 
@@ -163,5 +165,43 @@ describe("Plot Endpoint Test Suite", () => {
       statusResponse = await request(server).get("/plot/status").expect(200);
       expect(statusResponse.body.plotting).toBe(false);
     }, 10000);
+
+    test("persist hardware change via WebSocket", async () => {
+      const { port } = server.address() as AddressInfo;
+      const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+      await new Promise<void>((resolve, reject) => {
+        ws.once("open", () => resolve());
+        ws.once("error", reject);
+      });
+
+      const devUpdate = new Promise<{ path: string | null; hardware: string }>((resolve) => {
+        ws.on("message", (data) => {
+          const msg = JSON.parse(data.toString());
+          if (msg.c === "dev" && msg.p.hardware === "brushless") {
+            resolve(msg.p);
+          }
+        });
+      });
+
+      ws.send(JSON.stringify({ c: "changeHardware", p: { hardware: "brushless" } }));
+      const devInfo = await devUpdate;
+      expect(devInfo.hardware).toBe("brushless");
+
+      // New client connections should also receive the updated hardware
+      const ws2 = new WebSocket(`ws://127.0.0.1:${port}`);
+      const initialDev = await new Promise<{ path: string | null; hardware: string }>((resolve, reject) => {
+        ws2.once("error", reject);
+        ws2.on("message", (data) => {
+          const msg = JSON.parse(data.toString());
+          if (msg.c === "dev") resolve(msg.p);
+        });
+      });
+      expect(initialDev.hardware).toBe("brushless");
+
+      // Restore default hardware for subsequent tests
+      ws.send(JSON.stringify({ c: "changeHardware", p: { hardware: "v3" } }));
+      ws.close();
+      ws2.close();
+    });
   });
 });
