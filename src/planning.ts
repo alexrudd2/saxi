@@ -493,7 +493,16 @@ export type TransferredMotion =
  * Contains a list of pen motions.
  */
 export class Plan {
-  constructor(public motions: (XYMotion | PenMotion)[]) {}
+  private suffixDurations: Float64Array;
+
+  constructor(public motions: (XYMotion | PenMotion)[]) {
+    const n = motions.length;
+    const suffixes = new Float64Array(n + 1);
+    for (let i = n - 1; i >= 0; i--) {
+      suffixes[i] = suffixes[i + 1] + motions[i].duration();
+    }
+    this.suffixDurations = suffixes;
+  }
 
   public serialize(): SerializedMotion[] {
     return this.motions.map((m) => {
@@ -550,10 +559,8 @@ export class Plan {
    * @returns duration of the plan (sec)
    */
   public duration(start = 0): number {
-    return this.motions
-      .slice(start)
-      .map((m) => m.duration())
-      .reduce((a, b) => a + b, 0);
+    const idx = Math.max(0, Math.min(start, this.motions.length));
+    return this.suffixDurations[idx];
   }
   public motion(i: number) {
     return this.motions[i];
