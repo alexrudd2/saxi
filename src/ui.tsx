@@ -1079,7 +1079,7 @@ function Root() {
     };
     driver.ondevinfo = (devInfo: DeviceInfo) => {
       dispatch({ type: "SET_DEVICE_INFO", value: devInfo });
-      dispatch({ type: "SET_PLAN_OPTION", value: { ...state.planOptions, hardware: devInfo.hardware } });
+      dispatch({ type: "SET_PLAN_OPTION", value: { hardware: devInfo.hardware } });
     };
     driver.onpause = (paused: boolean) => {
       dispatch({ type: "SET_PAUSED", value: paused });
@@ -1087,7 +1087,7 @@ function Root() {
     driver.onplan = (plan: Plan) => {
       setPlan(plan);
     };
-  }, [driver, state.planOptions]);
+  }, [driver]);
 
   useEffect(() => {
     // poll the driver so React notices connection changes
