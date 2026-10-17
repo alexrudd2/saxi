@@ -302,7 +302,7 @@ export class EBB {
   // https://evil-mad.github.io/EggBot/ebb.html#S2 General RC Servo Output
   public async setPenHeight(height: number, rate: number, delay = 0): Promise<void> {
     const output_pin = this.hardware === "v3" ? 4 : 5;
-    return await this.command(`S2,${height},${output_pin},${rate},${delay}`);
+    return await this.command(`S2,${Math.round(height)},${output_pin},${Math.round(rate)},${Math.round(delay)}`);
   }
 
   public lowlevelMove(
@@ -461,8 +461,8 @@ export class EBB {
     // but rate needs to be in [clocks] / [24ms]
     // duration in units of 24ms is duration * [24ms] / [1s]
     const diff = Math.abs(pm.finalPos - pm.initialPos);
-    const durMs = pm.duration() * 1000;
-    const rate = Math.round((diff * 24) / durMs);
+    const durMs = Math.round(pm.duration() * 1000);
+    const rate = durMs > 0 ? Math.round((diff * 24) / durMs) : 0;
     return this.setPenHeight(pm.finalPos, rate, durMs);
   }
 
