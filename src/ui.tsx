@@ -510,11 +510,12 @@ function MotorControl({ driver }: { driver: BaseDriver }) {
 }
 
 function PlanStatistics({ plan }: { plan: Plan | null }) {
+  const totalDuration = useMemo(() => (plan ? plan.duration() : 0), [plan]);
   return (
     <div className="duration">
       <div>Duration</div>
       <div>
-        <strong>{plan?.duration ? formatDuration(plan.duration()) : "-"}</strong>
+        <strong>{totalDuration > 0 ? formatDuration(totalDuration) : "-"}</strong>
       </div>
     </div>
   );
@@ -545,7 +546,7 @@ function TimeLeft({
     };
   }, []);
 
-  if (!plan?.duration || progress === null || paused) {
+  if (!plan || progress === null || paused) {
     return null;
   }
 
