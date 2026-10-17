@@ -546,7 +546,7 @@ function TimeLeft({
     };
   }, []);
 
-  if (!plan?.duration || progress === null || paused) {
+  if (!plan || progress === null || paused) {
     return null;
   }
 
