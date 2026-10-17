@@ -550,10 +550,11 @@ export class Plan {
    * @returns duration of the plan (sec)
    */
   public duration(start = 0): number {
-    return this.motions
-      .slice(start)
-      .map((m) => m.duration())
-      .reduce((a, b) => a + b, 0);
+    let total = 0;
+    for (let i = start; i < this.motions.length; i++) {
+      total += this.motions[i].duration();
+    }
+    return total;
   }
   public motion(i: number) {
     return this.motions[i];

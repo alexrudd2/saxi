@@ -85,4 +85,21 @@ describe("plan", () => {
 
     expect(p1.motions[2].duration()).toEqual(p2.motions[2].duration());
   });
+
+  it("computes remaining duration from any start motion index", () => {
+    // biome-ignore format: compactness
+    const p = plan([
+      [{x: 10, y: 10}, {x: 20, y: 10}],
+      [{x: 10, y: 20}, {x: 20, y: 20}],
+    ], AxidrawFast);
+
+    for (let start = 0; start <= p.motions.length; start++) {
+      const expected = p.motions
+        .slice(start)
+        .map((m) => m.duration())
+        .reduce((a, b) => a + b, 0);
+      expect(p.duration(start)).toBeCloseTo(expected, 12);
+    }
+    expect(p.duration(p.motions.length + 5)).toBe(0);
+  });
 });
