@@ -56,7 +56,7 @@ path {
 }
 
 .preview {
-  box-shadow: 3px 3px 15px rgba(0, 0, 0, 0.2);
+  box-shadow: 3px 3px 15px rgb(0 0 0 / 20%);
   overflow: hidden;
   background-color: white;
   position: relative;
@@ -64,7 +64,7 @@ path {
 
 .preview-loader {
   align-items: center;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgb(0 0 0 / 20%);
   color: whitesmoke;
   display: flex;
   font-size: 36px;
@@ -91,14 +91,11 @@ path {
 
 .drag-target {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgb(0 0 0 / 20%);
 }
 
 .dragover .drag-target {
@@ -121,8 +118,7 @@ path {
   width: var(--panel-width);
   background-color: white;
   overflow-y: auto;
-
-  box-shadow: 3px 3px 15px rgba(0, 0, 0, 0.2);
+  box-shadow: 3px 3px 15px rgb(0 0 0 / 20%);
 }
 
 .control-panel-bottom {
@@ -141,6 +137,7 @@ path {
   text-align: center;
   user-select: none;
 }
+
 .disconnected .saxi-title {
   text-decoration-line: line-through;
 }
@@ -177,7 +174,7 @@ label {
   user-select: none;
 }
 
-input[type=number], input[type=text], textarea {
+input[type="number"], input[type="text"], textarea {
   width: 100%;
   padding: 0.3rem;
   margin-bottom: 0.5rem;
@@ -186,31 +183,27 @@ input[type=number], input[type=text], textarea {
   font-size: 14px;
   color: var(--purple);
   background-color: white;
-  box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+  box-shadow: 1px 1px 2px rgb(0 0 0 / 10%);
   outline: none;
 }
 
-input[type=checkbox] {
+input[type="checkbox"] {
   position: relative;
   appearance: none;
-  -webkit-appearance: none;
   width: 18px;
   height: 18px;
   margin: 0 0.5rem 0 0;
   border: 1px solid var(--purple);
   background-color: white;
-  box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+  box-shadow: 1px 1px 2px rgb(0 0 0 / 10%);
   outline: none;
   cursor: pointer;
 }
 
-input[type=checkbox]:checked:after {
+input[type="checkbox"]:checked::after {
   display: block;
   position: absolute;
-  top: 3px;
-  right: 3px;
-  bottom: 3px;
-  left: 3px;
+  inset: 3px;
   content: '';
   background-color: var(--purple);
 }
@@ -226,7 +219,7 @@ button, select {
   color: var(--purple);
   border: 1px solid var(--purple);
   border-radius: 0;
-  box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+  box-shadow: 1px 1px 2px rgb(0 0 0 / 10%);
   cursor: pointer;
   outline: none;
 }
@@ -235,18 +228,18 @@ button:not(:disabled):hover,
 button:not(:disabled):focus,
 select:not(:disabled):hover,
 select:focus,
-input[type=number]:hover,
-input[type=number]:focus,
-input[type=text]:hover,
-input[type=text]:focus,
+input[type="number"]:hover,
+input[type="number"]:focus,
+input[type="text"]:hover,
+input[type="text"]:focus,
 textarea:hover,
 textarea:focus,
-input[type=checkbox]:focus {
-  box-shadow: 1px 2px 5px rgba(0, 0, 0, 0.25);
+input[type="checkbox"]:focus {
+  box-shadow: 1px 2px 5px rgb(0 0 0 / 25%);
 }
 
 button:not(:disabled):active {
-  box-shadow: 0px 0px 1px rgba(0, 0, 0, 0.25), inset 2px 2px 5px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0 1px rgb(0 0 0 / 25%), inset 2px 2px 5px rgb(0 0 0 / 20%);
   background-color: #fafafa;
   color: var(--purple-dark);
 }
@@ -274,7 +267,6 @@ button.button-link:focus {
 select {
   height: 30px;
   appearance: none;
-  -webkit-appearance: none;
 }
 
 select[multiple]:focus option:checked {
@@ -319,6 +311,7 @@ select[multiple]:focus option:checked {
   cursor: pointer;
   fill: var(--purple);
 }
+
 .paper-sizes__swap:hover {
   fill: var(--purple-dark);
 }
@@ -329,6 +322,7 @@ select[multiple]:focus option:checked {
   border: 1px solid var(--purple);
   color: var(--purple);
 }
+
 .layer-select:hover {
   background-color: white;
   cursor: default;
@@ -353,6 +347,7 @@ summary:focus {
   display: block;
   position: relative;
 }
+
 .horizontal-labels label::after {
   position: absolute;
   top: 0;
@@ -367,8 +362,10 @@ summary:focus {
   width: 28px;
   height: 28px;
   border-right: 1px solid var(--purple);
-  /*opacity: 0.5;*/
+
+  /* opacity: 0.5; */
 }
+
 .horizontal-labels input {
   padding-left: 32px;
 }
@@ -385,9 +382,11 @@ summary:focus {
   padding: 0.4rem;
   font-size: 18px;
 }
+
 .section-body__plot button:disabled {
-  /*background-color: var(--purple-light);*/
-  /*color: var(--purple-light);*/
+  /* background-color: var(--purple-light); */
+
+  /* color: var(--purple-light); */
   cursor: default;
 }
 
@@ -396,14 +395,17 @@ summary:focus {
   background-color: var(--teal);
   border: 1px solid var(--teal-dark);
 }
+
 .plot-button:not(:disabled):active {
   color: white;
   background-color: var(--teal);
 }
+
 .plot-button:disabled {
   color: var(--teal-light);
   background-color: white;
 }
+
 .plot-button--plotting {
   background-color: var(--teal-light);
 }
@@ -411,6 +413,7 @@ summary:focus {
 .button-row {
   display: flex;
 }
+
 .button-row > *:not(:first-child) {
   margin-left: 10px;
 }
@@ -419,6 +422,7 @@ summary:focus {
   background-color: white;
   color: var(--purple-light);
 }
+
 .cancel-button--active {
   color: var(--purple);
 }
