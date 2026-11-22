@@ -31,10 +31,10 @@ type Com = string;
  * @param com
  * @returns
  */
-const getDeviceInfo = (ebb: EBB | null, _com: Com) => {
+const getDeviceInfo = (ebb: EBB | null, _com: Com, fallbackHardware: Hardware = "v3") => {
   // biome-ignore lint/suspicious/noExplicitAny: private member access
   const portPath = (ebb?.port as any)?._path ?? null;
-  return { path: portPath, hardware: ebb?.hardware };
+  return { path: portPath, hardware: ebb?.hardware ?? fallbackHardware };
 };
 
 /**
@@ -65,6 +65,7 @@ export async function startServer(
   const wss = new WebSocketServer({ server });
 
   let ebb: EBB | null = null;
+  let currentHardware: Hardware = hardware;
   let clients: WebSocket[] = [];
   let unpaused: Promise<void> | null = null;
   let signalUnpause: (() => void) | null = null;
@@ -92,14 +93,15 @@ export async function startServer(
           await ebb.setPenHeight(msg.p.height, msg.p.rate);
           break;
         case "changeHardware":
-          ebb?.changeHardware(msg.p.hardware);
-          broadcast({ c: "dev", p: getDeviceInfo(ebb, com) });
+          currentHardware = msg.p.hardware;
+          ebb?.changeHardware(currentHardware);
+          broadcast({ c: "dev", p: getDeviceInfo(ebb, com, currentHardware) });
           break;
       }
     });
 
     // send starting params to clients
-    ws.send(JSON.stringify({ c: "dev", p: getDeviceInfo(ebb, com) }));
+    ws.send(JSON.stringify({ c: "dev", p: getDeviceInfo(ebb, com, currentHardware) }));
 
     ws.send(JSON.stringify({ c: "pause", p: { paused: !!unpaused } }));
     if (motionIdx !== null) {
@@ -149,7 +151,7 @@ export async function startServer(
         console.log("Wake lock not available on this platform. Ensure your machine does not sleep during plotting");
       }
       try {
-        const plotEbb = ebb ?? (await EBB.create(createMockSerialPort() as unknown as EBBPort));
+        const plotEbb = ebb ?? (await EBB.create(createMockSerialPort() as unknown as EBBPort, currentHardware));
         await doPlot(createPlotter(plotEbb), plan, signal);
         const end = Date.now();
         console.log(`Plot took ${formatDuration((end - begin) / 1000)}`);
@@ -292,10 +294,11 @@ export async function startServer(
   return new Promise<http.Server>((resolve) => {
     server.listen(port, () => {
       async function connect() {
-        const devices = ebbs(com, hardware);
+        const devices = ebbs(com, currentHardware);
         for await (const device of devices) {
+          device?.changeHardware(currentHardware);
           ebb = device;
-          broadcast({ c: "dev", p: getDeviceInfo(ebb, com) });
+          broadcast({ c: "dev", p: getDeviceInfo(ebb, com, currentHardware) });
         }
       }
       connect();
